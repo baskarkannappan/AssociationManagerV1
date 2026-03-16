@@ -1,0 +1,53 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.DTOs
+@inherits LayoutComponentBase
+@inject TenantService TenantService
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <div class="me-auto">
+                @if (TenantService.AvailableTenants.Any())
+                {
+                    <select class="form-select" @onchange="OnTenantChange">
+                        @foreach (var tenant in TenantService.AvailableTenants)
+                        {
+                            <option value="@tenant.Id" selected="@(tenant.Id == TenantService.CurrentTenant?.Id)">@tenant.Name</option>
+                        }
+                    </select>
+                }
+            </div>
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        TenantService.OnTenantChanged += StateHasChanged;
+    }
+
+    private void OnTenantChange(ChangeEventArgs e)
+    {
+        var tenantId = int.Parse(e.Value?.ToString() ?? "0");
+        var tenant = TenantService.AvailableTenants.FirstOrDefault(t => t.Id == tenantId);
+        if (tenant != null)
+        {
+            TenantService.SetTenant(tenant);
+        }
+    }
+
+    public void Dispose()
+    {
+        TenantService.OnTenantChanged -= StateHasChanged;
+    }
+}

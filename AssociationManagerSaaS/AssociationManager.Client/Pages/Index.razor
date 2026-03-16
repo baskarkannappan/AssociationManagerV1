@@ -1,0 +1,39 @@
+@page "/"
+@using AssociationManager.Client.Services
+@inject TenantService TenantService
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Welcome to Association Manager SaaS</h1>
+
+@if (TenantService.CurrentTenant != null)
+{
+    <div class="alert alert-info">
+        Active Tenant: <strong>@TenantService.CurrentTenant.Name</strong>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Associations</h5>
+                    <p class="card-text">Manage your tenant associations here.</p>
+                    <a href="associations" class="btn btn-primary">Go to Associations</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Payments</h5>
+                    <p class="card-text">View and manage tenant payments.</p>
+                    <a href="payments" class="btn btn-secondary">Go to Payments</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <p>Please log in or select a tenant to continue.</p>
+}

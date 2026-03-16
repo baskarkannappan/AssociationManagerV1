@@ -1,0 +1,6 @@
+@AssociationManager.Api_HostAddress = http://localhost:5185
+
+GET {{AssociationManager.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

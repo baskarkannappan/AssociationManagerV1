@@ -1,0 +1,36 @@
+<div class="nav-scrollable h-100" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="vscode-activitybar">
+            <NavLink class="nav-icon" href="" Match="NavLinkMatch.All" title="Explorer">
+                <i class="bi bi-files"></i>
+            </NavLink>
+
+            <NavLink class="nav-icon" href="search" title="Search">
+                <i class="bi bi-search"></i>
+            </NavLink>
+
+            <div class="nav-icon" title="Source Control">
+                <i class="bi bi-git"></i>
+            </div>
+
+            <div class="nav-icon" title="Run and Debug">
+                <i class="bi bi-play-circle"></i>
+            </div>
+
+            <div class="nav-icon mt-auto" title="Settings">
+                <i class="bi bi-gear-fill"></i>
+            </div>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

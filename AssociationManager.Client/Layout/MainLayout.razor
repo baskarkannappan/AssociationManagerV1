@@ -1,0 +1,57 @@
+@inherits LayoutComponentBase
+
+<div class="vscode-shell">
+    <div class="vscode-main">
+        <!-- Sidebar Explorer -->
+        <Explorer />
+
+        <!-- Editor/Content Area -->
+        <div class="vscode-editor-pane">
+            <div class="vscode-tabs">
+                <div class="vscode-tab active">
+                    Dashboard.razor
+                </div>
+                <div class="vscode-tab">
+                    Settings.json
+                </div>
+            </div>
+
+            <main class="vscode-content">
+                @Body
+            </main>
+        </div>
+    </div>
+
+    <!-- Bottom Status Bar -->
+    <div class="vscode-statusbar">
+        <div class="section">
+            <i class="bi bi-broadcast"></i>
+            <span>Ready</span>
+            <span>0 Errors</span>
+        </div>
+        <div class="section">
+            <span>Ln 1, Col 1</span>
+            <span>UTF-8</span>
+            <i class="bi bi-bell"></i>
+        </div>
+    </div>
+</div>
+
+<link href="css/vscode.css" rel="stylesheet" />
+
+<style>
+    .max-width-dashboard { max-width: 1200px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+</style>
+
+@code {
+    [Inject] private AuthService AuthService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login");
+    }
+}

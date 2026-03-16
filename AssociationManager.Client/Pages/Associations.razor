@@ -1,0 +1,92 @@
+@page "/associations"
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject ApiService ApiService
+@inject RealtimeService RealtimeService
+
+<div class="container mt-4">
+    <h2>Associations</h2>
+    
+    <div class="card p-3 mb-4">
+        <h5>Create New Association</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <input @bind="newAssociation.Name" class="form-control" placeholder="Name" />
+            </div>
+            <div class="col-md-6">
+                <input @bind="newAssociation.Description" class="form-control" placeholder="Description" />
+            </div>
+            <div class="col-md-2">
+                <button @onclick="CreateAssociation" class="btn btn-primary w-100">Create</button>
+            </div>
+        </div>
+    </div>
+
+    @if (associations == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Created Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var assoc in associations)
+                {
+                    <tr>
+                        <td>@assoc.Name</td>
+                        <td>@assoc.Description</td>
+                        <td>@assoc.CreatedDate.ToLocalTime().ToString("g")</td>
+                        <td>
+                            <button @onclick="() => DeleteAssociation(assoc.AssociationId)" class="btn btn-danger btn-sm">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<Association>? associations;
+    private Association newAssociation = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAssociations();
+        RealtimeService.OnNotificationReceived += HandleNotification;
+        await RealtimeService.StartAsync();
+    }
+
+    private async Task LoadAssociations()
+    {
+        associations = await ApiService.GetAsync<List<Association>>("api/associations");
+    }
+
+    private async Task CreateAssociation()
+    {
+        if (string.IsNullOrWhiteSpace(newAssociation.Name)) return;
+        await ApiService.PostAsync("api/associations", newAssociation);
+        newAssociation = new();
+        await LoadAssociations();
+    }
+
+    private async Task DeleteAssociation(int id)
+    {
+        var response = await ApiService.PostAsync($"api/associations/{id}", (object?)null); // Simplified delete via post for this demo
+        await LoadAssociations();
+    }
+
+    private void HandleNotification(string message)
+    {
+        Console.WriteLine($"Notification: {message}");
+        InvokeAsync(StateHasChanged);
+    }
+}

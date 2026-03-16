@@ -1,0 +1,28 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+<div class="vscode-explorer">
+    <div class="vscode-explorer-header">EXPLORER</div>
+    
+    <div class="vscode-tree-group">
+        <NavLink href="" Match="NavLinkMatch.All" class="vscode-tree-item text-decoration-none">
+            Dashboard.razor
+        </NavLink>
+        
+        <NavLink href="counter" class="vscode-tree-item text-decoration-none">
+            Counter.razor
+        </NavLink>
+        
+        <NavLink href="weather" class="vscode-tree-item text-decoration-none">
+            Weather.razor
+        </NavLink>
+    </div>
+
+    <div class="mt-4">
+        <div class="vscode-tree-item py-1 text-muted" style="font-size: 11px; font-weight: 600; border-top: 1px solid var(--vscode-border);">
+            SETTINGS
+        </div>
+        <div class="vscode-tree-item text-decoration-none opacity-50">
+            Profile.json
+        </div>
+    </div>
+</div>
