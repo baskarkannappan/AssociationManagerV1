@@ -77,12 +77,14 @@ public class AuthService : IAuthService
                 // Add entry to UserAssociations for the initial tenant
                 await _userRepository.AddUserToTenantAsync(user.UserId, user.TenantId, user.Role);
             }
-            else
+            user.PictureUrl = payload.Picture;
+            await _userRepository.UpdateAsync(user);
+
+            // Ensure the role is correct for the current tenant
+            var role = await _userRepository.GetRoleInTenantAsync(user.UserId, user.TenantId);
+            if (!string.IsNullOrEmpty(role))
             {
-                user.LastLoginDate = DateTime.UtcNow;
-                user.Name = payload.Name;
-                user.PictureUrl = payload.Picture;
-                await _userRepository.UpdateAsync(user);
+                user.Role = role;
             }
 
             return await GenerateAuthResponse(user);
@@ -202,6 +204,13 @@ public class AuthService : IAuthService
 
         // Update the user's current tenant for the session/token
         user.TenantId = tenantId;
+        
+        // Refresh the role for this specific tenant
+        var role = await _userRepository.GetRoleInTenantAsync(userId, tenantId);
+        if (!string.IsNullOrEmpty(role))
+        {
+            user.Role = role;
+        }
 
         return await GenerateAuthResponse(user);
     }

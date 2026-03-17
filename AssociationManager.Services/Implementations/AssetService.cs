@@ -1,5 +1,6 @@
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Services.Interfaces;
+using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using System.Collections.Generic;
@@ -56,6 +57,122 @@ public class AssetService : IAssetService
         asset.TenantId = CurrentTenantId;
         asset.CreatedBy = _tenantContext.UserId;
         return await _assetRepository.CreateAsync(asset);
+    }
+
+    public async Task<int> BulkCreateAsync(BulkCreateRequest request)
+    {
+        int count = 0;
+        switch (request.TemplateType)
+        {
+            case AssetTemplateType.ResidentialBuilding:
+                count = await CreateResidentialBuilding(request);
+                break;
+            case AssetTemplateType.VillaCommunity:
+                count = await CreateBulkAssetsByType(request, AssetType.Villa, "Villa");
+                break;
+            case AssetTemplateType.BulkUnits:
+                count = await CreateBulkAssetsByType(request, AssetType.Unit, "Unit");
+                break;
+            case AssetTemplateType.Floors:
+                count = await CreateBulkAssetsByType(request, AssetType.Floor, "Floor");
+                break;
+            case AssetTemplateType.CommonAreas:
+                count = await CreateBulkAssetsByType(request, AssetType.CommonArea, "Common Area");
+                break;
+            case AssetTemplateType.Amenities:
+                count = await CreateBulkAssetsByType(request, AssetType.Amenity, "Amenity");
+                break;
+            case AssetTemplateType.SecurityGates:
+                count = await CreateBulkAssetsByType(request, AssetType.SecurityGate, "Security Gate");
+                break;
+        }
+        return count;
+    }
+
+    private async Task<int> CreateResidentialBuilding(BulkCreateRequest request)
+    {
+        var building = new Asset
+        {
+            Name = request.BaseName,
+            AssetType = AssetType.Building,
+            Description = request.Description ?? "Auto-generated residential building",
+            ParentId = request.ParentId,
+            TenantId = CurrentTenantId,
+            CreatedBy = _tenantContext.UserId
+        };
+        var buildingId = await _assetRepository.CreateAsync(building);
+        int totalCreated = 1;
+
+        int floors = request.NumberOfFloors ?? 0;
+        int unitsPerFloor = request.UnitsPerFloor ?? 0;
+
+        for (int f = 1; f <= floors; f++)
+        {
+            var floor = new Asset
+            {
+                Name = $"Floor {f}",
+                AssetType = AssetType.Floor,
+                ParentId = buildingId,
+                TenantId = CurrentTenantId,
+                CreatedBy = _tenantContext.UserId
+            };
+            var floorId = await _assetRepository.CreateAsync(floor);
+            totalCreated++;
+
+            for (int u = 1; u <= unitsPerFloor; u++)
+            {
+                var unit = new Asset
+                {
+                    Name = $"Unit {f}{u:D2}",
+                    AssetType = AssetType.Unit,
+                    ParentId = floorId,
+                    TenantId = CurrentTenantId,
+                    CreatedBy = _tenantContext.UserId,
+                    Description = "Auto-generated unit",
+                    MetadataJson = SerializeMetadata(request)
+                };
+                await _assetRepository.CreateAsync(unit);
+                totalCreated++;
+            }
+        }
+        return totalCreated;
+    }
+
+    private string? SerializeMetadata(BulkCreateRequest request)
+    {
+        if (string.IsNullOrEmpty(request.RoomConfig) && !request.TotalAreaSqFt.HasValue && string.IsNullOrEmpty(request.BaseAddress))
+            return null;
+
+        var metadata = new Dictionary<string, object?>();
+        if (!string.IsNullOrEmpty(request.RoomConfig)) metadata["RoomConfig"] = request.RoomConfig;
+        if (request.TotalAreaSqFt.HasValue) metadata["TotalAreaSqFt"] = request.TotalAreaSqFt;
+        if (!string.IsNullOrEmpty(request.BaseAddress)) metadata["Address"] = request.BaseAddress;
+
+        return System.Text.Json.JsonSerializer.Serialize(metadata);
+    }
+
+    private async Task<int> CreateBulkAssetsByType(BulkCreateRequest request, AssetType type, string defaultNamePrefix)
+    {
+        int quantity = request.Quantity ?? 0;
+        int totalCreated = 0;
+        string? metadataJson = SerializeMetadata(request);
+
+        for (int i = 1; i <= quantity; i++)
+        {
+            var asset = new Asset
+            {
+                Name = $"{request.BaseName} {defaultNamePrefix} {i}",
+                AssetType = type,
+                ParentId = request.ParentId,
+                TenantId = CurrentTenantId,
+                CreatedBy = _tenantContext.UserId,
+                Description = request.Description ?? $"Auto-generated {defaultNamePrefix}",
+                MetadataJson = metadataJson
+            };
+            await _assetRepository.CreateAsync(asset);
+            totalCreated++;
+        }
+        return totalCreated;
     }
 
     public async Task<bool> UpdateAsync(Asset asset)

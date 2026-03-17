@@ -1,0 +1,243 @@
+@page "/billing"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AppRole.FinanceManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@inject ApiService Api
+@inject NavigationManager Navigation
+
+<div class="vscode-page-header">
+    <div class="header-left">
+        <h5 class="m-0 fw-semibold"><i class="bi bi-wallet2 me-2"></i>Finance & Billing</h5>
+    </div>
+    <div class="header-right">
+        <button class="btn-vscode" @onclick="ShowCreateInvoice">
+            <i class="bi bi-plus-lg"></i> New Invoice
+        </button>
+    </div>
+</div>
+
+<div class="vscode-content custom-scrollbar">
+    <div class="container-fluid py-4">
+        <!-- Dashboard Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="compact-card text-center">
+                    <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Total Unpaid</div>
+                    <div class="h4 m-0 fw-bold text-danger">$@(_invoices?.Where(i => i.Status == "Unpaid").Sum(i => i.Amount) ?? 0)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="compact-card text-center">
+                    <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Collected (30d)</div>
+                    <div class="h4 m-0 fw-bold text-success">$@(_payments?.Where(p => p.CreatedDate > DateTime.Now.AddDays(-30)).Sum(p => p.Amount) ?? 0)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Invoices List -->
+            <div class="col-md-8">
+                <div class="compact-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="m-0 fw-semibold">Recent Invoices</h6>
+                        <div class="d-flex gap-2">
+                            <span class="tree-badge">Filter: All</span>
+                        </div>
+                    </div>
+
+                    @if (_invoices == null)
+                    {
+                        <div class="p-4 text-center opacity-50">
+                            <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                            <div>Loading invoices...</div>
+                        </div>
+                    }
+                    else if (!_invoices.Any())
+                    {
+                        <div class="p-5 text-center opacity-50">
+                            <i class="bi bi-receipt-cutoff display-6 mb-3"></i>
+                            <p>No invoices found for this association.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <table class="table compact-table w-100">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Unit</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var inv in _invoices)
+                                {
+                                    <tr>
+                                        <td class="fw-medium">@inv.Title</td>
+                                        <td><span class="tree-badge">@inv.AssetName</span></td>
+                                        <td class="fw-semibold">$@inv.Amount</td>
+                                        <td>@inv.DueDate.ToShortDateString()</td>
+                                        <td>
+                                            <span class="badge @GetStatusClass(inv.Status)" style="font-size: 11px; border-radius: 2px;">@inv.Status</span>
+                                        </td>
+                                        <td class="text-end">
+                                            @if (inv.Status == "Unpaid")
+                                            {
+                                                <button class="btn btn-sm btn-link p-0 text-success me-2" @onclick="() => RecordPayment(inv)">
+                                                    <i class="bi bi-cash-stack"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-link p-0 text-muted">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div class="col-md-4">
+                <div class="compact-card">
+                    <h6 class="m-0 fw-semibold mb-3">Recent Payments</h6>
+                    @if (_payments == null)
+                    {
+                        <div class="text-center py-3 opacity-50">Loading...</div>
+                    }
+                    else if (!_payments.Any())
+                    {
+                        <div class="text-muted small">No payment history.</div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var pay in _payments.OrderByDescending(p => p.CreatedDate).Take(10))
+                            {
+                                <div class="list-group-item px-0 py-2 border-0">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="small fw-medium">Manual Payment</span>
+                                        <span class="small fw-bold text-success">+$@pay.Amount</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between opacity-50" style="font-size: 10px;">
+                                        <span>@pay.CreatedDate.ToString("g")</span>
+                                        <span>@pay.Currency</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (_isCreateModalOpen)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
+                <div class="vscode-page-header py-2 px-3">
+                    <h6 class="m-0 fw-semibold">New Invoice</h6>
+                    <button type="button" class="btn-close" style="font-size: 10px;" @onclick="CloseModals"></button>
+                </div>
+                <div class="p-3 compact-form">
+                    <EditForm Model="_newInvoice" OnValidSubmit="HandleCreateInvoice">
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Title</label>
+                            <InputText @bind-Value="_newInvoice.Title" class="form-control" placeholder="e.g. Monthly Dues April 2026" />
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Amount</label>
+                                <InputNumber @bind-Value="_newInvoice.Amount" class="form-control" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Due Date</label>
+                                <InputDate @bind-Value="_newInvoice.DueDate" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Description</label>
+                            <InputTextArea @bind-Value="_newInvoice.Description" class="form-control" rows="2" />
+                        </div>
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" class="btn-vscode-secondary" @onclick="CloseModals">Cancel</button>
+                            <button type="submit" class="btn-vscode">Generate Invoice</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IEnumerable<Invoice>? _invoices;
+    private IEnumerable<Payment>? _payments;
+    private bool _isCreateModalOpen;
+    private Invoice _newInvoice = new() { DueDate = DateTime.Today.AddDays(7) };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try 
+        {
+            _invoices = await Api.GetAsync<IEnumerable<Invoice>>("api/finance/invoices");
+            _payments = await Api.GetAsync<IEnumerable<Payment>>("api/finance/payments");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading billing data: {ex.Message}");
+            _invoices = Enumerable.Empty<Invoice>();
+            _payments = Enumerable.Empty<Payment>();
+        }
+    }
+
+    private void ShowCreateInvoice()
+    {
+        _newInvoice = new() { DueDate = DateTime.Today.AddDays(7) };
+        _isCreateModalOpen = true;
+    }
+
+    private async Task HandleCreateInvoice()
+    {
+        await Api.PostAsync<object>("api/finance/invoices", _newInvoice);
+        _isCreateModalOpen = false;
+        await LoadData();
+    }
+
+    private async Task RecordPayment(Invoice invoice)
+    {
+        var payment = new Payment 
+        { 
+            Amount = invoice.Amount,
+            InvoiceId = invoice.InvoiceId,
+            Status = "Paid",
+            Currency = "USD"
+        };
+        await Api.PostAsync<object>("api/finance/payments", payment);
+        await LoadData();
+    }
+
+    private void CloseModals() => _isCreateModalOpen = false;
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Paid" => "bg-success-subtle text-success",
+        "Unpaid" => "bg-danger-subtle text-danger",
+        "Partial" => "bg-warning-subtle text-warning",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+}

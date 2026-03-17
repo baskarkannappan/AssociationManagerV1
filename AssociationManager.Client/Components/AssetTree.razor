@@ -1,0 +1,41 @@
+@using AssociationManager.Shared.Models
+
+<div class="asset-tree-pane border-right custom-scrollbar" style="width: 280px; background: #f8fafc; overflow-y: auto; height: 100%; border-right: 1px solid #e2e8f0;">
+    <div class="p-3 forced-text-dark">
+        @if (Hierarchy == null)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border spinner-border-sm text-indigo-500" role="status"></div>
+                <p class="mt-2 text-slate-500" style="font-size: 11px;">Building Hierarchy...</p>
+            </div>
+        }
+        else if (!Hierarchy.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-building-add" style="font-size: 2rem; opacity: 0.2;"></i>
+                <p class="mt-2 small">No assets registered yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="tree-container">
+                @foreach (var root in Hierarchy)
+                {
+                    <AssetTreeNode Asset="root" 
+                                   OnSelected="OnSelected" 
+                                   SelectedAsset="SelectedAsset"
+                                   ExpandedIds="ExpandedIds"
+                                   OnToggleExpand="OnToggleExpand" />
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<Asset>? Hierarchy { get; set; }
+    [Parameter] public Asset? SelectedAsset { get; set; }
+    [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
+    [Parameter] public EventCallback<Asset> OnSelected { get; set; }
+    [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
+}

@@ -1,5 +1,6 @@
 @page "/associations"
-@attribute [Authorize]
+@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@using AssociationManager.Shared.Enums
 @using AssociationManager.Client.Services
 @using AssociationManager.Shared.Models
 @inject ApiService ApiService

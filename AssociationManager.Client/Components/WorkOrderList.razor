@@ -1,0 +1,70 @@
+@using AssociationManager.Shared.Models
+
+<div class="work-orders-list forced-text-dark">
+    @if (WorkOrders == null)
+    {
+        <div class="p-3 text-center opacity-50">
+            <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+            <div>Loading service history...</div>
+        </div>
+    }
+    else if (!WorkOrders.Any())
+    {
+        <div class="p-4 text-center opacity-50">
+            <i class="bi bi-shield-check mb-2" style="font-size: 1.5rem;"></i>
+            <p class="small">No service history for this asset.</p>
+        </div>
+    }
+    else
+    {
+        <table class="table table-sm compact-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Title</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var wo in WorkOrders)
+                {
+                    <tr>
+                        <td class="text-muted">#@wo.WorkOrderId</td>
+                        <td>
+                            <span class="badge @GetPriorityClass(wo.Priority)" style="font-size: 9px; border-radius: 2px;">@wo.Priority</span>
+                        </td>
+                        <td>
+                            <span class="badge @GetStatusClass(wo.Status)" style="font-size: 9px; border-radius: 2px;">@wo.Status</span>
+                        </td>
+                        <td class="fw-medium">@wo.Title</td>
+                        <td class="text-muted" style="font-size: 11px;">@wo.CreatedDate.ToShortDateString()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<WorkOrder>? WorkOrders { get; set; }
+
+    private string GetPriorityClass(string priority) => priority switch
+    {
+        "Urgent" => "bg-danger text-white",
+        "High" => "bg-warning text-dark",
+        "Medium" => "bg-info text-white",
+        "Low" => "bg-secondary text-white",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Open" => "bg-primary-subtle text-primary border border-primary-subtle",
+        "InProgress" => "bg-info-subtle text-info border border-info-subtle",
+        "Completed" => "bg-success-subtle text-success border border-success-subtle",
+        "Cancel" => "bg-danger-subtle text-danger border border-danger-subtle",
+        _ => "bg-light text-muted border"
+    };
+}

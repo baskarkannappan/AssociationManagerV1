@@ -1,0 +1,165 @@
+@page "/broadcasts"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@inject ApiService Api
+@inject NavigationManager Navigation
+
+<div class="vscode-page-header">
+    <div class="header-left">
+        <h5 class="m-0 fw-semibold"><i class="bi bi-megaphone me-2"></i>Communications</h5>
+    </div>
+    <div class="header-right">
+        <button class="btn-vscode" @onclick="ShowCreateBroadcast">
+            <i class="bi bi-plus-lg"></i> Post Announcement
+        </button>
+    </div>
+</div>
+
+<div class="vscode-content custom-scrollbar">
+    <div class="container py-4" style="max-width: 800px;">
+        @if (_broadcasts == null)
+        {
+            <div class="p-4 text-center opacity-50">
+                <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                <div>Loading announcements...</div>
+            </div>
+        }
+        else if (!_broadcasts.Any())
+        {
+            <div class="p-5 text-center opacity-50">
+                <i class="bi bi-chat-left-dots display-6 mb-3"></i>
+                <p>No recent announcements. Use the button above to post one.</p>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3">
+                @foreach (var bc in _broadcasts)
+                {
+                    <div class="compact-card p-0 overflow-hidden @(bc.IsPinned ? "border-primary-subtle" : "")">
+                        <div class="vscode-page-header py-1 px-3 @(bc.IsPinned ? "bg-primary-subtle text-primary" : "")" style="font-size: 11px;">
+                            <div class="d-flex align-items-center gap-2">
+                                @if (bc.IsPinned) { <i class="bi bi-pin-angle-fill"></i> }
+                                <span class="badge @(GetCategoryClass(bc.Category))" style="border-radius: 2px;">@bc.Category</span>
+                                <span class="opacity-75">Posted by @bc.AuthorName</span>
+                                <span class="opacity-50">@bc.CreatedDate.ToString("MMM dd, yyyy")</span>
+                            </div>
+                            <div class="ms-auto d-flex gap-2">
+                                <button class="btn btn-sm btn-link p-0 text-muted" @onclick="() => HandleDelete(bc.BroadcastId)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h6 class="fw-bold mb-2">@bc.Title</h6>
+                            <p class="mb-0 small text-secondary" style="white-space: pre-wrap;">@bc.Content</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (_isCreateModalOpen)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
+                <div class="vscode-page-header py-2 px-3">
+                    <h6 class="m-0 fw-semibold">Post Announcement</h6>
+                    <button type="button" class="btn-close" style="font-size: 10px;" @onclick="CloseModals"></button>
+                </div>
+                <div class="p-3 compact-form">
+                    <EditForm Model="_newBroadcast" OnValidSubmit="HandleCreateBroadcast">
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Title</label>
+                            <InputText @bind-Value="_newBroadcast.Title" class="form-control" placeholder="Headline for the announcement" />
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Category</label>
+                                <InputSelect @bind-Value="_newBroadcast.Category" class="form-select">
+                                    <option value="General">General</option>
+                                    <option value="Emergency">Emergency</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Social">Social</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-6 d-flex align-items-end">
+                                <div class="form-check pb-1">
+                                    <InputCheckbox id="isPinned" @bind-Value="_newBroadcast.IsPinned" class="form-check-input" />
+                                    <label class="form-check-label small" for="isPinned">Pin to top</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Content</label>
+                            <InputTextArea @bind-Value="_newBroadcast.Content" class="form-control" rows="4" placeholder="Write your announcement message here..." />
+                        </div>
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" class="btn-vscode-secondary" @onclick="CloseModals">Cancel</button>
+                            <button type="submit" class="btn-vscode">Post Broadcast</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IEnumerable<Broadcast>? _broadcasts;
+    private bool _isCreateModalOpen;
+    private Broadcast _newBroadcast = new() { Category = "General" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try 
+        {
+            _broadcasts = await Api.GetAsync<IEnumerable<Broadcast>>("api/communications/broadcasts");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading broadcasts: {ex.Message}");
+            _broadcasts = Enumerable.Empty<Broadcast>();
+        }
+    }
+
+    private void ShowCreateBroadcast()
+    {
+        _newBroadcast = new() { Category = "General" };
+        _isCreateModalOpen = true;
+    }
+
+    private async Task HandleCreateBroadcast()
+    {
+        await Api.PostAsync<object>("api/communications/broadcasts", _newBroadcast);
+        _isCreateModalOpen = false;
+        await LoadData();
+    }
+
+    private async Task HandleDelete(int id)
+    {
+        await Api.DeleteAsync($"api/communications/broadcasts/{id}");
+        await LoadData();
+    }
+
+    private void CloseModals() => _isCreateModalOpen = false;
+
+    private string GetCategoryClass(string category) => category switch
+    {
+        "Emergency" => "bg-danger text-white",
+        "Maintenance" => "bg-warning text-dark",
+        "Social" => "bg-success text-white",
+        _ => "bg-secondary text-white"
+    };
+}

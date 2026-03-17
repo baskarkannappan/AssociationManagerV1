@@ -9,55 +9,34 @@
 
 <AuthorizeView Context="authContext">
     <Authorized>
-        <div class="assets-page h-100 d-flex flex-column bg-white">
+        <div class="assets-page h-100 d-flex flex-column bg-white forced-text-dark">
             <div class="vscode-page-header border-bottom px-3 py-2">
                 <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-diagram-3 text-muted" style="font-size: 14px;"></i>
                     <span class="fw-medium">Asset Registry</span>
                 </div>
-                <div class="actions">
-                    <button class="btn-vscode" @onclick="CreateRootProperty">
-                        <i class="bi bi-plus"></i> New Property
-                    </button>
-                </div>
+                <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+                    <div class="actions d-flex gap-2">
+                        <button class="btn-vscode" @onclick="() => _showBulkModal = true">
+                            <i class="bi bi-grid-3x3-gap"></i> Select from Template
+                        </button>
+                        <button class="btn-vscode" @onclick="CreateRootProperty">
+                            <i class="bi bi-plus"></i> New Property
+                        </button>
+                    </div>
+                </AuthorizeView>
             </div>
 
             <div class="flex-grow-1 d-flex overflow-hidden">
                 <!-- Asset Tree Pane -->
-                <div class="asset-tree-pane border-right custom-scrollbar" style="width: 280px; background: #f8fafc;">
-                    <div class="p-3">
-                        @if (_hierarchy == null)
-                        {
-                            <div class="text-center py-5">
-                                <div class="spinner-border spinner-border-sm text-indigo-500" role="status"></div>
-                                <p class="mt-2 text-slate-500" style="font-size: 11px;">Building Hierarchy...</p>
-                            </div>
-                        }
-                        else if (!_hierarchy.Any())
-                        {
-                            <div class="text-center py-5 text-muted">
-                                <i class="bi bi-building-add" style="font-size: 2rem; opacity: 0.2;"></i>
-                                <p class="mt-2 small">No assets registered yet.</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="tree-container">
-                                @foreach (var root in _hierarchy)
-                                {
-                                    <AssetTreeNode Asset="root" 
-                                                   OnSelected="HandleAssetSelected" 
-                                                   SelectedAsset="_selectedAsset"
-                                                   ExpandedIds="_expandedIds"
-                                                   OnToggleExpand="HandleToggleExpand" />
-                                }
-                            </div>
-                        }
-                    </div>
-                </div>
+                <AssetTree Hierarchy="_hierarchy" 
+                           SelectedAsset="_selectedAsset" 
+                           ExpandedIds="_expandedIds" 
+                           OnSelected="HandleAssetSelected" 
+                           OnToggleExpand="HandleToggleExpand" />
 
                 <!-- Detail/Editor Pane -->
-                <div class="detail-pane flex-grow-1 p-3 custom-scrollbar" style="background: #ffffff;">
+                <div class="detail-pane flex-grow-1 p-3 custom-scrollbar forced-text-dark" style="background: #ffffff;">
                     @if (_selectedAsset != null)
                     {
                         <div class="compact-card mx-auto border-top border-primary" style="max-width: 900px; border-top-width: 2px !important;">
@@ -71,198 +50,57 @@
                                 </div>
                             </div>
 
-                            @if (!_isNew && (_selectedAsset.AssetType == AssetType.Unit || _selectedAsset.AssetType == AssetType.Villa))
-                            {
-                                <div class="vscode-tabs mb-3 border-bottom">
-                                    <div class="vscode-tab @(_activeTab == "details" ? "active" : "")" @onclick='() => _activeTab = "details"'>Details</div>
+                            <div class="vscode-tabs mb-3 border-bottom">
+                                <div class="vscode-tab @(_activeTab == "details" ? "active" : "")" @onclick='() => _activeTab = "details"'>Details</div>
+                                @if (!_isNew && IsUnitType(_selectedAsset.AssetType))
+                                {
                                     <div class="vscode-tab @(_activeTab == "occupants" ? "active" : "")" @onclick='() => _activeTab = "occupants"'>Occupants</div>
                                     <div class="vscode-tab @(_activeTab == "vehicles" ? "active" : "")" @onclick='() => _activeTab = "vehicles"'>Vehicles</div>
                                     <div class="vscode-tab @(_activeTab == "pets" ? "active" : "")" @onclick='() => _activeTab = "pets"'>Pets</div>
-                                </div>
-                            }
+                                    <div class="vscode-tab @(_activeTab == "history" ? "active" : "")" @onclick='() => _activeTab = "history"'>History</div>
+                                }
+                            </div>
 
                             @if (_activeTab == "details" || _isNew)
                             {
-                                <EditForm Model="_selectedAsset" OnValidSubmit="HandleSave" class="compact-form">
-                                    <div class="mb-2">
-                                        <label>Name</label>
-                                        <InputText @bind-Value="_selectedAsset.Name" class="form-control" placeholder="Property/Unit Name" />
-                                    </div>
-
-                                    <div class="mb-2">
-                                        <label>Type</label>
-                                        <InputSelect @bind-Value="_selectedAsset.AssetType" class="form-select">
-                                            @foreach (var type in Enum.GetValues<AssetType>())
-                                            {
-                                                <option value="@type">@type</option>
-                                            }
-                                        </InputSelect>
-                                    </div>
-
-                                    <div class="mb-2">
-                                        <label>Description</label>
-                                        <InputTextArea @bind-Value="_selectedAsset.Description" class="form-control" rows="2" placeholder="Notes..." />
-                                    </div>
-
-                                    <div class="d-flex gap-2 pt-2 border-top mt-3">
-                                        <button type="submit" class="btn-vscode">
-                                            <i class="bi bi-save"></i> Save Changes
-                                        </button>
-                                        
-                                        @if (!_isNew)
-                                        {
-                                            <button type="button" class="btn-vscode-secondary ms-auto" @onclick="CreateChild">
-                                                <i class="bi bi-node-plus"></i> Add Child
-                                            </button>
-                                            <button type="button" class="btn btn-link btn-sm text-muted p-0 hover-danger" @onclick="HandleDelete">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        }
-                                    </div>
-                                </EditForm>
+                                <AssetDetailForm Asset="_selectedAsset" 
+                                                IsNew="_isNew" 
+                                                OnSave="HandleSave" 
+                                                OnAddChild="CreateChild" 
+                                                OnDelete="HandleDelete" />
                             }
                             else if (_activeTab == "occupants")
                             {
-                                <div class="occupants-section">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0">Current Occupants</h6>
-                                        <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = "occupant"'><i class="bi bi-plus"></i> Add</button>
-                                    </div>
-
-                                    @if (_showAddForm == "occupant")
-                                    {
-                                        <div class="bg-light p-2 rounded mb-3 border compact-form">
-                                            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Resident/Occupant</h6>
-                                            <div class="row g-1">
-                                                <div class="col-6"><input @bind="_newPerson.FirstName" class="form-control" placeholder="First Name" /></div>
-                                                <div class="col-6"><input @bind="_newPerson.LastName" class="form-control" placeholder="Last Name" /></div>
-                                                <div class="col-12"><input @bind="_newPerson.Email" class="form-control" placeholder="Email" /></div>
-                                                <div class="col-6">
-                                                    <select @bind="_newOccupancy.OccupancyType" class="form-select">
-                                                        @foreach (var type in Enum.GetValues<OccupancyType>()) { <option value="@type">@type</option> }
-                                                    </select>
-                                                </div>
-                                                <div class="col-6 d-flex align-items-center px-2">
-                                                    <div class="form-check m-0">
-                                                        <input type="checkbox" class="form-check-input" @bind="_newOccupancy.IsPrimaryContact" id="primary-contact" />
-                                                        <label class="form-check-label" style="font-size: 11px;" for="primary-contact">Primary</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="mt-2 text-end">
-                                                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = ""'>Cancel</button>
-                                                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SaveOccupant">Add Occupant</button>
-                                            </div>
-                                        </div>
-                                    }
-
-                                    @if (_occupants == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-                                    else if (!_occupants.Any()) { <p class="text-muted italic" style="font-size: 11px;">No occupants registered.</p> }
-                                    else
-                                    {
-                                        <table class="table table-sm compact-table">
-                                            <thead><tr><th>Type</th><th>Contact</th><th>Primary</th><th></th></tr></thead>
-                                            <tbody>
-                                                @foreach(var occ in _occupants) {
-                                                    <tr>
-                                                        <td>@occ.OccupancyType</td>
-                                                        <td>Person #@occ.PersonId</td>
-                                                        <td>@(occ.IsPrimaryContact ? "Yes" : "No")</td>
-                                                        <td class="text-end"><button class="btn btn-link btn-sm text-danger" @onclick="() => RemoveOccupant(occ.OccupancyId)"><i class="bi bi-x-circle"></i></button></td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    }
-                                </div>
+                                <OccupancyList AssetId="_selectedAsset.AssetId" 
+                                               Occupants="_occupants" 
+                                               OnDelete="RemoveOccupant" 
+                                               OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
                             }
                             else if (_activeTab == "vehicles")
                             {
-                                 <div class="vehicles-section">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0">Registered Vehicles</h6>
-                                        <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = "vehicle"'><i class="bi bi-plus"></i> Add</button>
-                                    </div>
-
-                                    @if (_showAddForm == "vehicle")
-                                    {
-                                        <div class="bg-light p-2 rounded mb-3 border compact-form">
-                                            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Vehicle</h6>
-                                            <div class="row g-1">
-                                                <div class="col-4"><input @bind="_newVehicle.LicensePlate" class="form-control" placeholder="Plate #" /></div>
-                                                <div class="col-4"><input @bind="_newVehicle.Make" class="form-control" placeholder="Make" /></div>
-                                                <div class="col-4"><input @bind="_newVehicle.Model" class="form-control" placeholder="Model" /></div>
-                                                <div class="col-12 mt-1"><input @bind="_newVehicle.ParkingSlot" class="form-control" placeholder="Parking Slot (Optional)" /></div>
-                                            </div>
-                                            <div class="mt-2 text-end">
-                                                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = ""'>Cancel</button>
-                                                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SaveVehicle">Add Vehicle</button>
-                                            </div>
-                                        </div>
-                                    }
-
-                                    @if (_vehicles == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-                                    else if (!_vehicles.Any()) { <p class="text-muted italic" style="font-size: 11px;">No vehicles registered.</p> }
-                                    else
-                                    {
-                                        <table class="table table-sm compact-table">
-                                            <thead><tr><th>Make/Model</th><th>Plate</th><th>Slot</th><th></th></tr></thead>
-                                            <tbody>
-                                                @foreach(var v in _vehicles) {
-                                                    <tr>
-                                                        <td>@v.Make @v.Model</td>
-                                                        <td><span class="badge bg-light text-dark border">@v.LicensePlate</span></td>
-                                                        <td>@v.ParkingSlot</td>
-                                                        <td class="text-end"><button class="btn btn-link btn-sm text-danger" @onclick="() => RemoveVehicle(v.VehicleId)"><i class="bi bi-trash"></i></button></td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    }
-                                </div>
+                                <VehicleList AssetId="_selectedAsset.AssetId" 
+                                             Vehicles="_vehicles" 
+                                             OnDelete="RemoveVehicle" 
+                                             OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
                             }
                             else if (_activeTab == "pets")
                             {
-                                 <div class="pets-section">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0">Registered Pets</h6>
-                                        <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = "pet"'><i class="bi bi-plus"></i> Add</button>
+                                <PetList AssetId="_selectedAsset.AssetId" 
+                                         Pets="_pets" 
+                                         OnDelete="RemovePet" 
+                                         OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
+                            }
+                            else if (_activeTab == "history")
+                            {
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <h6 class="fw-bold small mb-2">Service Requests</h6>
+                                        <WorkOrderList WorkOrders="_workOrders" />
                                     </div>
-
-                                    @if (_showAddForm == "pet")
-                                    {
-                                        <div class="bg-light p-2 rounded mb-3 border compact-form">
-                                            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Pet</h6>
-                                            <div class="row g-1">
-                                                <div class="col-4"><input @bind="_newPet.Name" class="form-control" placeholder="Pet Name" /></div>
-                                                <div class="col-4"><input @bind="_newPet.Species" class="form-control" placeholder="Species (Dog...)" /></div>
-                                                <div class="col-4"><input @bind="_newPet.TagNumber" class="form-control" placeholder="Tag #" /></div>
-                                            </div>
-                                            <div class="mt-2 text-end">
-                                                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = ""'>Cancel</button>
-                                                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SavePet">Add Pet</button>
-                                            </div>
-                                        </div>
-                                    }
-
-                                    @if (_pets == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-                                    else if (!_pets.Any()) { <p class="text-muted italic" style="font-size: 11px;">No pets registered.</p> }
-                                    else
-                                    {
-                                        <table class="table table-sm compact-table">
-                                            <thead><tr><th>Name</th><th>Species</th><th>Tag</th><th></th></tr></thead>
-                                            <tbody>
-                                                @foreach(var p in _pets) {
-                                                    <tr>
-                                                        <td>@p.Name</td>
-                                                        <td>@p.Species (@p.Breed)</td>
-                                                        <td>@p.TagNumber</td>
-                                                        <td class="text-end"><button class="btn btn-link btn-sm text-danger" @onclick="() => RemovePet(p.PetId)"><i class="bi bi-trash"></i></button></td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    }
+                                    <div class="col-12 pt-3 border-top">
+                                        <h6 class="fw-bold small mb-2">Billing History</h6>
+                                        <InvoiceList Invoices="_invoices" />
+                                    </div>
                                 </div>
                             }
                         </div>
@@ -286,14 +124,16 @@
     </NotAuthorized>
 </AuthorizeView>
 
+@if (_showBulkModal)
+{
+    <BulkCreateModal ParentId="_selectedAsset?.AssetId" 
+                     OnClose="() => _showBulkModal = false" 
+                     OnSubmit="HandleBulkSubmit" />
+}
+
 <style>
-    .asset-tree-pane { overflow-y: auto; height: 100%; border-right: 1px solid #e2e8f0; }
     .detail-pane { overflow-y: auto; height: 100%; }
-    .nav-tabs .nav-link { border: none; color: #64748b; font-weight: 500; border-bottom: 2px solid transparent; }
-    .nav-tabs .nav-link:hover { color: #007acc; background: transparent; }
-    .nav-tabs .nav-link.active { color: #007acc; border-bottom: 2px solid #007acc; background: transparent; }
-    .icon-circle { transition: transform 0.2s; }
-    .detail-card:hover .icon-circle { transform: scale(1.05); }
+    .vscode-tabs .vscode-tab:hover { background: #e8e8e8; }
 </style>
 
 @code {
@@ -301,19 +141,16 @@
     private Asset? _selectedAsset;
     private bool _isNew;
     private string _activeTab = "details";
-    private string _showAddForm = "";
     private HashSet<int> _expandedIds = new();
 
-    // Unit Specific Data
+    // Reusable Data
     private List<Occupancy>? _occupants;
     private List<Vehicle>? _vehicles;
     private List<Pet>? _pets;
+    private IEnumerable<WorkOrder>? _workOrders;
+    private IEnumerable<Invoice>? _invoices;
 
-    // New Entry Models
-    private Person _newPerson = new();
-    private Occupancy _newOccupancy = new();
-    private Vehicle _newVehicle = new();
-    private Pet _newPet = new();
+    private bool _showBulkModal;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
@@ -363,9 +200,8 @@
         _selectedAsset = asset;
         _isNew = false;
         _activeTab = "details";
-        _showAddForm = "";
         
-        if (asset.AssetType == AssetType.Unit || asset.AssetType == AssetType.Villa)
+        if (IsUnitType(asset.AssetType))
         {
             await LoadUnitData(asset.AssetId);
         }
@@ -378,6 +214,10 @@
         _occupants = await ApiService.GetAsync<List<Occupancy>>($"api/people/unit/{assetId}/occupants");
         _vehicles = await ApiService.GetAsync<List<Vehicle>>($"api/people/unit/{assetId}/vehicles");
         _pets = await ApiService.GetAsync<List<Pet>>($"api/people/unit/{assetId}/pets");
+        
+        // Fetch history
+        _workOrders = await ApiService.GetAsync<List<WorkOrder>>($"api/operations/workorders?assetId={assetId}");
+        _invoices = await ApiService.GetAsync<List<Invoice>>($"api/finance/invoices?assetId={assetId}");
     }
 
     private void CreateRootProperty()
@@ -426,47 +266,12 @@
         await LoadHierarchy();
     }
 
-    // Save Methods for Occupants / Assets
-    private async Task SaveOccupant()
+    private async Task HandleBulkSubmit(BulkCreateRequest request)
     {
-        if (_selectedAsset == null) return;
-        
-        // 1. Create the person first
-        var response = await ApiService.PostAsync("api/people", _newPerson);
-        if (response.IsSuccessStatusCode)
-        {
-            var personId = await response.Content.ReadFromJsonAsync<int>();
-            
-            // 2. Create the occupancy record
-            _newOccupancy.PersonId = personId;
-            _newOccupancy.AssetId = _selectedAsset.AssetId;
-            await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
-            
-            _newPerson = new();
-            _newOccupancy = new();
-            _showAddForm = "";
-            await LoadUnitData(_selectedAsset.AssetId);
-        }
-    }
-
-    private async Task SaveVehicle()
-    {
-        if (_selectedAsset == null) return;
-        _newVehicle.AssetId = _selectedAsset.AssetId;
-        await ApiService.PostAsync("api/people/vehicles", _newVehicle);
-        _newVehicle = new();
-        _showAddForm = "";
-        await LoadUnitData(_selectedAsset.AssetId);
-    }
-
-    private async Task SavePet()
-    {
-        if (_selectedAsset == null) return;
-        _newPet.AssetId = _selectedAsset.AssetId;
-        await ApiService.PostAsync("api/people/pets", _newPet);
-        _newPet = new();
-        _showAddForm = "";
-        await LoadUnitData(_selectedAsset.AssetId);
+        _showBulkModal = false;
+        await ApiService.PostAsync("api/assets/bulk", request);
+        await LoadHierarchy();
+        StateHasChanged();
     }
 
     private async Task RemoveOccupant(int id) {
@@ -483,6 +288,8 @@
         await ApiService.DeleteAsync($"api/people/pets/{id}");
         if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
     }
+
+    private bool IsUnitType(AssetType type) => type == AssetType.Unit || type == AssetType.Villa;
 
     private string GetIconClass(AssetType type) => type switch
     {

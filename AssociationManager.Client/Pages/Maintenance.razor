@@ -1,0 +1,232 @@
+@page "/maintenance"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@inject ApiService Api
+@inject NavigationManager Navigation
+
+<div class="vscode-page-header">
+    <div class="header-left">
+        <h5 class="m-0 fw-semibold"><i class="bi bi-tools me-2"></i>Operations & Maintenance</h5>
+    </div>
+    <div class="header-right">
+        <button class="btn-vscode" @onclick="ShowCreateWorkOrder">
+            <i class="bi bi-plus-lg"></i> New Work Order
+        </button>
+    </div>
+</div>
+
+<div class="vscode-content custom-scrollbar">
+    <div class="container-fluid py-4">
+        <!-- Dashboard Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="compact-card text-center">
+                    <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Open Requests</div>
+                    <div class="h4 m-0 fw-bold text-primary">@(_workOrders?.Count(w => w.Status == "Open") ?? 0)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="compact-card text-center">
+                    <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Urgent/High</div>
+                    <div class="h4 m-0 fw-bold text-danger">@(_workOrders?.Count(w => w.Priority is "High" or "Urgent") ?? 0)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="compact-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="m-0 fw-semibold">Active Work Orders</h6>
+                <div class="d-flex gap-2">
+                    <span class="tree-badge">Filter: All Status</span>
+                </div>
+            </div>
+
+            @if (_workOrders == null)
+            {
+                <div class="p-4 text-center opacity-50">
+                    <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                    <div>Loading operations...</div>
+                </div>
+            }
+            else if (!_workOrders.Any())
+            {
+                <div class="p-5 text-center opacity-50">
+                    <i class="bi bi-shield-check display-6 mb-3"></i>
+                    <p>No active work orders. Everything looks good!</p>
+                </div>
+            }
+            else
+            {
+                <table class="table compact-table w-100">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Title</th>
+                            <th>Asset</th>
+                            <th>Created</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var wo in _workOrders)
+                        {
+                            <tr>
+                                <td class="text-muted">#@wo.WorkOrderId</td>
+                                <td>
+                                    <span class="badge @GetPriorityClass(wo.Priority)" style="font-size: 10px; border-radius: 2px;">@wo.Priority</span>
+                                </td>
+                                <td>
+                                    <span class="badge @GetStatusClass(wo.Status)" style="font-size: 10px; border-radius: 2px;">@wo.Status</span>
+                                </td>
+                                <td class="fw-medium">@wo.Title</td>
+                                <td><span class="tree-badge">@wo.AssetName</span></td>
+                                <td class="text-muted">@wo.CreatedDate.ToShortDateString()</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-link p-0 text-muted">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@if (_isCreateModalOpen)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
+                <div class="vscode-page-header py-2 px-3">
+                    <h6 class="m-0 fw-semibold">New Work Order</h6>
+                    <button type="button" class="btn-close" style="font-size: 10px;" @onclick="CloseModals"></button>
+                </div>
+                <div class="p-3 compact-form">
+                    <EditForm Model="_newWorkOrder" OnValidSubmit="HandleCreateWorkOrder">
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Title</label>
+                            <InputText @bind-Value="_newWorkOrder.Title" class="form-control" placeholder="Short summary of the issue" />
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Priority</label>
+                                <InputSelect @bind-Value="_newWorkOrder.Priority" class="form-select">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Urgent">Urgent</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Asset (Optional)</label>
+                                <InputSelect @bind-Value="_newWorkOrder.AssetId" class="form-select">
+                                    <option value="">None</option>
+                                    @if (_assets != null)
+                                    {
+                                        @foreach (var asset in _assets)
+                                        {
+                                            <option value="@asset.AssetId">@asset.Name</option>
+                                        }
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Description</label>
+                            <InputTextArea @bind-Value="_newWorkOrder.Description" class="form-control" rows="3" placeholder="Detailed description of the maintenance required..." />
+                        </div>
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" class="btn-vscode-secondary" @onclick="CloseModals">Cancel</button>
+                            <button type="submit" class="btn-vscode">Create Work Order</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IEnumerable<WorkOrder>? _workOrders;
+    private IEnumerable<Asset>? _assets;
+    private bool _isCreateModalOpen;
+    private WorkOrder _newWorkOrder = new() { Priority = "Medium" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try 
+        {
+            _workOrders = await Api.GetAsync<IEnumerable<WorkOrder>>("api/operations/workorders");
+            // Flattened assets for dropdown
+            var hierarchy = await Api.GetAsync<IEnumerable<Asset>>("api/assets/hierarchy");
+            _assets = hierarchy != null ? FlattenHierarchy(hierarchy) : new List<Asset>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading maintenance data: {ex.Message}");
+            _workOrders = Enumerable.Empty<WorkOrder>();
+        }
+    }
+
+    private List<Asset> FlattenHierarchy(IEnumerable<Asset> hierarchy)
+    {
+        var result = new List<Asset>();
+        foreach(var asset in hierarchy)
+        {
+            result.Add(asset);
+            if(asset.Children?.Any() == true)
+            {
+                result.AddRange(FlattenHierarchy(asset.Children));
+            }
+        }
+        return result;
+    }
+
+    private void ShowCreateWorkOrder()
+    {
+        _newWorkOrder = new() { Priority = "Medium" };
+        _isCreateModalOpen = true;
+    }
+
+    private async Task HandleCreateWorkOrder()
+    {
+        await Api.PostAsync<object>("api/operations/workorders", _newWorkOrder);
+        _isCreateModalOpen = false;
+        await LoadData();
+    }
+
+    private void CloseModals() => _isCreateModalOpen = false;
+
+    private string GetPriorityClass(string priority) => priority switch
+    {
+        "Urgent" => "bg-danger text-white",
+        "High" => "bg-warning text-dark",
+        "Medium" => "bg-info text-white",
+        "Low" => "bg-secondary text-white",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Open" => "bg-primary-subtle text-primary border border-primary-subtle",
+        "InProgress" => "bg-info-subtle text-info border border-info-subtle",
+        "Completed" => "bg-success-subtle text-success border border-success-subtle",
+        "Cancel" => "bg-danger-subtle text-danger border border-danger-subtle",
+        _ => "bg-light text-muted border"
+    };
+}

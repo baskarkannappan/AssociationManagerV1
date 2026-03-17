@@ -1,0 +1,90 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject AssociationManager.Client.Services.ApiService ApiService
+
+<div class="occupants-section forced-text-dark">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Current Occupants</h6>
+        <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+            <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+        </AuthorizeView>
+    </div>
+
+    @if (_showAddForm)
+    {
+        <div class="bg-light p-2 rounded mb-3 border compact-form">
+            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Resident/Occupant</h6>
+            <div class="row g-1">
+                <div class="col-6"><input @bind="_newPerson.FirstName" class="form-control" placeholder="First Name" /></div>
+                <div class="col-6"><input @bind="_newPerson.LastName" class="form-control" placeholder="Last Name" /></div>
+                <div class="col-12"><input @bind="_newPerson.Email" class="form-control" placeholder="Email" /></div>
+                <div class="col-6">
+                    <select @bind="_newOccupancy.OccupancyType" class="form-select">
+                        @foreach (var type in Enum.GetValues<OccupancyType>()) { <option value="@type">@type</option> }
+                    </select>
+                </div>
+                <div class="col-6 d-flex align-items-center px-2">
+                    <div class="form-check m-0">
+                        <input type="checkbox" class="form-check-input" @bind="_newOccupancy.IsPrimaryContact" id="primary-contact" />
+                        <label class="form-check-label" style="font-size: 11px;" for="primary-contact">Primary</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = false'>Cancel</button>
+                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SaveOccupant">Add Occupant</button>
+            </div>
+        </div>
+    }
+
+    @if (Occupants == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
+    else if (!Occupants.Any()) { <p class="text-muted italic" style="font-size: 11px;">No occupants registered.</p> }
+    else
+    {
+        <table class="table table-sm compact-table">
+            <thead><tr><th>Type</th><th>Contact</th><th>Primary</th><th></th></tr></thead>
+            <tbody>
+                @foreach(var occ in Occupants) {
+                    <tr>
+                        <td>@occ.OccupancyType</td>
+                        <td>Person #@occ.PersonId</td>
+                        <td>@(occ.IsPrimaryContact ? "Yes" : "No")</td>
+                        <td class="text-end">
+                            <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+                                <button class="btn btn-link btn-sm text-danger" @onclick="() => OnDelete.InvokeAsync(occ.OccupancyId)"><i class="bi bi-x-circle"></i></button>
+                            </AuthorizeView>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    [Parameter] public List<Occupancy>? Occupants { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private bool _showAddForm;
+    private Person _newPerson = new();
+    private Occupancy _newOccupancy = new();
+
+    private async Task SaveOccupant()
+    {
+        var response = await ApiService.PostAsync("api/people", _newPerson);
+        if (response.IsSuccessStatusCode)
+        {
+            var personId = await response.Content.ReadFromJsonAsync<int>();
+            _newOccupancy.PersonId = personId;
+            _newOccupancy.AssetId = AssetId;
+            await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
+            
+            _newPerson = new();
+            _newOccupancy = new();
+            _showAddForm = false;
+            await OnDataChanged.InvokeAsync();
+        }
+    }
+}

@@ -1,0 +1,56 @@
+@using AssociationManager.Shared.Models
+
+<div class="invoices-list forced-text-dark">
+    @if (Invoices == null)
+    {
+        <div class="p-3 text-center opacity-50">
+            <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+            <div>Loading financial history...</div>
+        </div>
+    }
+    else if (!Invoices.Any())
+    {
+        <div class="p-4 text-center opacity-50">
+            <i class="bi bi-receipt-cutoff mb-2" style="font-size: 1.5rem;"></i>
+            <p class="small">No financial records for this asset.</p>
+        </div>
+    }
+    else
+    {
+        <table class="table table-sm compact-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Due Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var inv in Invoices)
+                {
+                    <tr>
+                        <td class="fw-medium">@inv.Title</td>
+                        <td class="text-muted" style="font-size: 11px;">@inv.DueDate.ToShortDateString()</td>
+                        <td class="fw-bold">$@inv.Amount</td>
+                        <td>
+                            <span class="badge @GetStatusClass(inv.Status)" style="font-size: 10px; border-radius: 2px;">@inv.Status</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<Invoice>? Invoices { get; set; }
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Paid" => "bg-success-subtle text-success",
+        "Unpaid" => "bg-danger-subtle text-danger",
+        "Partial" => "bg-warning-subtle text-warning",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+}

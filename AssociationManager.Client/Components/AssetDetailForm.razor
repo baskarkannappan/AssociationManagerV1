@@ -1,0 +1,57 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+
+<EditForm Model="Asset" OnValidSubmit="HandleValidSubmit" class="compact-form forced-text-dark">
+    <div class="mb-2">
+        <label class="form-label small fw-bold">Name</label>
+        <InputText @bind-Value="Asset.Name" class="form-control" placeholder="Property/Unit Name" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label small fw-bold">Type</label>
+        <InputSelect @bind-Value="Asset.AssetType" class="form-select">
+            @foreach (var type in Enum.GetValues<AssetType>())
+            {
+                <option value="@type">@type</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label small fw-bold">Description</label>
+        <InputTextArea @bind-Value="Asset.Description" class="form-control" rows="2" placeholder="Notes..." />
+    </div>
+
+    <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")" Context="authContext">
+        <Authorized>
+            <div class="d-flex gap-2 pt-2 border-top mt-3">
+                <button type="submit" class="btn-vscode">
+                    <i class="bi bi-save"></i> @(IsNew ? "Create Asset" : "Save Changes")
+                </button>
+                
+                @if (!IsNew)
+                {
+                    <button type="button" class="btn-vscode-secondary ms-auto" @onclick="OnAddChild">
+                        <i class="bi bi-node-plus"></i> Add Child
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm text-muted p-0 hover-danger" @onclick="OnDelete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                }
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</EditForm>
+
+@code {
+    [Parameter] public Asset Asset { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnAddChild { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    private async Task HandleValidSubmit()
+    {
+        await OnSave.InvokeAsync();
+    }
+}

@@ -1,0 +1,70 @@
+@using AssociationManager.Shared.Models
+@inject AssociationManager.Client.Services.ApiService ApiService
+
+<div class="vehicles-section forced-text-dark">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Registered Vehicles</h6>
+        <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+            <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+        </AuthorizeView>
+    </div>
+
+    @if (_showAddForm)
+    {
+        <div class="bg-light p-2 rounded mb-3 border compact-form">
+            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Vehicle</h6>
+            <div class="row g-1">
+                <div class="col-4"><input @bind="_newVehicle.LicensePlate" class="form-control" placeholder="Plate #" /></div>
+                <div class="col-4"><input @bind="_newVehicle.Make" class="form-control" placeholder="Make" /></div>
+                <div class="col-4"><input @bind="_newVehicle.Model" class="form-control" placeholder="Model" /></div>
+                <div class="col-12 mt-1"><input @bind="_newVehicle.ParkingSlot" class="form-control" placeholder="Parking Slot (Optional)" /></div>
+            </div>
+            <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = false'>Cancel</button>
+                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SaveVehicle">Add Vehicle</button>
+            </div>
+        </div>
+    }
+
+    @if (Vehicles == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
+    else if (!Vehicles.Any()) { <p class="text-muted italic" style="font-size: 11px;">No vehicles registered.</p> }
+    else
+    {
+        <table class="table table-sm compact-table">
+            <thead><tr><th>Make/Model</th><th>Plate</th><th>Slot</th><th></th></tr></thead>
+            <tbody>
+                @foreach(var v in Vehicles) {
+                    <tr>
+                        <td>@v.Make @v.Model</td>
+                        <td><span class="badge bg-light text-dark border">@v.LicensePlate</span></td>
+                        <td>@v.ParkingSlot</td>
+                        <td class="text-end">
+                            <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+                                <button class="btn btn-link btn-sm text-danger" @onclick="() => OnDelete.InvokeAsync(v.VehicleId)"><i class="bi bi-trash"></i></button>
+                            </AuthorizeView>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    [Parameter] public List<Vehicle>? Vehicles { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private bool _showAddForm;
+    private Vehicle _newVehicle = new();
+
+    private async Task SaveVehicle()
+    {
+        _newVehicle.AssetId = AssetId;
+        await ApiService.PostAsync("api/people/vehicles", _newVehicle);
+        _newVehicle = new();
+        _showAddForm = false;
+        await OnDataChanged.InvokeAsync();
+    }
+}

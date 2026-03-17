@@ -1,5 +1,7 @@
+using AssociationManager.Api.Authorization;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
+using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
@@ -8,6 +10,7 @@ using System.Threading.Tasks;
 namespace AssociationManager.Api.Controllers;
 
 [Authorize]
+[RequireRole(AppRole.UserManager, AppRole.AssociationAdmin)]
 [ApiController]
 [Route("api/[controller]")]
 public class PeopleController : ControllerBase

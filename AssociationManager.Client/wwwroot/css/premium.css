@@ -29,13 +29,19 @@
 }
 
 body {
-    background: var(--base-midnight) !important;
-    color: var(--text-primary) !important;
+    background: var(--base-midnight);
+    color: var(--text-primary);
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
     margin: 0;
     padding: 0;
+}
+
+/* Force dark theme only when explicitly requested */
+.premium-dark-mode {
+    background: var(--base-midnight) !important;
+    color: var(--text-primary) !important;
 }
 
 /* Base Layout Overrides */
@@ -57,11 +63,11 @@ body {
     height: 64px !important;
 }
 
-/* Typography */
+/* Typography - Allowing overrides for light themes */
 h1, h2, h3, h4, h5 {
     font-weight: 700;
     letter-spacing: -0.025em;
-    color: white;
+    color: inherit;
 }
 
 /* Premium Card System */

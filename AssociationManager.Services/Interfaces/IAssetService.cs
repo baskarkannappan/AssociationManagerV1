@@ -9,6 +9,7 @@ public interface IAssetService
     Task<Asset?> GetByIdAsync(int id);
     Task<IEnumerable<Asset>> GetHierarchyAsync();
     Task<int> CreateAsync(Asset asset);
+    Task<int> BulkCreateAsync(BulkCreateRequest request);
     Task<bool> UpdateAsync(Asset asset);
     Task<bool> DeleteAsync(int id);
 }

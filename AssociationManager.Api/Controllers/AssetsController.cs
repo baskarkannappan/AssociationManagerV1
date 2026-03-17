@@ -1,5 +1,7 @@
+using AssociationManager.Api.Authorization;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
+using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -36,6 +38,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost]
+    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
     public async Task<IActionResult> Create([FromBody] Asset asset)
     {
         var id = await _assetService.CreateAsync(asset);
@@ -43,7 +46,17 @@ public class AssetsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id }, asset);
     }
 
+    [HttpPost("bulk")]
+    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
+    public async Task<IActionResult> BulkCreate([FromBody] BulkCreateRequest request)
+    {
+        var count = await _assetService.BulkCreateAsync(request);
+        await _auditService.LogAsync("Bulk Create Assets", "Asset", 0);
+        return Ok(new { Count = count });
+    }
+
     [HttpPut("{id}")]
+    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
     public async Task<IActionResult> Update(int id, [FromBody] Asset asset)
     {
         asset.AssetId = id;
@@ -54,6 +67,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _assetService.DeleteAsync(id);

@@ -77,4 +77,12 @@ public class UserRepository : IUserRepository
         int affectedRows = await connection.ExecuteAsync(sql, new { UserId = userId, TenantId = tenantId, Role = role });
         return affectedRows > 0;
     }
+
+    public async Task<string?> GetRoleInTenantAsync(int userId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<string>(
+            "SELECT Role FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId",
+            new { UserId = userId, TenantId = tenantId });
+    }
 }

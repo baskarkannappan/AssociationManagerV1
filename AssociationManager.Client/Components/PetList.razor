@@ -1,0 +1,69 @@
+@using AssociationManager.Shared.Models
+@inject AssociationManager.Client.Services.ApiService ApiService
+
+<div class="pets-section forced-text-dark">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Registered Pets</h6>
+        <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+            <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+        </AuthorizeView>
+    </div>
+
+    @if (_showAddForm)
+    {
+        <div class="bg-light p-2 rounded mb-3 border compact-form">
+            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Pet</h6>
+            <div class="row g-1">
+                <div class="col-4"><input @bind="_newPet.Name" class="form-control" placeholder="Pet Name" /></div>
+                <div class="col-4"><input @bind="_newPet.Species" class="form-control" placeholder="Species (Dog...)" /></div>
+                <div class="col-4"><input @bind="_newPet.TagNumber" class="form-control" placeholder="Tag #" /></div>
+            </div>
+            <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = false'>Cancel</button>
+                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SavePet">Add Pet</button>
+            </div>
+        </div>
+    }
+
+    @if (Pets == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
+    else if (!Pets.Any()) { <p class="text-muted italic" style="font-size: 11px;">No pets registered.</p> }
+    else
+    {
+        <table class="table table-sm compact-table">
+            <thead><tr><th>Name</th><th>Species</th><th>Tag</th><th></th></tr></thead>
+            <tbody>
+                @foreach(var p in Pets) {
+                    <tr>
+                        <td>@p.Name</td>
+                        <td>@p.Species (@p.Breed)</td>
+                        <td>@p.TagNumber</td>
+                        <td class="text-end">
+                            <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+                                <button class="btn btn-link btn-sm text-danger" @onclick="() => OnDelete.InvokeAsync(p.PetId)"><i class="bi bi-trash"></i></button>
+                            </AuthorizeView>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    [Parameter] public List<Pet>? Pets { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private bool _showAddForm;
+    private Pet _newPet = new();
+
+    private async Task SavePet()
+    {
+        _newPet.AssetId = AssetId;
+        await ApiService.PostAsync("api/people/pets", _newPet);
+        _newPet = new();
+        _showAddForm = false;
+        await OnDataChanged.InvokeAsync();
+    }
+}

@@ -29,6 +29,15 @@ body {
     font-size: var(--vscode-font-size);
 }
 
+/* Visibility Helper */
+.forced-text-dark, .forced-text-dark * {
+    color: #1e293b !important;
+}
+
+.forced-text-dark .btn-vscode, .forced-text-dark .btn-vscode * {
+    color: white !important;
+}
+
 /* FLAT BUTTONS (VS CODE STYLE) */
 .btn-vscode {
     background: var(--vscode-accent);
@@ -172,6 +181,15 @@ body {
     padding: 0; /* High density, internal components handle padding */
     overflow-y: auto;
     background: white;
+    color: #1e293b !important; /* Force dark text for light content area */
+}
+
+.vscode-content h1, .vscode-content h2, .vscode-content h3, .vscode-content h4, .vscode-content h5, .vscode-content h6 {
+    color: #0f172a !important;
+}
+
+.vscode-content .btn-vscode, .vscode-content .btn-vscode * {
+    color: white !important; /* Preserve button text visibility */
 }
 
 /* PAGE HEADERS */

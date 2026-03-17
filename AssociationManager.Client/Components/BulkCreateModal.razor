@@ -1,0 +1,154 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 4px;">
+            <div class="modal-header bg-light border-bottom px-3 py-2 forced-text-dark">
+                <h6 class="modal-title fw-bold m-0" style="font-size: 13px;">
+                    <i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>
+                    Bulk Create Assets from Template
+                </h6>
+                <button type="button" class="btn-close" style="font-size: 10px;" @onclick="OnClose"></button>
+            </div>
+            <div class="modal-body p-3 forced-text-dark">
+                <div class="compact-form">
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-dark">Select Template</label>
+                        <select class="form-select form-select-sm" @bind="_request.TemplateType">
+                            @foreach (var template in Enum.GetValues<AssetTemplateType>())
+                            {
+                                <option value="@template">@GetFriendlyTemplateName(template)</option>
+                            }
+                        </select>
+                        <div class="form-text mt-1" style="font-size: 10px; color: #64748b;">
+                            @GetTemplateDescription(_request.TemplateType)
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-dark">Base Name / Community Name</label>
+                        <input type="text" class="form-control form-control-sm" @bind="_request.BaseName" placeholder="e.g. Skyline Residency" />
+                    </div>
+
+                    @if (_request.TemplateType == AssetTemplateType.ResidentialBuilding)
+                    {
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-dark">Number of Floors</label>
+                                <input type="number" class="form-control form-control-sm" @bind="_request.NumberOfFloors" min="1" max="100" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-dark">Units per Floor</label>
+                                <input type="number" class="form-control form-control-sm" @bind="_request.UnitsPerFloor" min="1" max="50" />
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold text-dark">Quantity</label>
+                            <input type="number" class="form-control form-control-sm" @bind="_request.Quantity" min="1" max="200" />
+                        </div>
+                    }
+
+                    @if (IsUnitOrVillaTemplate(_request.TemplateType))
+                    {
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-dark">Configuration</label>
+                                <select class="form-select form-select-sm" @bind="_request.RoomConfig">
+                                    <option value="">-- Select --</option>
+                                    <option value="Studio">Studio</option>
+                                    <option value="1 BHK">1 BHK</option>
+                                    <option value="2 BHK">2 BHK</option>
+                                    <option value="3 BHK">3 BHK</option>
+                                    <option value="4+ BHK">4+ BHK</option>
+                                    <option value="Penthouse">Penthouse</option>
+                                    <option value="Duplex">Duplex</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold text-dark">Area (Sq Ft)</label>
+                                <input type="number" class="form-control form-control-sm" @bind="_request.TotalAreaSqFt" placeholder="e.g. 1200" />
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold text-dark">Address (Base)</label>
+                            <input type="text" class="form-control form-control-sm" @bind="_request.BaseAddress" placeholder="e.g. 123 Main St" />
+                        </div>
+                    }
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-dark">Description (Optional)</label>
+                        <textarea class="form-control form-control-sm" @bind="_request.Description" rows="2" placeholder="Dummy notes for all created assets..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-3 py-2">
+                <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none py-1" @onclick="OnClose">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary px-3 py-1" style="font-size: 12px;" @onclick="HandleSubmit" disabled="@(string.IsNullOrWhiteSpace(_request.BaseName))">
+                    <i class="bi bi-rocket-takeoff me-1"></i> Generate Assets
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .text-dark { color: #1e293b !important; }
+    .compact-form label { margin-bottom: 2px; }
+</style>
+
+@code {
+    [Parameter] public int? ParentId { get; set; }
+    [Parameter] public EventCallback<BulkCreateRequest> OnSubmit { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private BulkCreateRequest _request = new BulkCreateRequest { 
+        TemplateType = AssetTemplateType.ResidentialBuilding,
+        NumberOfFloors = 5,
+        UnitsPerFloor = 4,
+        Quantity = 10
+    };
+
+    protected override void OnInitialized()
+    {
+        _request.ParentId = ParentId;
+    }
+
+    private string GetFriendlyTemplateName(AssetTemplateType type) => type switch
+    {
+        AssetTemplateType.ResidentialBuilding => "Residential Building (Full Tree)",
+        AssetTemplateType.VillaCommunity => "Villa Community",
+        AssetTemplateType.BulkUnits => "Multiple Units",
+        AssetTemplateType.Floors => "Multiple Floors",
+        AssetTemplateType.CommonAreas => "Common Areas",
+        AssetTemplateType.Amenities => "Amenities List",
+        AssetTemplateType.SecurityGates => "Security Gates",
+        _ => type.ToString()
+    };
+
+    private string GetTemplateDescription(AssetTemplateType type) => type switch
+    {
+        AssetTemplateType.ResidentialBuilding => "Creates a Building containing Floors, and each Floor containing Units.",
+        AssetTemplateType.VillaCommunity => "Creates multiple Villa type assets directly under the selected parent.",
+        AssetTemplateType.BulkUnits => "Creates multiple Unit type assets directly under the selected parent.",
+        AssetTemplateType.Floors => "Creates multiple Floor type assets under the selected Building.",
+        AssetTemplateType.CommonAreas => "Creates multiple Common Area assets.",
+        AssetTemplateType.Amenities => "Creates multiple Amenity assets.",
+        AssetTemplateType.SecurityGates => "Creates multiple Security Gate assets.",
+        _ => ""
+    };
+
+    private async Task HandleSubmit()
+    {
+        await OnSubmit.InvokeAsync(_request);
+    }
+
+    private bool IsUnitOrVillaTemplate(AssetTemplateType type) => 
+        type == AssetTemplateType.ResidentialBuilding || 
+        type == AssetTemplateType.VillaCommunity || 
+        type == AssetTemplateType.BulkUnits;
+}

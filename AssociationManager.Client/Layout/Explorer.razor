@@ -9,23 +9,44 @@
             <span>Overview</span>
         </NavLink>
         
-        <AuthorizeView>
-            <Authorized>
-                <NavLink href="associations" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-diagram-3"></i>
-                    <span>Associations</span>
-                </NavLink>
+        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin}")">
+            <NavLink href="associations" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-diagram-3"></i>
+                <span>Associations</span>
+            </NavLink>
+        </AuthorizeView>
 
-                <NavLink href="assets" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-layers"></i>
-                    <span>Assets</span>
-                </NavLink>
-                
-                <NavLink href="people" class="vscode-tree-item text-decoration-none opacity-50">
-                    <i class="bi bi-people"></i>
-                    <span>Community</span>
-                </NavLink>
-            </Authorized>
+        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.AssetManager}")">
+            <NavLink href="assets" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-layers"></i>
+                <span>Assets</span>
+            </NavLink>
+            
+            <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-tools"></i>
+                <span>Operations</span>
+            </NavLink>
+        </AuthorizeView>
+        
+        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.FinanceManager}")">
+            <NavLink href="billing" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-wallet2"></i>
+                <span>Finance</span>
+            </NavLink>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin}")">
+            <NavLink href="broadcasts" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-megaphone"></i>
+                <span>Communications</span>
+            </NavLink>
+        </AuthorizeView>
+        
+        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.UserManager}")">
+            <NavLink href="people" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-people"></i>
+                <span>Community</span>
+            </NavLink>
         </AuthorizeView>
     </div>
 

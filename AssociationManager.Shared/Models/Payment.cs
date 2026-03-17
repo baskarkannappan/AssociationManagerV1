@@ -12,4 +12,5 @@ public class Payment
     public string Status { get; set; } = "Pending";
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public string? GatewayReference { get; set; }
+    public int? InvoiceId { get; set; }
 }

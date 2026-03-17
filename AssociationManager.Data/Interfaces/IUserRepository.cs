@@ -14,4 +14,5 @@ public interface IUserRepository
     Task<bool> UpdateAsync(User user);
     Task<bool> IsUserInTenantAsync(int userId, int tenantId);
     Task<bool> AddUserToTenantAsync(int userId, int tenantId, string role);
+    Task<string?> GetRoleInTenantAsync(int userId, int tenantId);
 }
