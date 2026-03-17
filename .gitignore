@@ -5,6 +5,7 @@
 *.suo
 *.sln.docstates
 *.txt
+*.log
 !*.md
 .gemini/
 .agent/
