@@ -12,4 +12,6 @@ public interface IUserRepository
     Task<IEnumerable<User>> GetByTenantIdAsync(int tenantId);
     Task<int> CreateAsync(User user);
     Task<bool> UpdateAsync(User user);
+    Task<bool> IsUserInTenantAsync(int userId, int tenantId);
+    Task<bool> AddUserToTenantAsync(int userId, int tenantId, string role);
 }

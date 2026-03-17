@@ -1,4 +1,5 @@
 using AssociationManager.Data.Interfaces;
+using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
@@ -9,10 +10,12 @@ namespace AssociationManager.Data.Repositories;
 public class AuditLogRepository : IAuditLogRepository
 {
     private readonly DbConnectionFactory _dbConnectionFactory;
+    private readonly ITenantContext _tenantContext;
 
-    public AuditLogRepository(DbConnectionFactory dbConnectionFactory)
+    public AuditLogRepository(DbConnectionFactory dbConnectionFactory, ITenantContext tenantContext)
     {
         _dbConnectionFactory = dbConnectionFactory;
+        _tenantContext = tenantContext;
     }
 
     public async Task<int> CreateAsync(AuditLog log)
@@ -29,6 +32,6 @@ public class AuditLogRepository : IAuditLogRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AuditLog>(
             "SELECT * FROM AuditLogs WHERE TenantId = @TenantId ORDER BY Timestamp DESC", 
-            new { TenantId = tenantId });
+            new { TenantId = _tenantContext.TenantId });
     }
 }

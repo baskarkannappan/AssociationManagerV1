@@ -46,17 +46,35 @@ public class UserRepository : IUserRepository
     public async Task<int> CreateAsync(User user)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "INSERT INTO Users (TenantId, GoogleId, Email, Name, PictureUrl, CreatedDate, LastLoginDate, IsActive) " +
+        string sql = "INSERT INTO Users (TenantId, GoogleId, Email, Name, PictureUrl, Role, CreatedDate, LastLoginDate, IsActive) " +
                      "OUTPUT INSERTED.UserId " +
-                     "VALUES (@TenantId, @GoogleId, @Email, @Name, @PictureUrl, @CreatedDate, @LastLoginDate, @IsActive)";
+                     "VALUES (@TenantId, @GoogleId, @Email, @Name, @PictureUrl, @Role, @CreatedDate, @LastLoginDate, @IsActive)";
         return await connection.ExecuteScalarAsync<int>(sql, user);
     }
 
     public async Task<bool> UpdateAsync(User user)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "UPDATE Users SET Name = @Name, PictureUrl = @PictureUrl, LastLoginDate = @LastLoginDate, IsActive = @IsActive WHERE UserId = @UserId";
+        string sql = "UPDATE Users SET Name = @Name, PictureUrl = @PictureUrl, Role = @Role, LastLoginDate = @LastLoginDate, IsActive = @IsActive WHERE UserId = @UserId";
         int affectedRows = await connection.ExecuteAsync(sql, user);
+        return affectedRows > 0;
+    }
+
+    public async Task<bool> IsUserInTenantAsync(int userId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var result = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(1) FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId",
+            new { UserId = userId, TenantId = tenantId });
+        return result > 0;
+    }
+
+    public async Task<bool> AddUserToTenantAsync(int userId, int tenantId, string role)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        string sql = "IF NOT EXISTS (SELECT 1 FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId) " +
+                     "INSERT INTO UserAssociations (UserId, TenantId, Role) VALUES (@UserId, @TenantId, @Role)";
+        int affectedRows = await connection.ExecuteAsync(sql, new { UserId = userId, TenantId = tenantId, Role = role });
         return affectedRows > 0;
     }
 }

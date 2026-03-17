@@ -1,6 +1,7 @@
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
+using AssociationManager.Shared.Interfaces;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -11,31 +12,30 @@ namespace AssociationManager.Services.Implementations;
 public class AuditService : IAuditService
 {
     private readonly IAuditLogRepository _auditLogRepository;
-    private readonly ITenantAccessor _tenantAccessor;
+    private readonly ITenantContext _tenantContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public AuditService(
         IAuditLogRepository auditLogRepository,
-        ITenantAccessor tenantAccessor,
+        ITenantContext tenantContext,
         IHttpContextAccessor httpContextAccessor)
     {
         _auditLogRepository = auditLogRepository;
-        _tenantAccessor = tenantAccessor;
+        _tenantContext = tenantContext;
         _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task LogAsync(string action, string? entity = null, int? entityId = null)
     {
-        var tenantId = _tenantAccessor.TenantId;
-        if (tenantId == null) return;
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == 0) return;
 
-        var userIdStr = _httpContextAccessor.HttpContext?.User?.FindFirst("UserId")?.Value;
-        int? userId = int.TryParse(userIdStr, out int val) ? val : null;
-
+        var userId = _tenantContext.UserId;
+        
         var log = new AuditLog
         {
-            TenantId = tenantId.Value,
-            UserId = userId,
+            TenantId = tenantId,
+            UserId = userId != 0 ? userId : null,
             Action = action,
             Entity = entity,
             EntityId = entityId,
@@ -48,9 +48,9 @@ public class AuditService : IAuditService
 
     public async Task<IEnumerable<AuditLog>> GetLogsAsync()
     {
-        var tenantId = _tenantAccessor.TenantId;
-        if (tenantId == null) return new List<AuditLog>();
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == 0) return new List<AuditLog>();
 
-        return await _auditLogRepository.GetByTenantIdAsync(tenantId.Value);
+        return await _auditLogRepository.GetByTenantIdAsync(tenantId);
     }
 }

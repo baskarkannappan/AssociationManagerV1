@@ -1,5 +1,6 @@
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
+using AssociationManager.Shared.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -13,11 +14,20 @@ public class AssociationsController : ControllerBase
 {
     private readonly IAssociationService _associationService;
     private readonly IAuditService _auditService;
+    private readonly ITenantContext _tenantContext;
 
-    public AssociationsController(IAssociationService associationService, IAuditService auditService)
+    public AssociationsController(IAssociationService associationService, IAuditService auditService, ITenantContext tenantContext)
     {
         _associationService = associationService;
         _auditService = auditService;
+        _tenantContext = tenantContext;
+    }
+
+    [HttpGet("my-tenants")]
+    public async Task<IActionResult> GetMyTenants()
+    {
+        var associations = await _associationService.GetByUserIdAsync(_tenantContext.UserId);
+        return Ok(associations);
     }
 
     [HttpGet]

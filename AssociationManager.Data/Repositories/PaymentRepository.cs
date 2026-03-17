@@ -1,4 +1,5 @@
 using AssociationManager.Data.Interfaces;
+using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
@@ -9,10 +10,12 @@ namespace AssociationManager.Data.Repositories;
 public class PaymentRepository : IPaymentRepository
 {
     private readonly DbConnectionFactory _dbConnectionFactory;
+    private readonly ITenantContext _tenantContext;
 
-    public PaymentRepository(DbConnectionFactory dbConnectionFactory)
+    public PaymentRepository(DbConnectionFactory dbConnectionFactory, ITenantContext tenantContext)
     {
         _dbConnectionFactory = dbConnectionFactory;
+        _tenantContext = tenantContext;
     }
 
     public async Task<Payment?> GetByIdAsync(int id, int tenantId)
@@ -20,7 +23,7 @@ public class PaymentRepository : IPaymentRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Payment>(
             "SELECT * FROM Payments WHERE PaymentId = @Id AND TenantId = @TenantId", 
-            new { Id = id, TenantId = tenantId });
+            new { Id = id, TenantId = _tenantContext.TenantId });
     }
 
     public async Task<IEnumerable<Payment>> GetByTenantIdAsync(int tenantId)
@@ -28,7 +31,7 @@ public class PaymentRepository : IPaymentRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Payment>(
             "SELECT * FROM Payments WHERE TenantId = @TenantId", 
-            new { TenantId = tenantId });
+            new { TenantId = _tenantContext.TenantId });
     }
 
     public async Task<int> CreateAsync(Payment payment)

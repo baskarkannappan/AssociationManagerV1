@@ -1,6 +1,7 @@
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
+using AssociationManager.Shared.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
 using System;
 using System.Collections.Generic;
@@ -12,20 +13,20 @@ namespace AssociationManager.Services.Implementations;
 public class AssociationService : IAssociationService
 {
     private readonly IAssociationRepository _associationRepository;
-    private readonly ITenantAccessor _tenantAccessor;
+    private readonly ITenantContext _tenantContext;
     private readonly IDistributedCache _cache;
 
     public AssociationService(
         IAssociationRepository associationRepository,
-        ITenantAccessor tenantAccessor,
+        ITenantContext tenantContext,
         IDistributedCache cache)
     {
         _associationRepository = associationRepository;
-        _tenantAccessor = tenantAccessor;
+        _tenantContext = tenantContext;
         _cache = cache;
     }
 
-    private int CurrentTenantId => _tenantAccessor.TenantId ?? throw new UnauthorizedException("Tenant ID not found in context.");
+    private int CurrentTenantId => _tenantContext.TenantId != 0 ? _tenantContext.TenantId : throw new UnauthorizedException("Tenant ID not found in context.");
 
     public async Task<Association?> GetByIdAsync(int id)
     {
@@ -104,6 +105,11 @@ public class AssociationService : IAssociationService
         {
             await _cache.RemoveAsync($"association:{CurrentTenantId}:{id.Value}");
         }
+    }
+
+    public async Task<IEnumerable<Association>> GetByUserIdAsync(int userId)
+    {
+        return await _associationRepository.GetByUserIdAsync(userId);
     }
 }
 

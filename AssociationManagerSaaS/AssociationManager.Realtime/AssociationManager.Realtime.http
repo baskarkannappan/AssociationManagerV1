@@ -1,6 +1,0 @@
-@AssociationManager.Realtime_HostAddress = http://localhost:5186
-
-GET {{AssociationManager.Realtime_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

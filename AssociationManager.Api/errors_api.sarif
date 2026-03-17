@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json.schemastore.org/sarif-1.0.0",
+  "version": "1.0.0",
+  "runs": [
+    {
+      "tool": {
+        "name": "Microsoft (R) Visual C# Compiler",
+        "version": "5.0.0.0",
+        "fileVersion": "5.0.0-2.25612.105 (44525024)",
+        "semanticVersion": "5.0.0",
+        "language": "en-US"
+      },
+      "results": [
+        {
+          "ruleId": "CS0246",
+          "level": "error",
+          "message": "The type or namespace name 'IAssociationService' could not be found (are you missing a using directive or an assembly reference?)",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/Baska/source/repos/baskarkannappan/AssociationManagerV1/AssociationManager.Api/Program.cs",
+                "region": {
+                  "startLine": 44,
+                  "startColumn": 28,
+                  "endLine": 44,
+                  "endColumn": 47
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CS0311",
+          "level": "error",
+          "message": "The type 'AssociationManager.Services.Implementations.AssociationService' cannot be used as type parameter 'TImplementation' in the generic type or method 'ServiceCollectionServiceExtensions.AddScoped<TService, TImplementation>(IServiceCollection)'. There is no implicit reference conversion from 'AssociationManager.Services.Implementations.AssociationService' to 'IAssociationService'.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/Baska/source/repos/baskarkannappan/AssociationManagerV1/AssociationManager.Api/Program.cs",
+                "region": {
+                  "startLine": 44,
+                  "startColumn": 18,
+                  "endLine": 44,
+                  "endColumn": 68
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CS0246",
+          "level": "error",
+          "message": "The type or namespace name 'IAuditService' could not be found (are you missing a using directive or an assembly reference?)",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/Baska/source/repos/baskarkannappan/AssociationManagerV1/AssociationManager.Api/Program.cs",
+                "region": {
+                  "startLine": 45,
+                  "startColumn": 28,
+                  "endLine": 45,
+                  "endColumn": 41
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CS0311",
+          "level": "error",
+          "message": "The type 'AssociationManager.Services.Implementations.AuditService' cannot be used as type parameter 'TImplementation' in the generic type or method 'ServiceCollectionServiceExtensions.AddScoped<TService, TImplementation>(IServiceCollection)'. There is no implicit reference conversion from 'AssociationManager.Services.Implementations.AuditService' to 'IAuditService'.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/Baska/source/repos/baskarkannappan/AssociationManagerV1/AssociationManager.Api/Program.cs",
+                "region": {
+                  "startLine": 45,
+                  "startColumn": 18,
+                  "endLine": 45,
+                  "endColumn": 56
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CS8602",
+          "level": "warning",
+          "message": "Dereference of a possibly null reference.",
+          "locations": [
+            {
+              "resultFile": {
+                "uri": "file:///C:/Users/Baska/source/repos/baskarkannappan/AssociationManagerV1/AssociationManager.Api/Program.cs",
+                "region": {
+                  "startLine": 67,
+                  "startColumn": 27,
+                  "endLine": 67,
+                  "endColumn": 38
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        }
+      ],
+      "rules": {
+        "CS0246": {
+          "id": "CS0246",
+          "defaultLevel": "error",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0246)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry",
+              "NotConfigurable"
+            ]
+          }
+        },
+        "CS0311": {
+          "id": "CS0311",
+          "defaultLevel": "error",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS0311)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry",
+              "NotConfigurable"
+            ]
+          }
+        },
+        "CS8602": {
+          "id": "CS8602",
+          "shortDescription": "Dereference of a possibly null reference.",
+          "defaultLevel": "warning",
+          "helpUri": "https://msdn.microsoft.com/query/roslyn.query?appId=roslyn&k=k(CS8602)",
+          "properties": {
+            "category": "Compiler",
+            "isEnabledByDefault": true,
+            "tags": [
+              "Compiler",
+              "Telemetry"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

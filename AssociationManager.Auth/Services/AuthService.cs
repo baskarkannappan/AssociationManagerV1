@@ -73,6 +73,9 @@ public class AuthService : IAuthService
                     Role = "User"
                 };
                 user.UserId = await _userRepository.CreateAsync(user);
+
+                // Add entry to UserAssociations for the initial tenant
+                await _userRepository.AddUserToTenantAsync(user.UserId, user.TenantId, user.Role);
             }
             else
             {
@@ -179,6 +182,27 @@ public class AuthService : IAuthService
         if (securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
             return null;
 
+
         return principal;
+    }
+
+    public async Task<AuthResponse> SwitchTenantAsync(int userId, int tenantId)
+    {
+        var isAuthorized = await _userRepository.IsUserInTenantAsync(userId, tenantId);
+        if (!isAuthorized)
+        {
+            return new AuthResponse { Success = false, Message = "User does not belong to the requested tenant." };
+        }
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return new AuthResponse { Success = false, Message = "User not found." };
+        }
+
+        // Update the user's current tenant for the session/token
+        user.TenantId = tenantId;
+
+        return await GenerateAuthResponse(user);
     }
 }

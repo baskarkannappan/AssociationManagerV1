@@ -1,4 +1,3 @@
-using AssociationManager.Api.Middleware;
 using AssociationManager.Auth.Interfaces;
 using AssociationManager.Auth.Models;
 using AssociationManager.Auth.Services;
@@ -8,6 +7,7 @@ using AssociationManager.Data.Repositories;
 using AssociationManager.Realtime.Hubs;
 using AssociationManager.Services.Implementations;
 using AssociationManager.Services.Interfaces;
+using AssociationManager.Shared.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
@@ -40,7 +40,7 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ITenantAccessor, TenantAccessor>();
+builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAssociationService, AssociationService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -104,10 +104,9 @@ app.UseCors("AllowClient");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Multi-tenancy Middleware
-app.UseMiddleware<TenantMiddleware>();
+// Multi-tenancy
 
 app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

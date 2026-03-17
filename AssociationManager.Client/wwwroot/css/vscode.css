@@ -9,6 +9,8 @@
     --vscode-accent: #007acc;
     --vscode-hover: #e6e6e6;
     --vscode-tab-bg: #f3f3f3;
+    --vscode-top-header-bg: #323233;
+    --vscode-top-header-text: #cccccc;
 }
 
 body {
@@ -127,4 +129,54 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+/* TOP HEADER */
+.vscode-top-header {
+    height: 35px;
+    background: var(--vscode-top-header-bg);
+    color: var(--vscode-top-header-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    font-size: 13px;
+    border-bottom: 1px solid #252526;
+}
+
+.vscode-top-header .header-left .app-title {
+    font-weight: 500;
+}
+
+.vscode-top-header .header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.vscode-top-header .user-email {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.vscode-top-header .logout-btn {
+    background: transparent;
+    border: 1px solid #454545;
+    color: var(--vscode-top-header-text);
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 2px;
+}
+
+.vscode-top-header .logout-btn:hover {
+    background: #454545;
+}
+
+.vscode-top-header .login-link {
+    color: #4daafc;
+    text-decoration: none;
 }

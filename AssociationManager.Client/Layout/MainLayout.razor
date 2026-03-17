@@ -1,6 +1,52 @@
+@implements IDisposable
 @inherits LayoutComponentBase
 
 <div class="vscode-shell">
+    <!-- Top Header Bar -->
+    <header class="vscode-top-header">
+        <div class="header-left">
+            <span class="app-title">Association Manager v1</span>
+            
+            <AuthorizeView Context="authContext">
+                <Authorized>
+                    <div class="tenant-switcher-container">
+                        <i class="bi bi-diagram-3-fill"></i>
+                        @if (_userTenants == null)
+                        {
+                            <span class="loading-span">Loading...</span>
+                        }
+                        else if (!_userTenants.Any())
+                        {
+                            <span class="no-tenants-span">No Tenants</span>
+                        }
+                        else
+                        {
+                            <select @onchange="HandleTenantChange" class="tenant-select" value="@_currentTenantId">
+                                @foreach (var tenant in _userTenants)
+                                {
+                                    <option value="@tenant.TenantId">@tenant.Name</option>
+                                }
+                            </select>
+                        }
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+        <div class="header-right">
+            <AuthorizeView Context="authContext">
+                <Authorized>
+                    <span class="user-email">@authContext.User.Identity?.Name</span>
+                    <button class="logout-btn" @onclick="HandleLogout">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="login-link">Login</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </header>
+
     <div class="vscode-main">
         <!-- Sidebar Explorer -->
         <Explorer />
@@ -21,20 +67,6 @@
             </main>
         </div>
     </div>
-
-    <!-- Bottom Status Bar -->
-    <div class="vscode-statusbar">
-        <div class="section">
-            <i class="bi bi-broadcast"></i>
-            <span>Ready</span>
-            <span>0 Errors</span>
-        </div>
-        <div class="section">
-            <span>Ln 1, Col 1</span>
-            <span>UTF-8</span>
-            <i class="bi bi-bell"></i>
-        </div>
-    </div>
 </div>
 
 <link href="css/vscode.css" rel="stylesheet" />
@@ -43,15 +75,84 @@
     .max-width-dashboard { max-width: 1200px; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+    
+    .tenant-switcher-container { font-size: 11px; margin-left: 20px; display: flex; align-items: center; gap: 8px; color: #aaa; }
+    .tenant-select { background: #252526; color: #ccc; border: 1px solid #3c3c3c; font-size: 11px; padding: 2px 5px; border-radius: 3px; cursor: pointer; }
+    .tenant-select:focus { outline: none; border-color: #007acc; }
+    .loading-span, .no-tenants-span { font-style: italic; opacity: 0.7; }
 </style>
 
 @code {
     [Inject] private AuthService AuthService { get; set; } = default!;
+    [Inject] private ApiService ApiService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
+    private IEnumerable<Association>? _userTenants;
+    private int _currentTenantId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await LoadTenants();
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        await InvokeAsync(async () => {
+            await LoadTenants();
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadTenants()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var tenantClaim = user.FindFirst("TenantId")?.Value;
+            if (int.TryParse(tenantClaim, out int tid))
+            {
+                _currentTenantId = tid;
+            }
+            
+            try 
+            {
+                _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading tenants: {ex.Message}");
+                _userTenants = Enumerable.Empty<Association>();
+            }
+        }
+        else
+        {
+            _userTenants = null;
+        }
+    }
+
+    private async Task HandleTenantChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newTenantId))
+        {
+            var response = await AuthService.SwitchTenant(newTenantId);
+            if (response?.Success == true)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+        }
+    }
 
     private async Task HandleLogout()
     {
         await AuthService.Logout();
         Navigation.NavigateTo("/login");
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 }

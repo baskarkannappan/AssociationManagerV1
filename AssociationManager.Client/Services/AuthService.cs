@@ -9,11 +9,13 @@ public class AuthService
 {
     private readonly HttpClient _httpClient;
     private readonly TokenService _tokenService;
+    private readonly CustomAuthenticationStateProvider _authStateProvider;
 
-    public AuthService(HttpClient httpClient, TokenService tokenService)
+    public AuthService(HttpClient httpClient, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider)
     {
         _httpClient = httpClient;
         _tokenService = tokenService;
+        _authStateProvider = authStateProvider;
     }
 
     public async Task<AuthResponse?> LoginWithGoogle(string idToken)
@@ -25,6 +27,7 @@ public class AuthService
             if (response?.Success == true)
             {
                 await _tokenService.SetTokens(response.Token!, response.RefreshToken!);
+                _authStateProvider.NotifyUserAuthentication(response.Token!);
             }
             return response;
         }
@@ -34,5 +37,22 @@ public class AuthService
     public async Task Logout()
     {
         await _tokenService.RemoveTokens();
+        _authStateProvider.NotifyUserLogout();
+    }
+
+    public async Task<AuthResponse?> SwitchTenant(int tenantId)
+    {
+        var result = await _httpClient.PostAsJsonAsync("api/auth/switch-tenant", new SwitchTenantRequest { TenantId = tenantId });
+        if (result.IsSuccessStatusCode)
+        {
+            var response = await result.Content.ReadFromJsonAsync<AuthResponse>();
+            if (response?.Success == true)
+            {
+                await _tokenService.SetTokens(response.Token!, response.RefreshToken!);
+                _authStateProvider.NotifyUserAuthentication(response.Token!);
+            }
+            return response;
+        }
+        return new AuthResponse { Success = false, Message = "Tenant switch failed" };
     }
 }
