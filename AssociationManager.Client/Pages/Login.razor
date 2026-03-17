@@ -73,13 +73,17 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         // Show troubleshooting message if the Google button hasn't replaced the skeleton after 4 seconds
-        Task.Delay(4000).ContinueWith(_ => {
-            _showTroubleshooting = true;
-            InvokeAsync(StateHasChanged);
-        });
+        _ = ShowTroubleshootingAfterDelay();
+    }
+
+    private async Task ShowTroubleshootingAfterDelay()
+    {
+        await Task.Delay(4000);
+        _showTroubleshooting = true;
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

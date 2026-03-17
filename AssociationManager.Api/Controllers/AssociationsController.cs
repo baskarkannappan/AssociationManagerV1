@@ -26,6 +26,7 @@ public class AssociationsController : ControllerBase
     [HttpGet("my-tenants")]
     public async Task<IActionResult> GetMyTenants()
     {
+        Console.WriteLine($"[AssociationsController] GetMyTenants called. Base UserId: {_tenantContext.UserId}");
         var associations = await _associationService.GetByUserIdAsync(_tenantContext.UserId);
         return Ok(associations);
     }
@@ -33,8 +34,17 @@ public class AssociationsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var associations = await _associationService.GetAllByTenantAsync();
-        return Ok(associations);
+        Console.WriteLine($"[AssociationsController] GetAll called. TenantId: {_tenantContext.TenantId}, UserId: {_tenantContext.UserId}");
+        try 
+        {
+            var associations = await _associationService.GetAllByTenantAsync();
+            return Ok(associations);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AssociationsController] GetAll FAILED: {ex.Message}");
+            throw;
+        }
     }
 
     [HttpGet("{id}")]

@@ -1,73 +1,139 @@
 @page "/associations"
+@attribute [Authorize]
 @using AssociationManager.Client.Services
 @using AssociationManager.Shared.Models
 @inject ApiService ApiService
 @inject RealtimeService RealtimeService
 
-<div class="container mt-4">
-    <h2>Associations</h2>
-    
-    <div class="card p-3 mb-4">
-        <h5>Create New Association</h5>
-        <div class="row">
-            <div class="col-md-4">
-                <input @bind="newAssociation.Name" class="form-control" placeholder="Name" />
+<AuthorizeView Context="authContext">
+    <Authorized>
+        <div class="vscode-page-header border-bottom">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-diagram-3-fill text-muted" style="font-size: 14px;"></i>
+                <span class="fw-medium">Associations</span>
             </div>
-            <div class="col-md-6">
-                <input @bind="newAssociation.Description" class="form-control" placeholder="Description" />
-            </div>
-            <div class="col-md-2">
-                <button @onclick="CreateAssociation" class="btn btn-primary w-100">Create</button>
-            </div>
+            <button class="btn-vscode" @onclick="() => _showCreateForm = !_showCreateForm">
+                <i class="bi @(_showCreateForm ? "bi-dash" : "bi-plus")"></i>
+                @(_showCreateForm ? "Discard" : "New Association")
+            </button>
         </div>
-    </div>
 
-    @if (associations == null)
-    {
-        <p>Loading...</p>
-    }
-    else
-    {
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Description</th>
-                    <th>Created Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var assoc in associations)
-                {
-                    <tr>
-                        <td>@assoc.Name</td>
-                        <td>@assoc.Description</td>
-                        <td>@assoc.CreatedDate.ToLocalTime().ToString("g")</td>
-                        <td>
-                            <button @onclick="() => DeleteAssociation(assoc.AssociationId)" class="btn btn-danger btn-sm">Delete</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-</div>
+        <div class="p-3">
+            @if (_showCreateForm)
+            {
+                <div class="compact-card mb-3 border-top-0">
+                    <div class="fw-bold mb-2 small text-uppercase text-muted">Initialize New Association</div>
+                    <div class="row g-2 compact-form">
+                        <div class="col-md-5">
+                            <label>Name</label>
+                            <input @bind="newAssociation.Name" class="form-control" placeholder="Legal Name" />
+                        </div>
+                        <div class="col-md-5">
+                            <label>Description</label>
+                            <input @bind="newAssociation.Description" class="form-control" placeholder="Optional details..." />
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button @onclick="CreateAssociation" class="btn-vscode w-100 justify-content-center">
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (associations == null)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border spinner-border-sm text-muted mb-2" role="status"></div>
+                    <p class="text-muted small">Loading portfolio...</p>
+                </div>
+            }
+            else
+            {
+                <div class="border bg-white">
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle compact-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">ID</th>
+                                    <th>Association Name</th>
+                                    <th style="width: 150px;">Created</th>
+                                    <th style="width: 100px;" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var assoc in associations)
+                                {
+                                    <tr>
+                                        <td class="text-muted font-monospace" style="font-size: 11px;">#@assoc.AssociationId</td>
+                                        <td>
+                                            <div class="fw-medium">@assoc.Name</div>
+                                            <div class="text-muted" style="font-size: 11px;">@assoc.Description</div>
+                                        </td>
+                                        <td class="text-muted">
+                                            @assoc.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")
+                                        </td>
+                                        <td class="text-end">
+                                            <button @onclick="() => DeleteAssociation(assoc.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Authorizing session...</p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    .btn-icon-slate { width: 32px; height: 32px; border: none; background: transparent; color: #94a3b8; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-icon-slate:hover { background: #f1f5f9; color: #475569; }
+    .btn-icon-slate.hover-danger:hover { background: #fee2e2; color: #ef4444; }
+    .bg-slate-50 { background-color: #f8fafc; }
+</style>
 
 @code {
+    [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
     private List<Association>? associations;
     private Association newAssociation = new();
+    private bool _showCreateForm = false;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAssociations();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            await LoadAssociations();
+        }
+        
         RealtimeService.OnNotificationReceived += HandleNotification;
         await RealtimeService.StartAsync();
     }
 
     private async Task LoadAssociations()
     {
-        associations = await ApiService.GetAsync<List<Association>>("api/associations");
+        try 
+        {
+            associations = await ApiService.GetAsync<List<Association>>("api/associations/my-tenants");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+             Console.WriteLine("Unauthorized access to associations. Redirecting...");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading associations: {ex.Message}");
+        }
     }
 
     private async Task CreateAssociation()
@@ -75,12 +141,13 @@
         if (string.IsNullOrWhiteSpace(newAssociation.Name)) return;
         await ApiService.PostAsync("api/associations", newAssociation);
         newAssociation = new();
+        _showCreateForm = false;
         await LoadAssociations();
     }
 
     private async Task DeleteAssociation(int id)
     {
-        var response = await ApiService.PostAsync($"api/associations/{id}", (object?)null); // Simplified delete via post for this demo
+        await ApiService.PostAsync($"api/associations/{id}", (object?)null);
         await LoadAssociations();
     }
 

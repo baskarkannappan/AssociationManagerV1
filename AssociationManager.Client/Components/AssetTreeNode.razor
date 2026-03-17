@@ -1,0 +1,79 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+
+<div class="asset-tree-node">
+    <div class="vscode-tree-item @(IsSelected ? "active" : "")" @onclick="HandleToggleExpansion">
+        @if (Asset.Children.Any())
+        {
+            <i class="bi @(IsExpanded ? "bi-chevron-down" : "bi-chevron-right")" style="font-size: 10px; opacity: 0.6;"></i>
+        }
+        else
+        {
+            <i class="bi @GetIconClass()" style="opacity: 0.5;"></i>
+        }
+        <span class="text-truncate flex-grow-1">
+            @Asset.Name
+            @if (Asset.Children.Any())
+            {
+                <span class="tree-count">(@Asset.Children.Count)</span>
+            }
+        </span>
+        <span class="tree-badge">@Asset.AssetType</span>
+    </div>
+
+    @if (IsExpanded && Asset.Children.Any())
+    {
+        <div class="asset-children ms-3">
+            @foreach (var child in Asset.Children)
+            {
+                <AssetTreeNode Asset="child" 
+                               OnSelected="OnSelected" 
+                               SelectedAsset="SelectedAsset"
+                               ExpandedIds="ExpandedIds"
+                               OnToggleExpand="OnToggleExpand" />
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .asset-children { 
+        border-left: 1px solid #e1e1e1;
+        margin-left: 20px !important;
+    }
+    .vscode-tree-item {
+        padding: 4px 8px;
+        min-height: 24px;
+    }
+</style>
+
+@code {
+    [Parameter] public Asset Asset { get; set; } = null!;
+    [Parameter] public Asset? SelectedAsset { get; set; }
+    [Parameter] public EventCallback<Asset> OnSelected { get; set; }
+    
+    [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
+    [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
+
+    private bool IsExpanded => ExpandedIds.Contains(Asset.AssetId);
+    private bool IsSelected => SelectedAsset?.AssetId == Asset.AssetId;
+
+    private async Task HandleToggleExpansion()
+    {
+        await OnToggleExpand.InvokeAsync(Asset.AssetId);
+        await OnSelected.InvokeAsync(Asset);
+    }
+
+    private string GetIconClass() => Asset.AssetType switch
+    {
+        AssetType.Property => "bi-geo-alt-fill",
+        AssetType.Building => "bi-building-fill",
+        AssetType.Floor => "bi-layers-fill",
+        AssetType.Unit => "bi-door-closed-fill",
+        AssetType.Villa => "bi-house-heart-fill",
+        AssetType.CommonArea => "bi-tree-fill",
+        AssetType.Amenity => "bi-water",
+        AssetType.SecurityGate => "bi-shield-lock-fill",
+        _ => "bi-box"
+    };
+}
