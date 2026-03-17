@@ -55,27 +55,7 @@
 
         <!-- Content Area -->
         <div class="vscode-editor-pane">
-            @if (_showRoleToast && !string.IsNullOrEmpty(_currentRole))
-            {
-                <div class="role-toast-wrapper">
-                    <div class="role-toast">
-                        <div class="toast-header">
-                            <i class="bi bi-shield-check"></i>
-                            <span>Current Role: <strong>@_currentRole</strong></span>
-                            <button class="ms-auto btn-close-toast" @onclick="() => _showRoleToast = false"><i class="bi bi-x"></i></button>
-                        </div>
-                        <div class="toast-body">
-                            <div class="small-title">You can perform:</div>
-                            <ul class="capability-list">
-                                @foreach (var cap in AppRole.GetCapabilities(_currentRole))
-                                {
-                                    <li><i class="bi bi-check-circle-fill"></i> @cap</li>
-                                }
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            }
+            <Toasts class="p-3" AutoHide="true" Delay="10000" Placement="ToastsPlacement.TopRight" />
             <main class="vscode-content">
                 @Body
             </main>
@@ -112,47 +92,6 @@
     .logout-btn { background: transparent; border: none; color: #ccc; padding: 0 5px; opacity: 0.6; }
     .logout-btn:hover { opacity: 1; color: #fff; }
 
-    .role-toast-wrapper {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 2000;
-        animation: toastIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-    }
-    .role-toast {
-        background: #ffffff;
-        color: #333;
-        border: 1px solid var(--vscode-border);
-        border-top: 3px solid var(--vscode-accent);
-        border-radius: 4px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        width: 280px;
-        padding: 0;
-        overflow: hidden;
-    }
-    .role-toast .toast-header {
-        background: #f8f9fa;
-        padding: 8px 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border-bottom: 1px solid #eee;
-        font-size: 11px;
-    }
-    .role-toast .toast-header i { color: var(--vscode-accent); }
-    .role-toast .toast-body { padding: 12px; }
-    .role-toast .small-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #666; margin-bottom: 8px; }
-    .role-toast .capability-list { list-style: none; padding: 0; margin: 0; }
-    .role-toast .capability-list li { font-size: 11px; padding: 2px 0; display: flex; align-items: flex-start; gap: 8px; }
-    .role-toast .capability-list li i { color: #28a745; font-size: 10px; margin-top: 2px; }
-    .btn-close-toast { background: transparent; border: none; color: #999; padding: 0; font-size: 14px; line-height: 1; transition: color 0.2s; }
-    .btn-close-toast:hover { color: #333; }
-
-    @@keyframes toastIn {
-        from { opacity: 0; transform: translateY(-20px) scale(0.95); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
     .mobile-backdrop {
         position: fixed;
         top: 40px;
@@ -169,11 +108,11 @@
     [Inject] private ApiService ApiService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private ToastService ToastService { get; set; } = default!;
 
     private IEnumerable<Association>? _userTenants;
     private int _currentTenantId;
     private string? _currentRole;
-    private bool _showRoleToast;
     private bool _isMobileMenuOpen;
 
     protected override async Task OnInitializedAsync()
@@ -218,9 +157,7 @@
             if (_currentRole != roleClaim)
             {
                 _currentRole = roleClaim;
-                _showRoleToast = true;
-                // Auto hide after 10 seconds
-                _ = Task.Delay(10000).ContinueWith(_ => { _showRoleToast = false; InvokeAsync(StateHasChanged); });
+                ShowRoleCapabilities(roleClaim);
             }
             
             try 
@@ -237,8 +174,20 @@
         {
             _userTenants = null;
             _currentRole = null;
-            _showRoleToast = false;
         }
+    }
+
+    private void ShowRoleCapabilities(string role)
+    {
+        var capabilities = AppRole.GetCapabilities(role);
+        var message = string.Join("<br/>", capabilities.Select(c => $"• {c}"));
+        
+        ToastService.Notify(new(
+            ToastType.Info,
+            iconName: IconName.ShieldCheck,
+            title: $"Current Role: {role}",
+            helpText: $"{DateTime.Now:T}",
+            message: message));
     }
 
     private async Task HandleTenantChange(ChangeEventArgs e)

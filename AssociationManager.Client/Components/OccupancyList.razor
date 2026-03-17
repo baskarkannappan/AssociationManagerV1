@@ -38,7 +38,7 @@
     }
 
     @if (Occupants == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-    else if (!Occupants.Any()) { <p class="text-muted italic" style="font-size: 11px;">No occupants registered.</p> }
+    else if (!Occupants.Any()) { <p class="text-muted" style="font-size: 11px; font-style: italic;">No occupants registered.</p> }
     else
     {
         <table class="table table-sm compact-table">

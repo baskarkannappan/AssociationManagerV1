@@ -63,23 +63,26 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var assoc in associations)
+                                @if (associations != null)
                                 {
-                                    <tr>
-                                        <td class="text-muted font-monospace" style="font-size: 11px;">#@assoc.AssociationId</td>
-                                        <td>
-                                            <div class="fw-medium">@assoc.Name</div>
-                                            <div class="text-muted" style="font-size: 11px;">@assoc.Description</div>
-                                        </td>
-                                        <td class="text-muted">
-                                            @assoc.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")
-                                        </td>
-                                        <td class="text-end">
-                                            <button @onclick="() => DeleteAssociation(assoc.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    @foreach (var assoc in associations)
+                                    {
+                                        <tr>
+                                            <td class="text-muted font-monospace" style="font-size: 11px;">#@assoc.AssociationId</td>
+                                            <td>
+                                                <div class="fw-medium">@assoc.Name</div>
+                                                <div class="text-muted" style="font-size: 11px;">@assoc.Description</div>
+                                            </td>
+                                            <td class="text-muted">
+                                                @assoc.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")
+                                            </td>
+                                            <td class="text-end">
+                                                <button @onclick="() => DeleteAssociation(assoc.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
                                 }
                             </tbody>
                         </table>

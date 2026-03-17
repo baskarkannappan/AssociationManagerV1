@@ -17,7 +17,7 @@
                 </div>
                 <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
                     <div class="actions d-flex gap-2">
-                        <button class="btn-vscode" @onclick="() => _showBulkModal = true">
+                        <button class="btn-vscode" @onclick="() => _bulkModal.ShowAsync()">
                             <i class="bi bi-grid-3x3-gap"></i> Select from Template
                         </button>
                         <button class="btn-vscode" @onclick="CreateRootProperty">
@@ -139,12 +139,10 @@
     </NotAuthorized>
 </AuthorizeView>
 
-@if (_showBulkModal)
-{
-    <BulkCreateModal ParentId="_selectedAsset?.AssetId" 
-                     OnClose="() => _showBulkModal = false" 
-                     OnSubmit="HandleBulkSubmit" />
-}
+<BulkCreateModal @ref="_bulkModal" 
+                 ParentId="_selectedAsset?.AssetId" 
+                 OnClose="() => {}" 
+                 OnSubmit="HandleBulkSubmit" />
 
 <style>
     .detail-pane { overflow-y: auto; height: 100%; }
@@ -165,7 +163,7 @@
     private IEnumerable<WorkOrder>? _workOrders;
     private IEnumerable<Invoice>? _invoices;
 
-    private bool _showBulkModal;
+    private BulkCreateModal _bulkModal = default!;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
@@ -283,7 +281,7 @@
 
     private async Task HandleBulkSubmit(BulkCreateRequest request)
     {
-        _showBulkModal = false;
+        await _bulkModal.HideAsync();
         await ApiService.PostAsync("api/assets/bulk", request);
         await LoadHierarchy();
         StateHasChanged();

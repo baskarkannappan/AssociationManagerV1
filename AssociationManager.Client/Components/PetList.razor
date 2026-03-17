@@ -27,6 +27,7 @@
 
     @if (Pets == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
     else if (!Pets.Any()) { <p class="text-muted italic" style="font-size: 11px;">No pets registered.</p> }
+    else if (!Pets.Any()) { <p class="text-muted" style="font-size: 11px; font-style: italic;">No pets registered.</p> }
     else
     {
         <table class="table table-sm compact-table">

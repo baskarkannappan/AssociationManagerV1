@@ -12,6 +12,9 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // Register Local Storage
 builder.Services.AddBlazoredLocalStorage();
 
+// Register Blazor Bootstrap
+builder.Services.AddBlazorBootstrap();
+
 // Auth States
 builder.Services.AddOptions();
 builder.Services.AddAuthorizationCore();
