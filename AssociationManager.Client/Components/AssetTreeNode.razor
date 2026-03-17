@@ -5,17 +5,20 @@
     <div class="vscode-tree-item @(IsSelected ? "active" : "")" @onclick="HandleToggleExpansion">
         @if (Asset.Children.Any())
         {
-            <i class="bi @(IsExpanded ? "bi-chevron-down" : "bi-chevron-right")" style="font-size: 10px; opacity: 0.6;"></i>
+            <i class="bi @(IsExpanded ? "bi-chevron-down" : "bi-chevron-right")" style="font-size: 10px; margin-right: 4px; opacity: 0.6;"></i>
         }
         else
         {
-            <i class="bi @GetIconClass()" style="opacity: 0.5;"></i>
+            <span style="width: 14px; display: inline-block;"></span>
         }
+        
+        <i class="bi @GetIconClass() @GetIconColorClass() me-2" style="font-size: 14px;"></i>
+        
         <span class="text-truncate flex-grow-1">
             @Asset.Name
             @if (Asset.Children.Any())
             {
-                <span class="tree-count">(@Asset.Children.Count)</span>
+                <span class="tree-count">@Asset.Children.Count</span>
             }
         </span>
         <span class="tree-badge">@Asset.AssetType</span>
@@ -75,5 +78,16 @@
         AssetType.Amenity => "bi-water",
         AssetType.SecurityGate => "bi-shield-lock-fill",
         _ => "bi-box"
+    };
+
+    private string GetIconColorClass() => Asset.AssetType switch
+    {
+        AssetType.Property => "asset-icon-property",
+        AssetType.Building => "asset-icon-building",
+        AssetType.Floor => "asset-icon-floor",
+        AssetType.Unit => "asset-icon-unit",
+        AssetType.Villa => "asset-icon-villa",
+        AssetType.CommonArea => "asset-icon-common",
+        _ => ""
     };
 }

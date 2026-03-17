@@ -36,17 +36,32 @@
                            OnToggleExpand="HandleToggleExpand" />
 
                 <!-- Detail/Editor Pane -->
-                <div class="detail-pane flex-grow-1 p-3 custom-scrollbar forced-text-dark" style="background: #ffffff;">
+                <div class="detail-pane flex-grow-1 p-4 custom-scrollbar forced-text-dark" style="background: #fdfdfd;">
                     @if (_selectedAsset != null)
                     {
-                        <div class="compact-card mx-auto border-top border-primary" style="max-width: 900px; border-top-width: 2px !important;">
-                            <div class="d-flex align-items-center gap-3 mb-3">
-                                <div class="bg-light text-muted border p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 2px;">
-                                    <i class="bi @GetIconClass(_selectedAsset.AssetType)" style="font-size: 1.2rem;"></i>
+                        <div class="premium-property-card mx-auto" style="max-width: 900px; border: 1px solid #e2e8f0;">
+                            <div class="d-flex align-items-center gap-3 mb-4">
+                                <div class="premium-header-icon @GetIconColorClass(_selectedAsset.AssetType)">
+                                    <i class="bi @GetIconClass(_selectedAsset.AssetType)"></i>
                                 </div>
-                                <div>
-                                    <div class="fw-bold">@(_isNew ? "Create New" : "Edit") @_selectedAsset.AssetType</div>
-                                    <div class="text-muted font-monospace" style="font-size: 9px;">ID: @(_isNew ? "PENDING" : _selectedAsset.AssetId)</div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <h3 class="mb-0 fw-bold">@(_isNew ? "Create New" : _selectedAsset.Name)</h3>
+                                        @if (!_isNew)
+                                        {
+                                            <span class="badge bg-opacity-10 bg-primary text-primary border border-primary border-opacity-20 px-2">ID: @_selectedAsset.AssetId</span>
+                                        }
+                                    </div>
+                                    <div class="text-secondary small d-flex align-items-center gap-2">
+                                        <i class="bi bi-tag-fill opacity-50"></i>
+                                        <span>@_selectedAsset.AssetType</span>
+                                        @if (_selectedAsset.ParentId != null)
+                                        {
+                                            <span class="mx-1 opacity-30">|</span>
+                                            <i class="bi bi-arrow-return-right opacity-50"></i>
+                                            <span>Sub-component of Registry</span>
+                                        }
+                                    </div>
                                 </div>
                             </div>
 
@@ -302,6 +317,17 @@
         AssetType.Amenity => "bi-water",
         AssetType.SecurityGate => "bi-shield-lock-fill",
         _ => "bi-box"
+    };
+
+    private string GetIconColorClass(AssetType type) => type switch
+    {
+        AssetType.Property => "asset-icon-property",
+        AssetType.Building => "asset-icon-building",
+        AssetType.Floor => "asset-icon-floor",
+        AssetType.Unit => "asset-icon-unit",
+        AssetType.Villa => "asset-icon-villa",
+        AssetType.CommonArea => "asset-icon-common",
+        _ => ""
     };
 
     private AssetType GetDefaultChildType(AssetType parentType) => parentType switch

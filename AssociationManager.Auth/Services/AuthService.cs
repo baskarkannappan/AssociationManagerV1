@@ -3,6 +3,7 @@ using AssociationManager.Auth.Models;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Shared.DTOs;
 using AssociationManager.Shared.Models;
+using AssociationManager.Shared.Enums;
 using Google.Apis.Auth;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
@@ -81,11 +82,8 @@ public class AuthService : IAuthService
             await _userRepository.UpdateAsync(user);
 
             // Ensure the role is correct for the current tenant
-            var role = await _userRepository.GetRoleInTenantAsync(user.UserId, user.TenantId);
-            if (!string.IsNullOrEmpty(role))
-            {
-                user.Role = role;
-            }
+            // TEMPORARY OVERRIDE: Set to SystemAdmin for now as requested
+            user.Role = AppRole.SystemAdmin;
 
             return await GenerateAuthResponse(user);
         }
@@ -206,11 +204,8 @@ public class AuthService : IAuthService
         user.TenantId = tenantId;
         
         // Refresh the role for this specific tenant
-        var role = await _userRepository.GetRoleInTenantAsync(userId, tenantId);
-        if (!string.IsNullOrEmpty(role))
-        {
-            user.Role = role;
-        }
+        // TEMPORARY OVERRIDE: Set to SystemAdmin for now as requested
+        user.Role = AppRole.SystemAdmin;
 
         return await GenerateAuthResponse(user);
     }
