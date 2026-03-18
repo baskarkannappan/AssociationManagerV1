@@ -28,15 +28,15 @@ public class FinanceController : ControllerBase
     public async Task<IActionResult> GetInvoices()
     {
         var invoices = await _financeService.GetAllInvoicesAsync();
-        return Ok(invoices);
+        return Ok(ApiResponse<IEnumerable<Invoice>>.SuccessResponse(invoices));
     }
 
     [HttpGet("invoices/{id}")]
     public async Task<IActionResult> GetInvoice(int id)
     {
         var invoice = await _financeService.GetInvoiceByIdAsync(id);
-        if (invoice == null) return NotFound();
-        return Ok(invoice);
+        if (invoice == null) return NotFound(ApiResponse.FailureResponse("Invoice not found."));
+        return Ok(ApiResponse<Invoice>.SuccessResponse(invoice));
     }
 
     [HttpPost("invoices")]
@@ -44,23 +44,23 @@ public class FinanceController : ControllerBase
     {
         var id = await _financeService.CreateInvoiceAsync(invoice);
         await _auditService.LogAsync("Create Invoice", "Invoice", id);
-        return CreatedAtAction(nameof(GetInvoice), new { id }, invoice);
+        return CreatedAtAction(nameof(GetInvoice), new { id }, ApiResponse<int>.SuccessResponse(id, "Invoice created successfully."));
     }
 
     [HttpPut("invoices/{id}/status")]
     public async Task<IActionResult> UpdateInvoiceStatus(int id, [FromBody] string status)
     {
         var success = await _financeService.UpdateInvoiceStatusAsync(id, status);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Invoice not found for status update."));
         await _auditService.LogAsync("Update Invoice Status", "Invoice", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Invoice status updated."));
     }
 
     [HttpGet("payments")]
     public async Task<IActionResult> GetPayments()
     {
         var payments = await _financeService.GetPaymentsAsync();
-        return Ok(payments);
+        return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(payments));
     }
 
     [HttpPost("payments")]
@@ -68,6 +68,27 @@ public class FinanceController : ControllerBase
     {
         var id = await _financeService.CreatePaymentAsync(payment);
         await _auditService.LogAsync("Record Payment", "Payment", id);
-        return Ok(id);
+        return Ok(ApiResponse<int>.SuccessResponse(id, "Payment recorded successfully."));
+    }
+
+    [HttpGet("transactions/asset/{assetId}")]
+    public async Task<IActionResult> GetAssetTransactions(int assetId)
+    {
+        var transactions = await _financeService.GetAssetTransactionsAsync(assetId);
+        return Ok(ApiResponse<IEnumerable<Transaction>>.SuccessResponse(transactions));
+    }
+
+    [HttpGet("balance/asset/{assetId}")]
+    public async Task<IActionResult> GetAssetBalance(int assetId)
+    {
+        var balance = await _financeService.GetAssetBalanceAsync(assetId);
+        return Ok(ApiResponse<decimal>.SuccessResponse(balance));
+    }
+
+    [HttpGet("transactions/tenant")]
+    public async Task<IActionResult> GetTenantTransactions([FromQuery] DateTime? start, [FromQuery] DateTime? end)
+    {
+        var transactions = await _financeService.GetTenantTransactionsAsync(start, end);
+        return Ok(ApiResponse<IEnumerable<Transaction>>.SuccessResponse(transactions));
     }
 }

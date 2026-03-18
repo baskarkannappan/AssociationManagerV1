@@ -39,8 +39,12 @@ public class UserRepository : IUserRepository
     public async Task<IEnumerable<User>> GetByTenantIdAsync(int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<User>(
-            "SELECT * FROM Users WHERE TenantId = @TenantId", new { TenantId = tenantId });
+        string sql = @"
+            SELECT u.*, ua.Role 
+            FROM Users u
+            JOIN UserAssociations ua ON u.UserId = ua.UserId
+            WHERE ua.TenantId = @TenantId";
+        return await connection.QueryAsync<User>(sql, new { TenantId = tenantId });
     }
 
     public async Task<int> CreateAsync(User user)
@@ -72,8 +76,11 @@ public class UserRepository : IUserRepository
     public async Task<bool> AddUserToTenantAsync(int userId, int tenantId, string role)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "IF NOT EXISTS (SELECT 1 FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId) " +
-                     "INSERT INTO UserAssociations (UserId, TenantId, Role) VALUES (@UserId, @TenantId, @Role)";
+        string sql = @"
+            IF EXISTS (SELECT 1 FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId)
+                UPDATE UserAssociations SET Role = @Role WHERE UserId = @UserId AND TenantId = @TenantId
+            ELSE
+                INSERT INTO UserAssociations (UserId, TenantId, Role) VALUES (@UserId, @TenantId, @Role)";
         int affectedRows = await connection.ExecuteAsync(sql, new { UserId = userId, TenantId = tenantId, Role = role });
         return affectedRows > 0;
     }
@@ -84,5 +91,13 @@ public class UserRepository : IUserRepository
         return await connection.QueryFirstOrDefaultAsync<string>(
             "SELECT Role FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId",
             new { UserId = userId, TenantId = tenantId });
+    }
+
+    public async Task<bool> RemoveUserFromTenantAsync(int userId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        string sql = "DELETE FROM UserAssociations WHERE UserId = @UserId AND TenantId = @TenantId";
+        int affectedRows = await connection.ExecuteAsync(sql, new { UserId = userId, TenantId = tenantId });
+        return affectedRows > 0;
     }
 }

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace AssociationManager.Api.Controllers;
 
 [Authorize]
-[RequireRole(AppRole.UserManager, AppRole.AssociationAdmin)]
+[RequireRole(AppRole.UserManager, AppRole.AssociationAdmin, AppRole.AssetManager, AppRole.SystemAdmin)]
 [ApiController]
 [Route("api/[controller]")]
 public class PeopleController : ControllerBase
@@ -27,7 +27,8 @@ public class PeopleController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllPeople()
     {
-        return Ok(await _peopleService.GetAllPeopleAsync());
+        var people = await _peopleService.GetAllPeopleAsync();
+        return Ok(ApiResponse<IEnumerable<Person>>.SuccessResponse(people));
     }
 
     [HttpPost]
@@ -35,13 +36,14 @@ public class PeopleController : ControllerBase
     {
         var id = await _peopleService.CreatePersonAsync(person);
         await _auditService.LogAsync("Create Person", "Person", id);
-        return Ok(id);
+        return Ok(ApiResponse<int>.SuccessResponse(id, "Person record created."));
     }
 
     [HttpGet("unit/{unitId}/occupants")]
     public async Task<IActionResult> GetOccupants(int unitId)
     {
-        return Ok(await _peopleService.GetOccupancyByUnitAsync(unitId));
+        var occupants = await _peopleService.GetOccupancyByUnitAsync(unitId);
+        return Ok(ApiResponse<IEnumerable<Occupancy>>.SuccessResponse(occupants));
     }
 
     [HttpPost("occupancy")]
@@ -49,7 +51,7 @@ public class PeopleController : ControllerBase
     {
         var id = await _peopleService.AddOccupantAsync(occupancy);
         await _auditService.LogAsync("Add Occupant", "Occupancy", id);
-        return Ok(id);
+        return Ok(ApiResponse<int>.SuccessResponse(id, "Occupancy record added."));
     }
 
     [HttpDelete("occupancy/{id}")]
@@ -57,13 +59,14 @@ public class PeopleController : ControllerBase
     {
         await _peopleService.RemoveOccupantAsync(id);
         await _auditService.LogAsync("Remove Occupant", "Occupancy", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Occupancy removed."));
     }
 
     [HttpGet("unit/{unitId}/vehicles")]
     public async Task<IActionResult> GetVehicles(int unitId)
     {
-        return Ok(await _peopleService.GetVehiclesByUnitAsync(unitId));
+        var vehicles = await _peopleService.GetVehiclesByUnitAsync(unitId);
+        return Ok(ApiResponse<IEnumerable<Vehicle>>.SuccessResponse(vehicles));
     }
 
     [HttpPost("vehicles")]
@@ -71,13 +74,14 @@ public class PeopleController : ControllerBase
     {
         var id = await _peopleService.AddVehicleAsync(vehicle);
         await _auditService.LogAsync("Add Vehicle", "Vehicle", id);
-        return Ok(id);
+        return Ok(ApiResponse<int>.SuccessResponse(id, "Vehicle record added."));
     }
 
     [HttpGet("unit/{unitId}/pets")]
     public async Task<IActionResult> GetPets(int unitId)
     {
-        return Ok(await _peopleService.GetPetsByUnitAsync(unitId));
+        var pets = await _peopleService.GetPetsByUnitAsync(unitId);
+        return Ok(ApiResponse<IEnumerable<Pet>>.SuccessResponse(pets));
     }
 
     [HttpPost("pets")]
@@ -85,7 +89,7 @@ public class PeopleController : ControllerBase
     {
         var id = await _peopleService.AddPetAsync(pet);
         await _auditService.LogAsync("Add Pet", "Pet", id);
-        return Ok(id);
+        return Ok(ApiResponse<int>.SuccessResponse(id, "Pet record added."));
     }
 
     [HttpDelete("vehicles/{id}")]
@@ -93,7 +97,7 @@ public class PeopleController : ControllerBase
     {
         await _peopleService.RemoveVehicleAsync(id);
         await _auditService.LogAsync("Remove Vehicle", "Vehicle", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Vehicle removed."));
     }
 
     [HttpDelete("pets/{id}")]
@@ -101,6 +105,6 @@ public class PeopleController : ControllerBase
     {
         await _peopleService.RemovePetAsync(id);
         await _auditService.LogAsync("Remove Pet", "Pet", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Pet removed."));
     }
 }

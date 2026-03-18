@@ -1,0 +1,246 @@
+@page "/tariffs"
+@attribute [Authorize(Roles = $"{AppRole.FinanceManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Client.Services
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-wallet2 text-muted" style="font-size: 14px;"></i>
+        <span class="fw-medium">Tariff Management</span>
+    </div>
+</div>
+
+<div class="row g-0 flex-grow-1" style="height: calc(100vh - 41px); overflow: hidden;">
+    <!-- Groups Sidebar -->
+    <div class="col-md-3 border-end bg-light d-flex flex-column" style="height: 100%;">
+        <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-white">
+            <span class="small fw-bold text-uppercase text-muted">Billing Groups</span>
+            <button class="btn btn-sm btn-link p-0 text-primary" @onclick="ShowCreateGroupForm">
+                <i class="bi bi-plus-circle"></i>
+            </button>
+        </div>
+        
+        <div class="flex-grow-1 overflow-auto p-2">
+            @if (_groups == null)
+            {
+                <div class="text-center py-4 opacity-50"><div class="spinner-border spinner-border-sm"></div></div>
+            }
+            else if (!_groups.Any())
+            {
+                <div class="text-center py-4 small text-muted">No groups defined.</div>
+            }
+            else
+            {
+                @foreach (var group in _groups)
+                {
+                    <div class="p-2 mb-1 rounded cursor-pointer @(SelectedGroup?.TariffGroupId == group.TariffGroupId ? "bg-primary text-white" : "hover-bg-slate text-dark")"
+                         @onclick="() => SelectGroup(group)">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small fw-medium">@group.Name</span>
+                            @if (SelectedGroup?.TariffGroupId == group.TariffGroupId)
+                            {
+                                <i class="bi bi-chevron-right small"></i>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <!-- Layers Workbench -->
+    <div class="col-md-9 bg-white d-flex flex-column" style="height: 100%;">
+        @if (SelectedGroup == null)
+        {
+            <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
+                <i class="bi bi-layers display-1 mb-3"></i>
+                <p>Select a billing group to manage its tariff layers.</p>
+            </div>
+        }
+        else
+        {
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">@SelectedGroup.Name</h5>
+                    <small class="text-muted">@SelectedGroup.Description</small>
+                </div>
+                <button class="btn btn-sm btn-vscode" @onclick="ShowCreateLayerForm">
+                    <i class="bi bi-plus me-1"></i> New Layer
+                </button>
+            </div>
+
+            <div class="flex-grow-1 overflow-auto p-3">
+                @if (_layers == null)
+                {
+                    <div class="text-center py-5 opacity-50"><div class="spinner-border"></div></div>
+                }
+                else if (!_layers.Any())
+                {
+                    <div class="p-5 text-center bg-light rounded border border-dashed text-muted">
+                        <i class="bi bi-info-circle mb-2 d-block"></i>
+                        No tariff layers defined in this group.
+                    </div>
+                }
+                else
+                {
+                    <TariffLayerList Layers="_layers" OnDelete="DeleteLayer" />
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modals (Simplified for now using simple flags) -->
+@if (_showGroupModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-sm">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">New Billing Group</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showGroupModal = false"></button>
+                </div>
+                <div class="modal-body compact-form">
+                    <div class="mb-3">
+                        <label>Group Name</label>
+                        <input @bind="_newGroup.Name" class="form-control" placeholder="e.g. Maintenance Fees" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Description</label>
+                        <textarea @bind="_newGroup.Description" class="form-control" placeholder="Optional details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => _showGroupModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick="CreateGroup">Create Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showLayerModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-sm">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Add Layer to @SelectedGroup?.Name</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showLayerModal = false"></button>
+                </div>
+                <div class="modal-body compact-form">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label>Layer Name</label>
+                            <input @bind="_newLayer.Name" class="form-control" placeholder="e.g. Waste Management" />
+                        </div>
+                        <div class="col-md-6">
+                            <label>Accounting Category</label>
+                            <input @bind="_newLayer.AccountingCategory" class="form-control" placeholder="e.g. Operational" />
+                        </div>
+                        <div class="col-md-4">
+                            <label>Base Rate ($)</label>
+                            <input type="number" @bind="_newLayer.BaseRate" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label>Frequency</label>
+                            <select @bind="_newLayer.Frequency" class="form-select">
+                                @foreach (var f in Enum.GetValues<BillingFrequency>())
+                                {
+                                    <option value="@f">@f</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label>Calc Type</label>
+                            <select @bind="_newLayer.CalculationType" class="form-select">
+                                @foreach (var c in Enum.GetValues<CalculationType>())
+                                {
+                                    <option value="@c">@c</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => _showLayerModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick="CreateLayer">Add Layer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .hover-bg-slate:hover { background: #f8fafc; }
+    .cursor-pointer { cursor: pointer; }
+    .btn-vscode { background: #007acc; color: white; border: none; padding: 4px 12px; font-size: 12px; transition: opacity 0.2s; }
+    .btn-vscode:hover { opacity: 0.9; color: white; }
+    .compact-form label { font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px; }
+    .compact-form .form-control, .compact-form .form-select { border-radius: 2px; border: 1px solid #e2e8f0; font-size: 13px; }
+</style>
+
+@code {
+    private List<TariffGroup>? _groups;
+    private List<TariffLayer>? _layers;
+    private TariffGroup? SelectedGroup;
+
+    private bool _showGroupModal = false;
+    private bool _showLayerModal = false;
+    private TariffGroup _newGroup = new();
+    private TariffLayer _newLayer = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGroups();
+    }
+
+    private async Task LoadGroups()
+    {
+        _groups = await ApiService.GetAsync<List<TariffGroup>>("api/tariff/groups");
+    }
+
+    private async Task SelectGroup(TariffGroup group)
+    {
+        SelectedGroup = group;
+        _layers = null;
+        _layers = await ApiService.GetAsync<List<TariffLayer>>($"api/tariff/groups/{group.TariffGroupId}/layers");
+    }
+
+    private void ShowCreateGroupForm()
+    {
+        _newGroup = new();
+        _showGroupModal = true;
+    }
+
+    private async Task CreateGroup()
+    {
+        if (string.IsNullOrWhiteSpace(_newGroup.Name)) return;
+        await ApiService.PostAsync("api/tariff/groups", _newGroup);
+        _showGroupModal = false;
+        await LoadGroups();
+    }
+
+    private void ShowCreateLayerForm()
+    {
+        _newLayer = new TariffLayer { TariffGroupId = SelectedGroup!.TariffGroupId };
+        _showLayerModal = true;
+    }
+
+    private async Task CreateLayer()
+    {
+        if (string.IsNullOrWhiteSpace(_newLayer.Name)) return;
+        await ApiService.PostAsync("api/tariff/layers", _newLayer);
+        _showLayerModal = false;
+        if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+    }
+
+    private async Task DeleteLayer(int id)
+    {
+        await ApiService.DeleteAsync($"api/tariff/layers/{id}");
+        if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+    }
+}

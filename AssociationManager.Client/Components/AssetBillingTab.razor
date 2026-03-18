@@ -1,0 +1,127 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Client.Services
+
+<div class="p-1">
+    <label class="form-label small fw-bold text-secondary text-uppercase mb-3" style="letter-spacing: 0.05em;">Linked Billing Layers</label>
+    
+    @if (_assetTariffs == null)
+    {
+        <div class="text-center py-4 opacity-50"><div class="spinner-border spinner-border-sm"></div></div>
+    }
+    else
+    {
+        <div class="list-group list-group-flush border rounded mb-4">
+            @if (!_assetTariffs.Any())
+            {
+                <div class="list-group-item text-center py-4 text-muted small">No active tariffs linked to this asset.</div>
+            }
+            @foreach (var tariff in _assetTariffs)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-medium small">@GetLayerName(tariff.TariffLayerId)</div>
+                        <div class="text-muted" style="font-size: 11px;">
+                            @(tariff.CustomAmount.HasValue ? $"Custom Override: ${tariff.CustomAmount}" : "Default Rate Applied")
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => RemoveTariff(tariff.TariffLayerId)">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </div>
+            }
+        </div>
+
+        <div class="card bg-light border-0">
+            <div class="card-body p-3">
+                <h6 class="small fw-bold mb-3">Attach New Layer</h6>
+                <div class="row g-2">
+                    <div class="col-8">
+                        <select class="form-select form-select-sm" @bind="_selectedLayerId">
+                            <option value="0">Select a layer...</option>
+                            @if (_allLayers != null)
+                            {
+                                @foreach (var layer in _allLayers)
+                                {
+                                    <option value="@layer.TariffLayerId">@layer.Name ($@layer.BaseRate)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-sm btn-vscode w-100" @onclick="AssignTariff">Attach</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="mt-5 pt-4 border-top">
+        <label class="form-label small fw-bold text-secondary text-uppercase mb-3">Ledger Activity & Balance</label>
+        <div class="p-3 border rounded @(_balance > 0 ? "bg-red-50" : "bg-green-50")">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="small fw-bold">Current Balance Due:</span>
+                <span class="fs-4 fw-bold @(_balance > 0 ? "text-danger" : "text-success")">$@_balance</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-red-50 { background-color: #fef2f2; border-color: #fca5a5 !important; }
+    .bg-green-50 { background-color: #f0fdf4; border-color: #bbf7d0 !important; }
+    .btn-vscode { background: #007acc; color: white; border: none; padding: 4px 12px; font-size: 12px; transition: opacity 0.2s; }
+    .btn-vscode:hover { opacity: 0.9; color: white; }
+</style>
+
+@code {
+    [Inject] private ApiService ApiService { get; set; } = default!;
+    [Parameter] public int AssetId { get; set; }
+
+    private List<AssetTariff>? _assetTariffs;
+    private List<TariffLayer>? _allLayers;
+    private int _selectedLayerId;
+    private decimal _balance;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AssetId > 0)
+        {
+            await LoadBillingInfo();
+        }
+    }
+
+    private async Task LoadBillingInfo()
+    {
+        _assetTariffs = await ApiService.GetAsync<List<AssetTariff>>($"api/tariff/assets/{AssetId}");
+        
+        var groups = await ApiService.GetAsync<List<TariffGroup>>("api/tariff/groups");
+        _allLayers = new();
+        if (groups != null)
+        {
+            foreach (var g in groups)
+            {
+                var layers = await ApiService.GetAsync<List<TariffLayer>>($"api/tariff/groups/{g.TariffGroupId}/layers");
+                if (layers != null) _allLayers.AddRange(layers);
+            }
+        }
+
+        _balance = await ApiService.GetAsync<decimal>($"api/finance/balance/asset/{AssetId}");
+    }
+
+    private string GetLayerName(int layerId) => _allLayers?.FirstOrDefault(l => l.TariffLayerId == layerId)?.Name ?? $"Layer #{layerId}";
+
+    private async Task AssignTariff()
+    {
+        if (_selectedLayerId <= 0) return;
+        await ApiService.PostAsync("api/tariff/assets/assign", new AssetTariff { AssetId = AssetId, TariffLayerId = _selectedLayerId });
+        _selectedLayerId = 0;
+        await LoadBillingInfo();
+    }
+
+    private async Task RemoveTariff(int layerId)
+    {
+        await ApiService.DeleteAsync($"api/tariff/assets/{AssetId}/layers/{layerId}");
+        await LoadBillingInfo();
+    }
+}

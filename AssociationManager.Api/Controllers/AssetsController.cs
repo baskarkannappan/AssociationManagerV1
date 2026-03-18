@@ -26,15 +26,15 @@ public class AssetsController : ControllerBase
     public async Task<IActionResult> GetHierarchy()
     {
         var hierarchy = await _assetService.GetHierarchyAsync();
-        return Ok(hierarchy);
+        return Ok(ApiResponse<IEnumerable<Asset>>.SuccessResponse(hierarchy));
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
         var asset = await _assetService.GetByIdAsync(id);
-        if (asset == null) return NotFound();
-        return Ok(asset);
+        if (asset == null) return NotFound(ApiResponse.FailureResponse("Asset not found."));
+        return Ok(ApiResponse<Asset>.SuccessResponse(asset));
     }
 
     [HttpPost]
@@ -43,7 +43,7 @@ public class AssetsController : ControllerBase
     {
         var id = await _assetService.CreateAsync(asset);
         await _auditService.LogAsync("Create Asset", "Asset", id);
-        return CreatedAtAction(nameof(GetById), new { id }, asset);
+        return CreatedAtAction(nameof(GetById), new { id }, ApiResponse<int>.SuccessResponse(id, "Asset created successfully."));
     }
 
     [HttpPost("bulk")]
@@ -52,7 +52,7 @@ public class AssetsController : ControllerBase
     {
         var count = await _assetService.BulkCreateAsync(request);
         await _auditService.LogAsync("Bulk Create Assets", "Asset", 0);
-        return Ok(new { Count = count });
+        return Ok(ApiResponse<int>.SuccessResponse(count, $"{count} assets created in bulk."));
     }
 
     [HttpPut("{id}")]
@@ -61,9 +61,9 @@ public class AssetsController : ControllerBase
     {
         asset.AssetId = id;
         var success = await _assetService.UpdateAsync(asset);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Asset not found for update."));
         await _auditService.LogAsync("Update Asset", "Asset", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Asset updated successfully."));
     }
 
     [HttpDelete("{id}")]
@@ -71,8 +71,8 @@ public class AssetsController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _assetService.DeleteAsync(id);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Asset not found for deletion."));
         await _auditService.LogAsync("Delete Asset", "Asset", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Asset deleted successfully."));
     }
 }

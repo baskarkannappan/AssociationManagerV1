@@ -27,11 +27,22 @@
                 <span>Operations</span>
             </NavLink>
         </AuthorizeView>
+
+        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin}")">
+            <NavLink href="users" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-people-fill"></i>
+                <span>Users & Roles</span>
+            </NavLink>
+        </AuthorizeView>
         
         <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.FinanceManager}")">
             <NavLink href="billing" class="vscode-tree-item text-decoration-none">
                 <i class="bi bi-wallet2"></i>
                 <span>Finance</span>
+            </NavLink>
+            <NavLink href="tariffs" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-layers-half"></i>
+                <span>Tariff Management</span>
             </NavLink>
         </AuthorizeView>
 

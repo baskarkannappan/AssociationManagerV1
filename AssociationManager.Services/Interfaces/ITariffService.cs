@@ -1,0 +1,27 @@
+using AssociationManager.Shared.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace AssociationManager.Services.Interfaces;
+
+public interface ITariffService
+{
+    // Group & Layer Management
+    Task<IEnumerable<TariffGroup>> GetTariffGroupsAsync();
+    Task<int> CreateTariffGroupAsync(TariffGroup group);
+    Task<bool> UpdateTariffGroupAsync(TariffGroup group);
+    Task<bool> DeleteTariffGroupAsync(int groupId);
+
+    Task<IEnumerable<TariffLayer>> GetTariffLayersAsync(int groupId);
+    Task<int> CreateTariffLayerAsync(TariffLayer layer);
+    Task<bool> UpdateTariffLayerAsync(TariffLayer layer);
+    Task<bool> DeleteTariffLayerAsync(int layerId);
+
+    // Assignment
+    Task<IEnumerable<AssetTariff>> GetAssetTariffsAsync(int assetId);
+    Task<bool> AssignTariffToAssetAsync(AssetTariff assetTariff);
+    Task<bool> RemoveTariffFromAssetAsync(int assetId, int layerId);
+
+    // Automation & Billing
+    Task GenerateRecurringInvoicesAsync();
+}

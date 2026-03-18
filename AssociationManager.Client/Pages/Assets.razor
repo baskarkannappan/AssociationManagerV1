@@ -72,6 +72,7 @@
                                     <div class="vscode-tab @(_activeTab == "occupants" ? "active" : "")" @onclick='() => _activeTab = "occupants"'>Occupants</div>
                                     <div class="vscode-tab @(_activeTab == "vehicles" ? "active" : "")" @onclick='() => _activeTab = "vehicles"'>Vehicles</div>
                                     <div class="vscode-tab @(_activeTab == "pets" ? "active" : "")" @onclick='() => _activeTab = "pets"'>Pets</div>
+                                    <div class="vscode-tab @(_activeTab == "announcements" ? "active" : "")" @onclick='() => _activeTab = "announcements"'>Announcements</div>
                                     <div class="vscode-tab @(_activeTab == "history" ? "active" : "")" @onclick='() => _activeTab = "history"'>History</div>
                                 }
                             </div>
@@ -104,6 +105,16 @@
                                          Pets="_pets" 
                                          OnDelete="RemovePet" 
                                          OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
+                            }
+                            else if (_activeTab == "announcements")
+                            {
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold small mb-0">Unit Announcements</h6>
+                                    <button class="btn btn-sm btn-vscode" @onclick="() => _assetBroadcastList?.ShowCreateModal()">
+                                        <i class="bi bi-plus"></i> Post to Unit
+                                    </button>
+                                </div>
+                                <BroadcastList @ref="_assetBroadcastList" AssetId="_selectedAsset.AssetId" />
                             }
                             else if (_activeTab == "history")
                             {
@@ -163,6 +174,7 @@
     private IEnumerable<WorkOrder>? _workOrders;
     private IEnumerable<Invoice>? _invoices;
 
+    private BroadcastList? _assetBroadcastList;
     private BulkCreateModal _bulkModal = default!;
 
     [CascadingParameter]

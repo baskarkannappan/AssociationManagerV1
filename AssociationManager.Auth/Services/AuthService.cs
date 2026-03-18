@@ -143,8 +143,8 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("UserId", user.UserId.ToString()),
             new Claim("TenantId", user.TenantId.ToString()),
-            new Claim("Role", user.Role),
-            new Claim("Name", user.Name),
+            new Claim(ClaimTypes.Role, user.Role),
+            new Claim(ClaimTypes.Name, user.Name),
             new Claim("DeviceId", "Web") // Simplified for now
         };
 

@@ -28,15 +28,15 @@ public class OperationsController : ControllerBase
     public async Task<IActionResult> GetWorkOrders()
     {
         var workOrders = await _operationsService.GetAllWorkOrdersAsync();
-        return Ok(workOrders);
+        return Ok(ApiResponse<IEnumerable<WorkOrder>>.SuccessResponse(workOrders));
     }
 
     [HttpGet("workorders/{id}")]
     public async Task<IActionResult> GetWorkOrder(int id)
     {
         var workOrder = await _operationsService.GetWorkOrderByIdAsync(id);
-        if (workOrder == null) return NotFound();
-        return Ok(workOrder);
+        if (workOrder == null) return NotFound(ApiResponse.FailureResponse("Work order not found."));
+        return Ok(ApiResponse<WorkOrder>.SuccessResponse(workOrder));
     }
 
     [HttpPost("workorders")]
@@ -44,7 +44,7 @@ public class OperationsController : ControllerBase
     {
         var id = await _operationsService.CreateWorkOrderAsync(workOrder);
         await _auditService.LogAsync("Create Work Order", "WorkOrder", id);
-        return CreatedAtAction(nameof(GetWorkOrder), new { id }, workOrder);
+        return CreatedAtAction(nameof(GetWorkOrder), new { id }, ApiResponse<int>.SuccessResponse(id, "Work order created."));
     }
 
     [HttpPut("workorders/{id}")]
@@ -52,26 +52,26 @@ public class OperationsController : ControllerBase
     {
         workOrder.WorkOrderId = id;
         var success = await _operationsService.UpdateWorkOrderAsync(workOrder);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Work order not found for update."));
         await _auditService.LogAsync("Update Work Order", "WorkOrder", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Work order updated."));
     }
 
     [HttpPut("workorders/{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {
         var success = await _operationsService.UpdateWorkOrderStatusAsync(id, status);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Work order not found for status update."));
         await _auditService.LogAsync("Update Work Order Status", "WorkOrder", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Work order status updated."));
     }
 
     [HttpDelete("workorders/{id}")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _operationsService.DeleteWorkOrderAsync(id);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Work order not found for deletion."));
         await _auditService.LogAsync("Delete Work Order", "WorkOrder", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Work order deleted."));
     }
 }

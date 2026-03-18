@@ -13,7 +13,9 @@ public class Broadcast
     public int CreatedBy { get; set; }
     public bool IsPinned { get; set; }
     public DateTime? ExpiresDate { get; set; }
+    public int? AssetId { get; set; }
 
-    // Navigation helper
+    // Navigation helpers
     public string? AuthorName { get; set; }
+    public string? AssetName { get; set; }
 }

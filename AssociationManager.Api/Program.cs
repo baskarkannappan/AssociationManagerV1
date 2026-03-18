@@ -45,6 +45,8 @@ builder.Services.AddScoped<IPetRepository, PetRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
 builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
+builder.Services.AddScoped<ITariffRepository, TariffRepository>();
+builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -52,11 +54,13 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAssociationService, AssociationService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IPeopleService, PeopleService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IOperationsService, OperationsService>();
 builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
+builder.Services.AddScoped<ITariffService, TariffService>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();

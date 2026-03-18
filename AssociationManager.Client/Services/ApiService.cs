@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using AssociationManager.Shared.Models;
 
 namespace AssociationManager.Client.Services;
 
@@ -17,43 +18,102 @@ public class ApiService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<T>(url);
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<T>>(url);
+            if (response != null && response.Success)
+            {
+                return response.Data;
+            }
+            
+            if (response != null && !string.IsNullOrEmpty(response.Message))
+            {
+                Console.WriteLine($"API Error: {response.Message}");
+            }
+            return default;
         }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        catch (HttpRequestException ex)
         {
-            // Log and potentially trigger logout or redirect
-            Console.WriteLine("401 Unauthorized: Session may have expired.");
+            Console.WriteLine($"HTTP Error: {ex.Message}");
             throw;
         }
     }
 
-    public async Task<HttpResponseMessage> PostAsync<T>(string url, T data)
+    public async Task<TResponse?> PostAsync<TRequest, TResponse>(string url, TRequest data)
     {
-        var response = await _httpClient.PostAsJsonAsync(url, data);
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        try
         {
-             Console.WriteLine("401 Unauthorized: Post failed.");
+            var response = await _httpClient.PostAsJsonAsync(url, data);
+            if (response.IsSuccessStatusCode)
+            {
+                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>();
+                return apiResponse != null ? apiResponse.Data : default;
+            }
+            return default;
         }
-        return response;
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"Token fetch error: {ex.Message}");
+            return default;
+        }
     }
 
-    public async Task<HttpResponseMessage> PutAsync<T>(string url, T data)
+    public async Task<bool> PostAsync<TRequest>(string url, TRequest data)
     {
-        var response = await _httpClient.PutAsJsonAsync(url, data);
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        try
         {
-             Console.WriteLine("401 Unauthorized: Put failed.");
+            var response = await _httpClient.PostAsJsonAsync(url, data);
+            if (response.IsSuccessStatusCode)
+            {
+                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
+                return apiResponse?.Success ?? false;
+            }
+            return false;
         }
-        return response;
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"POST Error: {ex.Message}");
+            return false;
+        }
     }
 
-    public async Task<HttpResponseMessage> DeleteAsync(string url)
+    public async Task<bool> PutAsync<TRequest>(string url, TRequest data)
     {
-        var response = await _httpClient.DeleteAsync(url);
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        try
         {
-             Console.WriteLine("401 Unauthorized: Delete failed.");
+            var response = await _httpClient.PutAsJsonAsync(url, data);
+            if (response.IsSuccessStatusCode)
+            {
+                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
+                return apiResponse?.Success ?? false;
+            }
+            return false;
         }
-        return response;
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"PUT Error: {ex.Message}");
+            return false;
+        }
     }
+
+    public async Task<bool> DeleteAsync(string url)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
+                return apiResponse?.Success ?? false;
+            }
+            return false;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"DELETE Error: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<HttpResponseMessage> PostRawAsync<T>(string url, T data) => await _httpClient.PostAsJsonAsync(url, data);
+    public async Task<HttpResponseMessage> PutRawAsync<T>(string url, T data) => await _httpClient.PutAsJsonAsync(url, data);
+    public async Task<HttpResponseMessage> DeleteRawAsync(string url) => await _httpClient.DeleteAsync(url);
 }

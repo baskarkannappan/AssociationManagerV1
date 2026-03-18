@@ -151,7 +151,7 @@
 
     private async Task DeleteAssociation(int id)
     {
-        await ApiService.PostAsync($"api/associations/{id}", (object?)null);
+        await ApiService.DeleteAsync($"api/associations/{id}");
         await LoadAssociations();
     }
 

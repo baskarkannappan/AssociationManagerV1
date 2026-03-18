@@ -1,0 +1,329 @@
+@page "/users"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@inject ApiService Api
+
+<div class="vscode-page-header">
+    <div class="header-left">
+        <h5 class="m-0 fw-semibold"><i class="bi bi-people-fill me-2"></i>Users & Roles</h5>
+        <div class="ms-4 btn-group btn-group-sm">
+            <button class="btn @(_viewMode == ViewMode.List ? "btn-vscode-accent" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.List">
+                <i class="bi bi-list-ul me-1"></i>List
+            </button>
+            <button class="btn @(_viewMode == ViewMode.Hierarchy ? "btn-vscode-accent" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.Hierarchy">
+                <i class="bi bi-diagram-3 me-1"></i>Hierarchy
+            </button>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="btn btn-sm btn-primary px-3" @onclick="ShowAddMemberModal">
+            <i class="bi bi-person-plus-fill me-1"></i>Add Member
+        </button>
+    </div>
+</div>
+
+<div class="vscode-content custom-scrollbar p-4">
+    <div class="container-fluid" style="max-width: 1000px;">
+        @if (!string.IsNullOrEmpty(_message))
+        {
+            <div class="alert @(_isError ? "alert-danger" : "alert-success") alert-dismissible fade show mb-4 small" role="alert">
+                @_message
+                <button type="button" class="btn-close" @onclick="() => _message = null"></button>
+            </div>
+        }
+
+        @if (_viewMode == ViewMode.List)
+        {
+            <div class="compact-card p-0 overflow-hidden mb-4">
+                <div class="vscode-page-header py-2 px-3 border-bottom">
+                    <h6 class="m-0 small fw-bold text-uppercase opacity-75">Association Members</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 vscode-table">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">User</th>
+                                <th>Email</th>
+                                <th>Current Role</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_users == null)
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 opacity-50">
+                                        <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                                        <div>Loading members...</div>
+                                    </td>
+                                </tr>
+                            }
+                            else if (!_users.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 opacity-50">
+                                        <i class="bi bi-person-x display-6 mb-3"></i>
+                                        <p>No members found in this association.</p>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var user in _users)
+                                {
+                                    <tr>
+                                        <td class="ps-3 py-3">
+                                            <div class="d-flex align-items-center gap-3">
+                                                @if (!string.IsNullOrEmpty(user.PictureUrl))
+                                                {
+                                                    <img src="@user.PictureUrl" class="rounded-circle shadow-sm" style="width: 32px; height: 32px;" alt="@user.Name" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center border" style="width: 32px; height: 32px; font-size: 12px;">
+                                                        @GetInitials(user.Name)
+                                                    </div>
+                                                }
+                                                <div>
+                                                    <div class="fw-semibold">@user.Name</div>
+                                                    @if (!user.IsActive)
+                                                    {
+                                                        <span class="badge bg-danger-subtle text-danger" style="font-size: 10px;">Inactive</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>@user.Email</td>
+                                        <td>
+                                            <select class="form-select form-select-sm" style="width: 180px;" 
+                                                    value="@user.Role" 
+                                                    @onchange="(e) => HandleRoleChange(user.UserId, e.Value?.ToString())">
+                                                @foreach (var role in AppRole.All)
+                                                {
+                                                    <option value="@role">@role</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <button class="btn btn-sm btn-link text-danger p-0 ms-2" title="Remove from Association" @onclick="() => ConfirmRemove(user)">
+                                                <i class="bi bi-person-dash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="mb-4">
+                <UserHierarchy Users="_users" Visible="@(_viewMode == ViewMode.Hierarchy)" />
+            </div>
+        }
+
+        <div class="compact-card p-4 bg-light-subtle opacity-75">
+            <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Role Capabilities</h6>
+            <div class="row g-3">
+                @foreach (var role in AppRole.All)
+                {
+                    <div class="col-md-4">
+                        <div class="fw-bold small mb-1 text-primary">@role</div>
+                        <ul class="ps-3 mb-0 small text-secondary">
+                            @foreach (var cap in AppRole.GetCapabilities(role))
+                            {
+                                <li>@cap</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Add Member Modal *@
+@if (_showAddModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg">
+                <div class="vscode-page-header py-2 px-3 border-bottom">
+                    <h6 class="m-0 fw-semibold"><i class="bi bi-person-plus-fill me-2"></i>Add Association Member</h6>
+                    <button type="button" class="btn-close" @onclick="HideAddMemberModal"></button>
+                </div>
+                <div class="p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">User Email</label>
+                        <input type="email" class="form-control" @bind="_newMemberEmail" placeholder="Enter user's registration email..." />
+                        <div class="form-text x-small mt-1 opacity-75">Note: The user must have signed in to the application at least once before they can be added to an association.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted">Initial Role</label>
+                        <select class="form-select" @bind="_newMemberRole">
+                            @foreach (var role in AppRole.All)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn-vscode-secondary" @onclick="HideAddMemberModal">Cancel</button>
+                        <button type="button" class="btn btn-primary px-4" @onclick="HandleAddMember" disabled="@(string.IsNullOrEmpty(_newMemberEmail) || _isAdding)">
+                            @if (_isAdding)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            Add Member
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Remove Member Modal *@
+@if (_userToRemove != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg border-danger">
+                <div class="vscode-page-header py-2 px-3 bg-danger-subtle text-danger">
+                    <h6 class="m-0 fw-semibold">Confirm Removal</h6>
+                    <button type="button" class="btn-close" @onclick="CancelRemove"></button>
+                </div>
+                <div class="p-3">
+                    <p class="mb-4">Are you sure you want to remove <strong>@_userToRemove.Name</strong> from this association? This will revoke all their access to this tenant.</p>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn-vscode-secondary" @onclick="CancelRemove">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="HandleRemoveUser">Remove Member</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IEnumerable<User>? _users;
+    private User? _userToRemove;
+    private bool _showAddModal;
+    private string _newMemberEmail = "";
+    private string _newMemberRole = AppRole.Resident;
+    private bool _isAdding;
+    private string? _message;
+    private bool _isError;
+    private ViewMode _viewMode = ViewMode.List;
+
+    public enum ViewMode { List, Hierarchy }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        _users = await Api.GetAsync<IEnumerable<User>>("api/users");
+    }
+
+    private async Task HandleRoleChange(int userId, string? newRole)
+    {
+        if (string.IsNullOrEmpty(newRole)) return;
+        
+        var success = await Api.PutAsync($"api/users/{userId}/role", new UpdateRoleRequest(newRole));
+        if (success) {
+            _message = "Role updated successfully.";
+            _isError = false;
+        } else {
+            _message = "Failed to update role.";
+            _isError = true;
+        }
+        await LoadUsers();
+    }
+
+    private void ShowAddMemberModal()
+    {
+        _showAddModal = true;
+        _newMemberEmail = "";
+        _newMemberRole = AppRole.Resident;
+    }
+
+    private void HideAddMemberModal()
+    {
+        _showAddModal = false;
+    }
+
+    private async Task HandleAddMember()
+    {
+        if (string.IsNullOrEmpty(_newMemberEmail)) return;
+
+        _isAdding = true;
+        try {
+            // Using the non-generic Task<bool> PostAsync
+            var success = await Api.PostAsync("api/users/add-by-email", new { Email = _newMemberEmail, Role = _newMemberRole });
+            
+            if (success) {
+                _message = "Member added successfully.";
+                _isError = false;
+                _showAddModal = false;
+                await LoadUsers();
+            } else {
+                _message = "Failed to add member. Ensure the email is correct and the user has signed in before.";
+                _isError = true;
+            }
+        } catch (Exception ex) {
+            _message = ex.Message;
+            _isError = true;
+        } finally {
+            _isAdding = false;
+        }
+    }
+
+    private void ConfirmRemove(User user)
+    {
+        _userToRemove = user;
+    }
+
+    private void CancelRemove()
+    {
+        _userToRemove = null;
+    }
+
+    private async Task HandleRemoveUser()
+    {
+        if (_userToRemove == null) return;
+
+        var success = await Api.DeleteAsync($"api/users/{_userToRemove.UserId}");
+        if (success) {
+            _message = "User removed from association.";
+            _isError = false;
+        } else {
+            _message = "Failed to remove user.";
+            _isError = true;
+        }
+        _userToRemove = null;
+        await LoadUsers();
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "U";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpper();
+        return (parts[0][0].ToString() + parts[^1][0].ToString()).ToUpper();
+    }
+}
+
+<style>
+    .vscode-table th { font-size: 11px; text-transform: uppercase; opacity: 0.6; letter-spacing: 0.5px; border-bottom-width: 1px; }
+    .vscode-table td { font-size: 13px; vertical-align: middle; }
+    .btn-link:hover { opacity: 0.7; }
+    .x-small { font-size: 10px; }
+</style>

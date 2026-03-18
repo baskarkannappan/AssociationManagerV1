@@ -28,6 +28,11 @@ public class CommunicationsService : ICommunicationsService
         return await _broadcastRepository.GetAllAsync();
     }
 
+    public async Task<IEnumerable<Broadcast>> GetBroadcastsByAssetAsync(int assetId)
+    {
+        return await _broadcastRepository.GetByAssetIdAsync(assetId);
+    }
+
     public async Task<int> CreateBroadcastAsync(Broadcast broadcast)
     {
         broadcast.TenantId = _tenantContext.TenantId;

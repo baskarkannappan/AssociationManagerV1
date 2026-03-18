@@ -1,0 +1,45 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle compact-table">
+        <thead>
+            <tr>
+                <th>Layer Name</th>
+                <th>Calculation</th>
+                <th>Base Rate</th>
+                <th>Frequency</th>
+                <th>Category</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var layer in Layers)
+            {
+                <tr>
+                    <td class="fw-medium">@layer.Name</td>
+                    <td><span class="badge bg-light text-dark font-monospace" style="font-size: 10px;">@layer.CalculationType</span></td>
+                    <td class="fw-semibold">$@layer.BaseRate</td>
+                    <td>@layer.Frequency</td>
+                    <td class="text-muted small">@layer.AccountingCategory</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-link p-0 text-muted hover-danger" @onclick="() => OnDelete.InvokeAsync(layer.TariffLayerId)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .compact-table th { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.025em; border-top: none; }
+    .compact-table td { font-size: 13px; padding: 8px 4px; }
+    .hover-danger:hover { color: #dc3545 !important; }
+</style>
+
+@code {
+    [Parameter] public IEnumerable<TariffLayer> Layers { get; set; } = Enumerable.Empty<TariffLayer>();
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+}

@@ -1,4 +1,5 @@
 using AssociationManager.Shared.Models;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -17,4 +18,9 @@ public interface IFinanceService
     // Payment Operations
     Task<IEnumerable<Payment>> GetPaymentsAsync();
     Task<int> CreatePaymentAsync(Payment payment);
+
+    // Ledger & Transactions
+    Task<IEnumerable<Transaction>> GetAssetTransactionsAsync(int assetId);
+    Task<decimal> GetAssetBalanceAsync(int assetId);
+    Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null);
 }

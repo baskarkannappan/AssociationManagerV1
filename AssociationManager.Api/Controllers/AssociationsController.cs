@@ -26,24 +26,21 @@ public class AssociationsController : ControllerBase
     [HttpGet("my-tenants")]
     public async Task<IActionResult> GetMyTenants()
     {
-        Console.WriteLine($"[AssociationsController] GetMyTenants called. Base UserId: {_tenantContext.UserId}");
         var associations = await _associationService.GetByUserIdAsync(_tenantContext.UserId);
-        return Ok(associations);
+        return Ok(ApiResponse<IEnumerable<Association>>.SuccessResponse(associations));
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        Console.WriteLine($"[AssociationsController] GetAll called. TenantId: {_tenantContext.TenantId}, UserId: {_tenantContext.UserId}");
         try 
         {
             var associations = await _associationService.GetAllByTenantAsync();
-            return Ok(associations);
+            return Ok(ApiResponse<IEnumerable<Association>>.SuccessResponse(associations));
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[AssociationsController] GetAll FAILED: {ex.Message}");
-            throw;
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
         }
     }
 
@@ -51,8 +48,8 @@ public class AssociationsController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var association = await _associationService.GetByIdAsync(id);
-        if (association == null) return NotFound();
-        return Ok(association);
+        if (association == null) return NotFound(ApiResponse.FailureResponse("Association not found."));
+        return Ok(ApiResponse<Association>.SuccessResponse(association));
     }
 
     [HttpPost]
@@ -60,7 +57,7 @@ public class AssociationsController : ControllerBase
     {
         var id = await _associationService.CreateAsync(association);
         await _auditService.LogAsync("Create Association", "Association", id);
-        return CreatedAtAction(nameof(GetById), new { id }, association);
+        return CreatedAtAction(nameof(GetById), new { id }, ApiResponse<int>.SuccessResponse(id, "Association created successfully."));
     }
 
     [HttpPut("{id}")]
@@ -68,17 +65,17 @@ public class AssociationsController : ControllerBase
     {
         association.AssociationId = id;
         var success = await _associationService.UpdateAsync(association);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Association not found for update."));
         await _auditService.LogAsync("Update Association", "Association", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Association updated successfully."));
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _associationService.DeleteAsync(id);
-        if (!success) return NotFound();
+        if (!success) return NotFound(ApiResponse.FailureResponse("Association not found for deletion."));
         await _auditService.LogAsync("Delete Association", "Association", id);
-        return NoContent();
+        return Ok(ApiResponse.SuccessResponse("Association deleted successfully."));
     }
 }

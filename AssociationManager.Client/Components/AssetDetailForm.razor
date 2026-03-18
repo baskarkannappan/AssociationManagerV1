@@ -1,73 +1,107 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 
-<EditForm Model="Asset" OnValidSubmit="HandleValidSubmit" class="premium-form forced-text-dark">
-    <div class="row g-4">
-        <div class="col-md-7">
-            <div class="mb-4">
-                <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Resource Identity</label>
-                <div class="input-group-premium">
-                    <InputText @bind-Value="Asset.Name" class="form-control-premium w-100" placeholder="Display Name (e.g. Tower A, Suite 402)" />
+<div class="tabs-vscode border-bottom mb-4 d-flex gap-3">
+    <div class="tab-item @(_activeTab == "general" ? "active" : "")" @onclick='() => _activeTab = "general"'>General</div>
+    @if (!IsNew)
+    {
+        <div class="tab-item @(_activeTab == "tariffs" ? "active" : "")" @onclick='() => _activeTab = "tariffs"'>Billing & Tariffs</div>
+    }
+</div>
+
+@if (_activeTab == "general")
+{
+    <EditForm Model="Asset" OnValidSubmit="HandleValidSubmit" class="premium-form forced-text-dark">
+        <div class="row g-4">
+            <div class="col-md-7">
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Resource Identity</label>
+                    <div class="input-group-premium">
+                        <InputText @bind-Value="Asset.Name" class="form-control-premium w-100" placeholder="Display Name (e.g. Tower A, Suite 402)" />
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Registry Allocation</label>
+                    <InputSelect @bind-Value="Asset.AssetType" class="form-select-premium w-100">
+                        @foreach (var type in Enum.GetValues<AssetType>())
+                        {
+                            <option value="@type">@type</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Internal Notes</label>
+                    <InputTextArea @bind-Value="Asset.Description" class="form-control-premium w-100" rows="3" placeholder="Additional context or classification notes..." />
                 </div>
             </div>
 
-            <div class="mb-4">
-                <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Registry Allocation</label>
-                <InputSelect @bind-Value="Asset.AssetType" class="form-select-premium w-100">
-                    @foreach (var type in Enum.GetValues<AssetType>())
+            <div class="col-md-5">
+                <div class="p-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
+                    <div class="d-flex align-items-center gap-2 mb-3 text-secondary">
+                        <i class="bi bi-info-circle"></i>
+                        <span class="small fw-bold text-uppercase" style="font-size: 10px;">Registry Metadata</span>
+                    </div>
+                    @if (Asset.MetadataJson != null)
                     {
-                        <option value="@type">@type</option>
+                        <div class="small font-monospace opacity-70 overflow-auto" style="max-height: 150px; font-size: 10px;">
+                            @Asset.MetadataJson
+                        </div>
                     }
-                </InputSelect>
-            </div>
-
-            <div class="mb-4">
-                <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Internal Notes</label>
-                <InputTextArea @bind-Value="Asset.Description" class="form-control-premium w-100" rows="3" placeholder="Additional context or classification notes..." />
-            </div>
-        </div>
-
-        <div class="col-md-5">
-            <div class="p-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
-                <div class="d-flex align-items-center gap-2 mb-3 text-secondary">
-                    <i class="bi bi-info-circle"></i>
-                    <span class="small fw-bold text-uppercase" style="font-size: 10px;">Registry Metadata</span>
-                </div>
-                <div class="text-center py-4 opacity-30">
-                    <i class="bi bi-cpu" style="font-size: 1.5rem;"></i>
-                    <p class="small mt-2 mb-0" style="font-size: 11px;">Template-specific fields will appear here.</p>
+                    else
+                    {
+                        <div class="text-center py-4 opacity-30">
+                            <i class="bi bi-cpu" style="font-size: 1.5rem;"></i>
+                            <p class="small mt-2 mb-0" style="font-size: 11px;">Template-specific fields will appear here.</p>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
-    </div>
 
-    <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")" Context="authContext">
-        <Authorized>
-            <div class="d-flex align-items-center gap-3 pt-4 border-top mt-4" style="border-color: rgba(255,255,255,0.05) !important;">
-                <button type="submit" class="btn-vscode btn-primary-premium">
-                    <i class="bi bi-shield-lock-fill me-2"></i> @(IsNew ? "Initialize Asset" : "Commit Changes")
-                </button>
-                
-                @if (!IsNew)
-                {
-                    <button type="button" class="btn-vscode-secondary" @onclick="OnAddChild">
-                        <i class="bi bi-node-plus"></i> Add Sub-component
+        <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")" Context="authContext">
+            <Authorized>
+                <div class="d-flex align-items-center gap-3 pt-4 border-top mt-4" style="border-color: rgba(255,255,255,0.05) !important;">
+                    <button type="submit" class="btn-vscode btn-primary-premium">
+                        <i class="bi bi-shield-lock-fill me-2"></i> @(IsNew ? "Initialize Asset" : "Commit Changes")
                     </button>
-                    <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none ms-auto p-0 opacity-75 hover-opacity-100" @onclick="OnDelete">
-                        <i class="bi bi-trash-fill"></i> Delete
-                    </button>
-                }
-            </div>
-        </Authorized>
-    </AuthorizeView>
-</EditForm>
+                    
+                    @if (!IsNew)
+                    {
+                        <button type="button" class="btn-vscode-secondary" @onclick="OnAddChild">
+                            <i class="bi bi-node-plus"></i> Add Sub-component
+                        </button>
+                        <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none ms-auto p-0 opacity-75 hover-opacity-100" @onclick="OnDelete">
+                            <i class="bi bi-trash-fill"></i> Delete
+                        </button>
+                    }
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </EditForm>
+}
+else if (_activeTab == "tariffs")
+{
+    <AssetBillingTab AssetId="Asset.AssetId" />
+}
+
+<style>
+    .tabs-vscode { font-size: 12px; }
+    .tab-item { padding-bottom: 6px; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; }
+    .tab-item:hover { color: #1e293b; }
+    .tab-item.active { color: #007acc; border-bottom-color: #007acc; font-weight: 600; }
+</style>
 
 @code {
+    [Inject] private ApiService ApiService { get; set; } = default!;
     [Parameter] public Asset Asset { get; set; } = new();
     [Parameter] public bool IsNew { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnAddChild { get; set; }
     [Parameter] public EventCallback OnDelete { get; set; }
+
+    private string _activeTab = "general";
 
     private async Task HandleValidSubmit()
     {

@@ -73,10 +73,9 @@
 
     private async Task SaveOccupant()
     {
-        var response = await ApiService.PostAsync("api/people", _newPerson);
-        if (response.IsSuccessStatusCode)
+        var personId = await ApiService.PostAsync<Person, int>("api/people", _newPerson);
+        if (personId > 0)
         {
-            var personId = await response.Content.ReadFromJsonAsync<int>();
             _newOccupancy.PersonId = personId;
             _newOccupancy.AssetId = AssetId;
             await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
