@@ -6,6 +6,7 @@ public class Broadcast
 {
     public int BroadcastId { get; set; }
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string Category { get; set; } = "General";

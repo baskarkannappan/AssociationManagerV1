@@ -20,18 +20,20 @@ public class AuditLogRepository : IAuditLogRepository
 
     public async Task<int> CreateAsync(AuditLog log)
     {
+        log.TenantId = _tenantContext.TenantId;
+        log.AssociationId = _tenantContext.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "INSERT INTO AuditLogs (TenantId, UserId, Action, Entity, EntityId, IpAddress, Timestamp) " +
+        string sql = "INSERT INTO AuditLogs (TenantId, AssociationId, UserId, Action, Entity, EntityId, IpAddress, Timestamp) " +
                      "OUTPUT INSERTED.AuditLogId " +
-                     "VALUES (@TenantId, @UserId, @Action, @Entity, @EntityId, @IpAddress, @Timestamp)";
+                     "VALUES (@TenantId, @AssociationId, @UserId, @Action, @Entity, @EntityId, @IpAddress, @Timestamp)";
         return await connection.ExecuteScalarAsync<int>(sql, log);
     }
 
-    public async Task<IEnumerable<AuditLog>> GetByTenantIdAsync(int tenantId)
+    public async Task<IEnumerable<AuditLog>> GetByTenantIdAsync(int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AuditLog>(
-            "SELECT * FROM AuditLogs WHERE TenantId = @TenantId ORDER BY Timestamp DESC", 
-            new { TenantId = _tenantContext.TenantId });
+            "SELECT * FROM AuditLogs WHERE TenantId = @TenantId AND AssociationId = @AssociationId ORDER BY Timestamp DESC", 
+            new { TenantId = tenantId, AssociationId = associationId });
     }
 }

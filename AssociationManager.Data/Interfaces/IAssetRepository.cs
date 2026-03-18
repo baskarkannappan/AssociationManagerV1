@@ -6,10 +6,10 @@ namespace AssociationManager.Data.Interfaces;
 
 public interface IAssetRepository
 {
-    Task<Asset?> GetByIdAsync(int id, int tenantId);
-    Task<IEnumerable<Asset>> GetByParentIdAsync(int? parentId, int tenantId);
-    Task<IEnumerable<Asset>> GetHierarchyAsync(int tenantId);
+    Task<Asset?> GetByIdAsync(int id, int tenantId, int associationId);
+    Task<IEnumerable<Asset>> GetByParentIdAsync(int? parentId, int tenantId, int associationId);
+    Task<IEnumerable<Asset>> GetHierarchyAsync(int tenantId, int associationId);
     Task<int> CreateAsync(Asset asset);
     Task<bool> UpdateAsync(Asset asset);
-    Task<bool> DeleteAsync(int id, int tenantId);
+    Task<bool> DeleteAsync(int id, int tenantId, int associationId);
 }

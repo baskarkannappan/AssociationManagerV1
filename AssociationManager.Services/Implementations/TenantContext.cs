@@ -23,6 +23,16 @@ public class TenantContext : ITenantContext
         }
     }
 
+    public int AssociationId
+    {
+        get
+        {
+            var claim = _httpContextAccessor.HttpContext?.User?.Claims
+                .FirstOrDefault(c => c.Type == "AssociationId")?.Value;
+            return int.TryParse(claim, out int associationId) ? associationId : 0;
+        }
+    }
+
     public int UserId
     {
         get

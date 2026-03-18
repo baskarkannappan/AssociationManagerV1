@@ -6,16 +6,16 @@ namespace AssociationManager.Data.Interfaces;
 
 public interface IVehicleRepository
 {
-    Task<IEnumerable<Vehicle>> GetByAssetIdAsync(int assetId, int tenantId);
+    Task<IEnumerable<Vehicle>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
     Task<int> CreateAsync(Vehicle vehicle);
     Task<bool> UpdateAsync(Vehicle vehicle);
-    Task<bool> DeleteAsync(int id, int tenantId);
+    Task<bool> DeleteAsync(int id, int tenantId, int associationId);
 }
 
 public interface IPetRepository
 {
-    Task<IEnumerable<Pet>> GetByAssetIdAsync(int assetId, int tenantId);
+    Task<IEnumerable<Pet>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
     Task<int> CreateAsync(Pet pet);
     Task<bool> UpdateAsync(Pet pet);
-    Task<bool> DeleteAsync(int id, int tenantId);
+    Task<bool> DeleteAsync(int id, int tenantId, int associationId);
 }

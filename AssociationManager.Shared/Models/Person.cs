@@ -6,6 +6,7 @@ public class Person
 {
     public int PersonId { get; set; }
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? Email { get; set; }
@@ -23,6 +24,7 @@ public class Occupancy
     public int AssetId { get; set; } // Link to Unit
     public int PersonId { get; set; }
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public OccupancyType OccupancyType { get; set; } // Owner, Resident, Tenant
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }

@@ -20,7 +20,7 @@ public class BroadcastRepository : IBroadcastRepository
         _tenantContext = tenantContext;
     }
 
-    public async Task<Broadcast?> GetByIdAsync(int id)
+    public async Task<Broadcast?> GetByIdAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Broadcast>(
@@ -28,11 +28,11 @@ public class BroadcastRepository : IBroadcastRepository
               FROM Broadcasts b 
               LEFT JOIN Users u ON b.CreatedBy = u.UserId
               LEFT JOIN Assets a ON b.AssetId = a.AssetId
-              WHERE b.BroadcastId = @Id AND b.TenantId = @TenantId", 
-            new { Id = id, TenantId = _tenantContext.TenantId });
+              WHERE b.BroadcastId = @Id AND b.TenantId = @TenantId AND b.AssociationId = @AssociationId", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId });
     }
 
-    public async Task<IEnumerable<Broadcast>> GetAllAsync()
+    public async Task<IEnumerable<Broadcast>> GetAllAsync(int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Broadcast>(
@@ -40,12 +40,12 @@ public class BroadcastRepository : IBroadcastRepository
               FROM Broadcasts b 
               LEFT JOIN Users u ON b.CreatedBy = u.UserId
               LEFT JOIN Assets a ON b.AssetId = a.AssetId
-              WHERE b.TenantId = @TenantId 
+              WHERE b.TenantId = @TenantId AND b.AssociationId = @AssociationId
               ORDER BY b.IsPinned DESC, b.CreatedDate DESC", 
-            new { TenantId = _tenantContext.TenantId });
+            new { TenantId = tenantId, AssociationId = associationId });
     }
 
-    public async Task<IEnumerable<Broadcast>> GetByAssetIdAsync(int assetId)
+    public async Task<IEnumerable<Broadcast>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Broadcast>(
@@ -53,27 +53,28 @@ public class BroadcastRepository : IBroadcastRepository
               FROM Broadcasts b 
               LEFT JOIN Users u ON b.CreatedBy = u.UserId
               LEFT JOIN Assets a ON b.AssetId = a.AssetId
-              WHERE b.TenantId = @TenantId AND (b.AssetId = @AssetId OR b.AssetId IS NULL)
+              WHERE b.TenantId = @TenantId AND b.AssociationId = @AssociationId AND (b.AssetId = @AssetId OR b.AssetId IS NULL)
               ORDER BY b.IsPinned DESC, b.CreatedDate DESC", 
-            new { TenantId = _tenantContext.TenantId, AssetId = assetId });
+            new { TenantId = tenantId, AssociationId = associationId, AssetId = assetId });
     }
 
     public async Task<int> CreateAsync(Broadcast broadcast)
     {
         broadcast.TenantId = _tenantContext.TenantId;
+        broadcast.AssociationId = _tenantContext.AssociationId;
         broadcast.CreatedBy = _tenantContext.UserId;
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"INSERT INTO Broadcasts (TenantId, Title, Content, Category, CreatedDate, CreatedBy, IsPinned, ExpiresDate, AssetId) 
+        string sql = @"INSERT INTO Broadcasts (TenantId, AssociationId, Title, Content, Category, CreatedDate, CreatedBy, IsPinned, ExpiresDate, AssetId) 
                        OUTPUT INSERTED.BroadcastId 
-                       VALUES (@TenantId, @Title, @Content, @Category, @CreatedDate, @CreatedBy, @IsPinned, @ExpiresDate, @AssetId)";
+                       VALUES (@TenantId, @AssociationId, @Title, @Content, @Category, @CreatedDate, @CreatedBy, @IsPinned, @ExpiresDate, @AssetId)";
         return await connection.ExecuteScalarAsync<int>(sql, broadcast);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "DELETE FROM Broadcasts WHERE BroadcastId = @Id AND TenantId = @TenantId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, TenantId = _tenantContext.TenantId });
+        string sql = "DELETE FROM Broadcasts WHERE BroadcastId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
+        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, TenantId = tenantId, AssociationId = associationId });
         return affectedRows > 0;
     }
 }

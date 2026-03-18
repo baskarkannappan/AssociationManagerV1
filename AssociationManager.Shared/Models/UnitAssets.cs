@@ -7,6 +7,7 @@ public class Vehicle
     public int VehicleId { get; set; }
     public int AssetId { get; set; } // Link to Unit
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public string Make { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public string LicensePlate { get; set; } = string.Empty;
@@ -20,6 +21,7 @@ public class Pet
     public int PetId { get; set; }
     public int AssetId { get; set; } // Link to Unit
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Species { get; set; } = string.Empty; // Dog, Cat, etc.
     public string? Breed { get; set; }

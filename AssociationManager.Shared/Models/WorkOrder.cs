@@ -6,6 +6,7 @@ public class WorkOrder
 {
     public int WorkOrderId { get; set; }
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public int? AssetId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }

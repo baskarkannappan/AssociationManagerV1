@@ -18,48 +18,49 @@ public class WorkOrderRepository : IWorkOrderRepository
         _tenantContext = tenantContext;
     }
 
-    public async Task<WorkOrder?> GetByIdAsync(int id)
+    public async Task<WorkOrder?> GetByIdAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<WorkOrder>(
             @"SELECT w.*, a.Name as AssetName 
               FROM WorkOrders w 
               LEFT JOIN Assets a ON w.AssetId = a.AssetId
-              WHERE w.WorkOrderId = @Id AND w.TenantId = @TenantId", 
-            new { Id = id, TenantId = _tenantContext.TenantId });
+              WHERE w.WorkOrderId = @Id AND w.TenantId = @TenantId AND w.AssociationId = @AssociationId", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId });
     }
 
-    public async Task<IEnumerable<WorkOrder>> GetAllAsync()
+    public async Task<IEnumerable<WorkOrder>> GetAllAsync(int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<WorkOrder>(
             @"SELECT w.*, a.Name as AssetName 
               FROM WorkOrders w 
               LEFT JOIN Assets a ON w.AssetId = a.AssetId
-              WHERE w.TenantId = @TenantId 
+              WHERE w.TenantId = @TenantId AND w.AssociationId = @AssociationId
               ORDER BY w.CreatedDate DESC", 
-            new { TenantId = _tenantContext.TenantId });
+            new { TenantId = tenantId, AssociationId = associationId });
     }
 
-    public async Task<IEnumerable<WorkOrder>> GetByAssetIdAsync(int assetId)
+    public async Task<IEnumerable<WorkOrder>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<WorkOrder>(
             @"SELECT w.*, a.Name as AssetName 
               FROM WorkOrders w 
               LEFT JOIN Assets a ON w.AssetId = a.AssetId
-              WHERE w.AssetId = @AssetId AND w.TenantId = @TenantId", 
-            new { AssetId = assetId, TenantId = _tenantContext.TenantId });
+              WHERE w.AssetId = @AssetId AND w.TenantId = @TenantId AND w.AssociationId = @AssociationId", 
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId });
     }
 
     public async Task<int> CreateAsync(WorkOrder workOrder)
     {
         workOrder.TenantId = _tenantContext.TenantId;
+        workOrder.AssociationId = _tenantContext.AssociationId;
         workOrder.CreatedBy = _tenantContext.UserId;
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"INSERT INTO WorkOrders (TenantId, AssetId, Title, Description, Priority, Status, CreatedDate, CreatedBy, AssignedTo) 
+        string sql = @"INSERT INTO WorkOrders (TenantId, AssociationId, AssetId, Title, Description, Priority, Status, CreatedDate, CreatedBy, AssignedTo) 
                        OUTPUT INSERTED.WorkOrderId 
-                       VALUES (@TenantId, @AssetId, @Title, @Description, @Priority, @Status, @CreatedDate, @CreatedBy, @AssignedTo)";
+                       VALUES (@TenantId, @AssociationId, @AssetId, @Title, @Description, @Priority, @Status, @CreatedDate, @CreatedBy, @AssignedTo)";
         return await connection.ExecuteScalarAsync<int>(sql, workOrder);
     }
 
@@ -70,28 +71,29 @@ public class WorkOrderRepository : IWorkOrderRepository
                        SET AssetId = @AssetId, Title = @Title, Description = @Description, 
                            Priority = @Priority, Status = @Status, AssignedTo = @AssignedTo, 
                            CompletedDate = @CompletedDate
-                       WHERE WorkOrderId = @WorkOrderId AND TenantId = @TenantId";
+                       WHERE WorkOrderId = @WorkOrderId AND TenantId = @TenantId AND AssociationId = @AssociationId";
         int affectedRows = await connection.ExecuteAsync(sql, new { 
             workOrder.AssetId, workOrder.Title, workOrder.Description, 
             workOrder.Priority, workOrder.Status, workOrder.AssignedTo, 
-            workOrder.CompletedDate, workOrder.WorkOrderId, TenantId = _tenantContext.TenantId 
+            workOrder.CompletedDate, workOrder.WorkOrderId, 
+            TenantId = _tenantContext.TenantId, AssociationId = _tenantContext.AssociationId 
         });
         return affectedRows > 0;
     }
 
-    public async Task<bool> UpdateStatusAsync(int id, string status)
+    public async Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "UPDATE WorkOrders SET Status = @Status WHERE WorkOrderId = @Id AND TenantId = @TenantId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, Status = status, TenantId = _tenantContext.TenantId });
+        string sql = "UPDATE WorkOrders SET Status = @Status WHERE WorkOrderId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
+        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId });
         return affectedRows > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "DELETE FROM WorkOrders WHERE WorkOrderId = @Id AND TenantId = @TenantId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, TenantId = _tenantContext.TenantId });
+        string sql = "DELETE FROM WorkOrders WHERE WorkOrderId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
+        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, TenantId = tenantId, AssociationId = associationId });
         return affectedRows > 0;
     }
 }

@@ -44,10 +44,10 @@
                         }
                         else
                         {
-                            <select @onchange="HandleTenantChange" class="tenant-select" value="@_currentTenantId">
-                                @foreach (var tenant in _userTenants)
+                            <select @onchange="HandleTenantChange" class="tenant-select" value="@_currentAssociationId">
+                                @foreach (var assoc in _userTenants)
                                 {
-                                    <option value="@tenant.TenantId">@tenant.Name</option>
+                                    <option value="@assoc.AssociationId">@assoc.Name</option>
                                 }
                             </select>
                         }
@@ -135,6 +135,7 @@
 
     private IEnumerable<Association>? _userTenants;
     private int _currentTenantId;
+    private int _currentAssociationId;
     private string? _currentRole;
     private bool _isMobileMenuOpen;
 
@@ -171,6 +172,12 @@
             if (int.TryParse(tenantClaim, out int tid))
             {
                 _currentTenantId = tid;
+            }
+
+            var assocClaim = user.FindFirst("AssociationId")?.Value;
+            if (int.TryParse(assocClaim, out int aid))
+            {
+                _currentAssociationId = aid;
             }
 
             var roleClaim = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
@@ -215,12 +222,16 @@
 
     private async Task HandleTenantChange(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out int newTenantId))
+        if (int.TryParse(e.Value?.ToString(), out int newAssocId))
         {
-            var response = await AuthService.SwitchTenant(newTenantId);
-            if (response?.Success == true)
+            var assoc = _userTenants?.FirstOrDefault(a => a.AssociationId == newAssocId);
+            if (assoc != null)
             {
-                Navigation.NavigateTo("/", forceLoad: true);
+                var response = await AuthService.SwitchTenant(assoc.TenantId, assoc.AssociationId);
+                if (response?.Success == true)
+                {
+                    Navigation.NavigateTo("/", forceLoad: true);
+                }
             }
         }
     }

@@ -143,6 +143,7 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("UserId", user.UserId.ToString()),
             new Claim("TenantId", user.TenantId.ToString()),
+            new Claim("AssociationId", (user.AssociationId?.ToString() ?? "0")),
             new Claim(ClaimTypes.Role, user.Role),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim("DeviceId", "Web") // Simplified for now
@@ -186,7 +187,7 @@ public class AuthService : IAuthService
         return principal;
     }
 
-    public async Task<AuthResponse> SwitchTenantAsync(int userId, int tenantId)
+    public async Task<AuthResponse> SwitchTenantAsync(int userId, int tenantId, int associationId)
     {
         var isAuthorized = await _userRepository.IsUserInTenantAsync(userId, tenantId);
         if (!isAuthorized)
@@ -200,8 +201,9 @@ public class AuthService : IAuthService
             return new AuthResponse { Success = false, Message = "User not found." };
         }
 
-        // Update the user's current tenant for the session/token
+        // Update the user's current tenant and association for the session/token
         user.TenantId = tenantId;
+        user.AssociationId = associationId;
         
         // Refresh the role for this specific tenant
         // TEMPORARY OVERRIDE: Set to SystemAdmin for now as requested

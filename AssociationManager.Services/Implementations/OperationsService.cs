@@ -20,22 +20,23 @@ public class OperationsService : IOperationsService
 
     public async Task<WorkOrder?> GetWorkOrderByIdAsync(int id)
     {
-        return await _workOrderRepository.GetByIdAsync(id);
+        return await _workOrderRepository.GetByIdAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<WorkOrder>> GetAllWorkOrdersAsync()
     {
-        return await _workOrderRepository.GetAllAsync();
+        return await _workOrderRepository.GetAllAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<WorkOrder>> GetWorkOrdersByAssetIdAsync(int assetId)
     {
-        return await _workOrderRepository.GetByAssetIdAsync(assetId);
+        return await _workOrderRepository.GetByAssetIdAsync(assetId, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<int> CreateWorkOrderAsync(WorkOrder workOrder)
     {
         workOrder.TenantId = _tenantContext.TenantId;
+        workOrder.AssociationId = _tenantContext.AssociationId;
         workOrder.CreatedBy = _tenantContext.UserId;
         return await _workOrderRepository.CreateAsync(workOrder);
     }
@@ -43,16 +44,17 @@ public class OperationsService : IOperationsService
     public async Task<bool> UpdateWorkOrderAsync(WorkOrder workOrder)
     {
         workOrder.TenantId = _tenantContext.TenantId;
+        workOrder.AssociationId = _tenantContext.AssociationId;
         return await _workOrderRepository.UpdateAsync(workOrder);
     }
 
     public async Task<bool> UpdateWorkOrderStatusAsync(int id, string status)
     {
-        return await _workOrderRepository.UpdateStatusAsync(id, status);
+        return await _workOrderRepository.UpdateStatusAsync(id, status, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<bool> DeleteWorkOrderAsync(int id)
     {
-        return await _workOrderRepository.DeleteAsync(id);
+        return await _workOrderRepository.DeleteAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 }

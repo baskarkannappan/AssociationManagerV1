@@ -1,3 +1,4 @@
+using System;
 using AssociationManager.Shared.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -28,7 +29,7 @@ public interface ITariffRepository
 public interface ITransactionRepository
 {
     Task<long> CreateTransactionAsync(Transaction transaction);
-    Task<IEnumerable<Transaction>> GetByAssetIdAsync(int assetId);
-    Task<IEnumerable<Transaction>> GetByTenantIdAsync(int tenantId, DateTime? startDate = null, DateTime? endDate = null);
-    Task<decimal> GetBalanceByAssetIdAsync(int assetId);
+    Task<IEnumerable<Transaction>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
+    Task<IEnumerable<Transaction>> GetByTenantIdAsync(int tenantId, int associationId, DateTime? startDate = null, DateTime? endDate = null);
+    Task<decimal> GetBalanceByAssetIdAsync(int assetId, int tenantId, int associationId);
 }

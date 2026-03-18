@@ -403,3 +403,49 @@ body {
         display: none; /* Hide "Logout" text, keep icon */
     }
 }
+
+/* COLORFUL ICONS - Activity Bar & Explorer */
+.bi-files { color: #858585 !important; }
+.bi-search { color: #007acc !important; }
+.bi-wallet2 { color: #f68e5f !important; }
+.bi-people-fill { color: #4caf50 !important; }
+.bi-git { color: #f05032 !important; }
+.bi-play-circle { color: #71c6b1 !important; }
+.bi-gear-fill, .bi-gear { color: #8e8e8e !important; }
+.bi-house-door { color: #007acc !important; }
+.bi-diagram-3 { color: #ff9800 !important; }
+.bi-layers { color: #4caf50 !important; }
+.bi-tools { color: #607d8b !important; }
+.bi-layers-half { color: #9c27b0 !important; }
+.bi-megaphone { color: #f44336 !important; }
+.bi-people { color: #2196f3 !important; }
+.bi-box-seam { color: #e91e63 !important; }
+.bi-graph-up { color: #009688 !important; }
+.bi-chat-dots { color: #673ab7 !important; }
+
+/* Asset & Detail Icons */
+.bi-geo-alt-fill { color: #ef5350 !important; }
+.bi-building-fill { color: #42a5f5 !important; }
+.bi-layers-fill { color: #66bb6a !important; }
+.bi-door-closed-fill { color: #ffa726 !important; }
+.bi-house-heart-fill { color: #ec407a !important; }
+.bi-tree-fill { color: #9ccc65 !important; }
+.bi-water { color: #26c6da !important; }
+.bi-shield-lock-fill { color: #78909c !important; }
+.bi-grid-3x3-gap { color: #5c6bc0 !important; }
+.bi-tag-fill { color: #8d6e63 !important; }
+.bi-arrow-return-right { color: #bdbdbd !important; }
+.bi-info-circle { color: #0288d1 !important; }
+.bi-cpu { color: #7b1fa2 !important; }
+.bi-node-plus { color: #388e3c !important; }
+.bi-trash-fill, .bi-x-circle { color: #d32f2f !important; }
+.bi-chevron-down, .bi-chevron-right { color: #808080 !important; }
+.bi-plus { color: #007acc !important; }
+
+/* Asset Specific Classes (for compatibility) */
+.asset-icon-property { color: #ef5350 !important; }
+.asset-icon-building { color: #42a5f5 !important; }
+.asset-icon-floor { color: #66bb6a !important; }
+.asset-icon-unit { color: #ffa726 !important; }
+.asset-icon-villa { color: #ec407a !important; }
+.asset-icon-common { color: #9ccc65 !important; }

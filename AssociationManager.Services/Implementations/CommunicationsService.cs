@@ -20,28 +20,29 @@ public class CommunicationsService : ICommunicationsService
 
     public async Task<Broadcast?> GetBroadcastByIdAsync(int id)
     {
-        return await _broadcastRepository.GetByIdAsync(id);
+        return await _broadcastRepository.GetByIdAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Broadcast>> GetAllBroadcastsAsync()
     {
-        return await _broadcastRepository.GetAllAsync();
+        return await _broadcastRepository.GetAllAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Broadcast>> GetBroadcastsByAssetAsync(int assetId)
     {
-        return await _broadcastRepository.GetByAssetIdAsync(assetId);
+        return await _broadcastRepository.GetByAssetIdAsync(assetId, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<int> CreateBroadcastAsync(Broadcast broadcast)
     {
         broadcast.TenantId = _tenantContext.TenantId;
+        broadcast.AssociationId = _tenantContext.AssociationId;
         broadcast.CreatedBy = _tenantContext.UserId;
         return await _broadcastRepository.CreateAsync(broadcast);
     }
 
     public async Task<bool> DeleteBroadcastAsync(int id)
     {
-        return await _broadcastRepository.DeleteAsync(id);
+        return await _broadcastRepository.DeleteAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 }

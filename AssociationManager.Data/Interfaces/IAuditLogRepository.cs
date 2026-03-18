@@ -7,5 +7,5 @@ namespace AssociationManager.Data.Interfaces;
 public interface IAuditLogRepository
 {
     Task<int> CreateAsync(AuditLog log);
-    Task<IEnumerable<AuditLog>> GetByTenantIdAsync(int tenantId);
+    Task<IEnumerable<AuditLog>> GetByTenantIdAsync(int tenantId, int associationId);
 }

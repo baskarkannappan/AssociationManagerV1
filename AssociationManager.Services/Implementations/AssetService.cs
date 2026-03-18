@@ -20,16 +20,14 @@ public class AssetService : IAssetService
         _tenantContext = tenantContext;
     }
 
-    private int CurrentTenantId => _tenantContext.TenantId != 0 ? _tenantContext.TenantId : 0;
-
     public async Task<Asset?> GetByIdAsync(int id)
     {
-        return await _assetRepository.GetByIdAsync(id, CurrentTenantId);
+        return await _assetRepository.GetByIdAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Asset>> GetHierarchyAsync()
     {
-        var allAssets = (await _assetRepository.GetHierarchyAsync(CurrentTenantId)).ToList();
+        var allAssets = (await _assetRepository.GetHierarchyAsync(_tenantContext.TenantId, _tenantContext.AssociationId)).ToList();
         
         // Build hierarchy in memory
         var lookup = allAssets.ToLookup(a => a.ParentId);
@@ -54,7 +52,8 @@ public class AssetService : IAssetService
 
     public async Task<int> CreateAsync(Asset asset)
     {
-        asset.TenantId = CurrentTenantId;
+        asset.TenantId = _tenantContext.TenantId;
+        asset.AssociationId = _tenantContext.AssociationId;
         asset.CreatedBy = _tenantContext.UserId;
         return await _assetRepository.CreateAsync(asset);
     }
@@ -97,7 +96,8 @@ public class AssetService : IAssetService
             AssetType = AssetType.Building,
             Description = request.Description ?? "Auto-generated residential building",
             ParentId = request.ParentId,
-            TenantId = CurrentTenantId,
+            TenantId = _tenantContext.TenantId,
+            AssociationId = _tenantContext.AssociationId,
             CreatedBy = _tenantContext.UserId
         };
         var buildingId = await _assetRepository.CreateAsync(building);
@@ -113,7 +113,8 @@ public class AssetService : IAssetService
                 Name = $"Floor {f}",
                 AssetType = AssetType.Floor,
                 ParentId = buildingId,
-                TenantId = CurrentTenantId,
+                TenantId = _tenantContext.TenantId,
+                AssociationId = _tenantContext.AssociationId,
                 CreatedBy = _tenantContext.UserId
             };
             var floorId = await _assetRepository.CreateAsync(floor);
@@ -126,7 +127,8 @@ public class AssetService : IAssetService
                     Name = $"Unit {f}{u:D2}",
                     AssetType = AssetType.Unit,
                     ParentId = floorId,
-                    TenantId = CurrentTenantId,
+                    TenantId = _tenantContext.TenantId,
+                    AssociationId = _tenantContext.AssociationId,
                     CreatedBy = _tenantContext.UserId,
                     Description = "Auto-generated unit",
                     MetadataJson = SerializeMetadata(request)
@@ -164,10 +166,11 @@ public class AssetService : IAssetService
                 Name = $"{request.BaseName} {defaultNamePrefix} {i}",
                 AssetType = type,
                 ParentId = request.ParentId,
-                TenantId = CurrentTenantId,
-                CreatedBy = _tenantContext.UserId,
                 Description = request.Description ?? $"Auto-generated {defaultNamePrefix}",
-                MetadataJson = metadataJson
+                MetadataJson = metadataJson,
+                TenantId = _tenantContext.TenantId,
+                AssociationId = _tenantContext.AssociationId,
+                CreatedBy = _tenantContext.UserId
             };
             await _assetRepository.CreateAsync(asset);
             totalCreated++;
@@ -177,12 +180,13 @@ public class AssetService : IAssetService
 
     public async Task<bool> UpdateAsync(Asset asset)
     {
-        asset.TenantId = CurrentTenantId;
+        asset.TenantId = _tenantContext.TenantId;
+        asset.AssociationId = _tenantContext.AssociationId;
         return await _assetRepository.UpdateAsync(asset);
     }
 
     public async Task<bool> DeleteAsync(int id)
     {
-        return await _assetRepository.DeleteAsync(id, CurrentTenantId);
+        return await _assetRepository.DeleteAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 }

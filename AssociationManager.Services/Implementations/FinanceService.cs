@@ -28,25 +28,27 @@ public class FinanceService : IFinanceService
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
+    private int CurrentAssociationId => _tenantContext.AssociationId;
 
     public async Task<Invoice?> GetInvoiceByIdAsync(int id)
     {
-        return await _invoiceRepository.GetByIdAsync(id);
+        return await _invoiceRepository.GetByIdAsync(id, CurrentTenantId, CurrentAssociationId);
     }
 
     public async Task<IEnumerable<Invoice>> GetAllInvoicesAsync()
     {
-        return await _invoiceRepository.GetAllAsync();
+        return await _invoiceRepository.GetAllAsync(CurrentTenantId, CurrentAssociationId);
     }
 
     public async Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId)
     {
-        return await _invoiceRepository.GetByAssetIdAsync(assetId);
+        return await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, CurrentAssociationId);
     }
 
     public async Task<int> CreateInvoiceAsync(Invoice invoice)
     {
         invoice.TenantId = CurrentTenantId;
+        invoice.AssociationId = CurrentAssociationId;
         var id = await _invoiceRepository.CreateAsync(invoice);
 
         // Record Ledger Entry (Debit) via LedgerService
@@ -68,22 +70,23 @@ public class FinanceService : IFinanceService
 
     public async Task<bool> UpdateInvoiceStatusAsync(int id, string status)
     {
-        return await _invoiceRepository.UpdateStatusAsync(id, status);
+        return await _invoiceRepository.UpdateStatusAsync(id, status, CurrentTenantId, CurrentAssociationId);
     }
 
     public async Task<bool> DeleteInvoiceAsync(int id)
     {
-        return await _invoiceRepository.DeleteAsync(id);
+        return await _invoiceRepository.DeleteAsync(id, CurrentTenantId, CurrentAssociationId);
     }
 
     public async Task<IEnumerable<Payment>> GetPaymentsAsync()
     {
-        return await _paymentRepository.GetByTenantIdAsync(CurrentTenantId);
+        return await _paymentRepository.GetByTenantIdAsync(CurrentTenantId, CurrentAssociationId);
     }
 
     public async Task<int> CreatePaymentAsync(Payment payment)
     {
         payment.TenantId = CurrentTenantId;
+        payment.AssociationId = CurrentAssociationId;
         payment.UserId = _tenantContext.UserId;
         
         var id = await _paymentRepository.CreateAsync(payment);
@@ -106,7 +109,7 @@ public class FinanceService : IFinanceService
         // If Payment is linked to an Invoice, update invoice status
         if (payment.InvoiceId.HasValue)
         {
-            await _invoiceRepository.UpdateStatusAsync(payment.InvoiceId.Value, "Paid");
+            await _invoiceRepository.UpdateStatusAsync(payment.InvoiceId.Value, "Paid", CurrentTenantId, CurrentAssociationId);
         }
 
         return id;

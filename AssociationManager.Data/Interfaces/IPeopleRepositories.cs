@@ -6,16 +6,16 @@ namespace AssociationManager.Data.Interfaces;
 
 public interface IPersonRepository
 {
-    Task<Person?> GetByIdAsync(int id, int tenantId);
-    Task<IEnumerable<Person>> GetAllAsync(int tenantId);
+    Task<Person?> GetByIdAsync(int id, int tenantId, int associationId);
+    Task<IEnumerable<Person>> GetAllAsync(int tenantId, int associationId);
     Task<int> CreateAsync(Person person);
     Task<bool> UpdateAsync(Person person);
-    Task<bool> DeleteAsync(int id, int tenantId);
+    Task<bool> DeleteAsync(int id, int tenantId, int associationId);
 }
 
 public interface IOccupancyRepository
 {
-    Task<IEnumerable<Occupancy>> GetByAssetIdAsync(int assetId, int tenantId);
+    Task<IEnumerable<Occupancy>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
     Task<int> CreateAsync(Occupancy occupancy);
-    Task<bool> DeleteAsync(int id, int tenantId);
+    Task<bool> DeleteAsync(int id, int tenantId, int associationId);
 }

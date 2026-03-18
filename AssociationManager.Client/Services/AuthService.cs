@@ -40,9 +40,9 @@ public class AuthService
         _authStateProvider.NotifyUserLogout();
     }
 
-    public async Task<AuthResponse?> SwitchTenant(int tenantId)
+    public async Task<AuthResponse?> SwitchTenant(int tenantId, int associationId)
     {
-        var result = await _httpClient.PostAsJsonAsync("api/auth/switch-tenant", new SwitchTenantRequest { TenantId = tenantId });
+        var result = await _httpClient.PostAsJsonAsync("api/auth/switch-tenant", new SwitchTenantRequest { TenantId = tenantId, AssociationId = associationId });
         if (result.IsSuccessStatusCode)
         {
             var response = await result.Content.ReadFromJsonAsync<AuthResponse>();

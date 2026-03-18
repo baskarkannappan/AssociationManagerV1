@@ -30,55 +30,63 @@ public class PeopleService : IPeopleService
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
+    private int CurrentAssociationId => _tenantContext.AssociationId;
 
     // Person management
-    public async Task<Person?> GetPersonByIdAsync(int id) => await _personRepository.GetByIdAsync(id, CurrentTenantId);
-    public async Task<IEnumerable<Person>> GetAllPeopleAsync() => await _personRepository.GetAllAsync(CurrentTenantId);
+    public async Task<Person?> GetPersonByIdAsync(int id) => await _personRepository.GetByIdAsync(id, CurrentTenantId, CurrentAssociationId);
+    public async Task<IEnumerable<Person>> GetAllPeopleAsync() => await _personRepository.GetAllAsync(CurrentTenantId, CurrentAssociationId);
     public async Task<int> CreatePersonAsync(Person person)
     {
         person.TenantId = CurrentTenantId;
+        person.AssociationId = CurrentAssociationId;
         return await _personRepository.CreateAsync(person);
     }
     public async Task<bool> UpdatePersonAsync(Person person)
     {
         person.TenantId = CurrentTenantId;
+        person.AssociationId = CurrentAssociationId;
         return await _personRepository.UpdateAsync(person);
     }
 
     // Occupancy
-    public async Task<IEnumerable<Occupancy>> GetOccupancyByUnitAsync(int unitId) => await _occupancyRepository.GetByAssetIdAsync(unitId, CurrentTenantId);
+    public async Task<IEnumerable<Occupancy>> GetOccupancyByUnitAsync(int unitId) => await _occupancyRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
     public async Task<int> AddOccupantAsync(Occupancy occupancy)
     {
         occupancy.TenantId = CurrentTenantId;
+        occupancy.AssociationId = CurrentAssociationId;
         return await _occupancyRepository.CreateAsync(occupancy);
     }
-    public async Task<bool> RemoveOccupantAsync(int occupancyId) => await _occupancyRepository.DeleteAsync(occupancyId, CurrentTenantId);
+    public async Task<bool> RemoveOccupantAsync(int occupancyId) => await _occupancyRepository.DeleteAsync(occupancyId, CurrentTenantId, CurrentAssociationId);
 
     // Vehicles
-    public async Task<IEnumerable<Vehicle>> GetVehiclesByUnitAsync(int unitId) => await _vehicleRepository.GetByAssetIdAsync(unitId, CurrentTenantId);
+    public async Task<IEnumerable<Vehicle>> GetVehiclesByUnitAsync(int unitId) => await _vehicleRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
     public async Task<int> AddVehicleAsync(Vehicle vehicle)
     {
         vehicle.TenantId = CurrentTenantId;
+        vehicle.AssociationId = CurrentAssociationId;
         return await _vehicleRepository.CreateAsync(vehicle);
     }
     public async Task<bool> UpdateVehicleAsync(Vehicle vehicle)
     {
         vehicle.TenantId = CurrentTenantId;
+        vehicle.AssociationId = CurrentAssociationId;
         return await _vehicleRepository.UpdateAsync(vehicle);
     }
-    public async Task<bool> RemoveVehicleAsync(int vehicleId) => await _vehicleRepository.DeleteAsync(vehicleId, CurrentTenantId);
+    public async Task<bool> RemoveVehicleAsync(int vehicleId) => await _vehicleRepository.DeleteAsync(vehicleId, CurrentTenantId, CurrentAssociationId);
 
     // Pets
-    public async Task<IEnumerable<Pet>> GetPetsByUnitAsync(int unitId) => await _petRepository.GetByAssetIdAsync(unitId, CurrentTenantId);
+    public async Task<IEnumerable<Pet>> GetPetsByUnitAsync(int unitId) => await _petRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
     public async Task<int> AddPetAsync(Pet pet)
     {
         pet.TenantId = CurrentTenantId;
+        pet.AssociationId = CurrentAssociationId;
         return await _petRepository.CreateAsync(pet);
     }
     public async Task<bool> UpdatePetAsync(Pet pet)
     {
         pet.TenantId = CurrentTenantId;
+        pet.AssociationId = CurrentAssociationId;
         return await _petRepository.UpdateAsync(pet);
     }
-    public async Task<bool> RemovePetAsync(int petId) => await _petRepository.DeleteAsync(petId, CurrentTenantId);
+    public async Task<bool> RemovePetAsync(int petId) => await _petRepository.DeleteAsync(petId, CurrentTenantId, CurrentAssociationId);
 }

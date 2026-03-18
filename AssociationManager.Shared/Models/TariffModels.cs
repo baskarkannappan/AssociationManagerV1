@@ -36,6 +36,7 @@ public class Transaction
 {
     public long TransactionId { get; set; }
     public int TenantId { get; set; }
+    public int AssociationId { get; set; }
     public int AssetId { get; set; }
     public int? InvoiceId { get; set; }
     public int? PaymentId { get; set; }

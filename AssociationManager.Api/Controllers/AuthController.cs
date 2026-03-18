@@ -49,7 +49,7 @@ public class AuthController : ControllerBase
         var userId = _tenantContext.UserId;
         if (userId == 0) return Unauthorized();
 
-        var response = await _authService.SwitchTenantAsync(userId, request.TenantId);
+        var response = await _authService.SwitchTenantAsync(userId, request.TenantId, request.AssociationId);
         if (response.Success)
         {
             return Ok(response);

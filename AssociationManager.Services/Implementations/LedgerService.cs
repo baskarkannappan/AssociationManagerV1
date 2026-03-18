@@ -22,6 +22,7 @@ public class LedgerService : ILedgerService
     public async Task<long> RecordTransactionAsync(Transaction transaction)
     {
         transaction.TenantId = _tenantContext.TenantId;
+        transaction.AssociationId = _tenantContext.AssociationId;
         if (transaction.TransactionDate == default)
         {
             transaction.TransactionDate = DateTime.UtcNow;
@@ -31,16 +32,16 @@ public class LedgerService : ILedgerService
 
     public async Task<decimal> GetAssetBalanceAsync(int assetId)
     {
-        return await _transactionRepository.GetBalanceByAssetIdAsync(assetId);
+        return await _transactionRepository.GetBalanceByAssetIdAsync(assetId, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Transaction>> GetAssetTransactionsAsync(int assetId)
     {
-        return await _transactionRepository.GetByAssetIdAsync(assetId);
+        return await _transactionRepository.GetByAssetIdAsync(assetId, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
     {
-        return await _transactionRepository.GetByTenantIdAsync(_tenantContext.TenantId, start, end);
+        return await _transactionRepository.GetByTenantIdAsync(_tenantContext.TenantId, _tenantContext.AssociationId, start, end);
     }
 }

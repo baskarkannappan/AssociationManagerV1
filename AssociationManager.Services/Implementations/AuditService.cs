@@ -49,8 +49,9 @@ public class AuditService : IAuditService
     public async Task<IEnumerable<AuditLog>> GetLogsAsync()
     {
         var tenantId = _tenantContext.TenantId;
+        var associationId = _tenantContext.AssociationId;
         if (tenantId == 0) return new List<AuditLog>();
 
-        return await _auditLogRepository.GetByTenantIdAsync(tenantId);
+        return await _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
     }
 }
