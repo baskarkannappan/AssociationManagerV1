@@ -29,7 +29,7 @@ public interface ITariffRepository
 public interface ITransactionRepository
 {
     Task<long> CreateTransactionAsync(Transaction transaction);
-    Task<IEnumerable<Transaction>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
+    Task<IEnumerable<Transaction>> GetByAssetIdAsync(int? assetId, int tenantId, int associationId);
     Task<IEnumerable<Transaction>> GetByTenantIdAsync(int tenantId, int associationId, DateTime? startDate = null, DateTime? endDate = null);
-    Task<decimal> GetBalanceByAssetIdAsync(int assetId, int tenantId, int associationId);
+    Task<decimal> GetBalanceByAssetIdAsync(int? assetId, int tenantId, int associationId);
 }

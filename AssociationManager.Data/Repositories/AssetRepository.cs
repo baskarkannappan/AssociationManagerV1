@@ -74,4 +74,12 @@ public class AssetRepository : IAssetRepository
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }
+
+    public async Task<int> CountAsync(int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM Assets WHERE TenantId = @tenantId AND AssociationId = @associationId AND IsActive = 1",
+            new { tenantId, associationId });
+    }
 }

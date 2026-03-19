@@ -47,6 +47,7 @@ builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
 builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
 builder.Services.AddScoped<ITariffRepository, TariffRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -61,6 +62,7 @@ builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IOperationsService, OperationsService>();
 builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();

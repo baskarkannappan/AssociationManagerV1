@@ -28,7 +28,7 @@ public class TransactionRepository : ITransactionRepository
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Transaction>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
+    public async Task<IEnumerable<Transaction>> GetByAssetIdAsync(int? assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Transaction>(
@@ -46,7 +46,7 @@ public class TransactionRepository : ITransactionRepository
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<decimal> GetBalanceByAssetIdAsync(int assetId, int tenantId, int associationId)
+    public async Task<decimal> GetBalanceByAssetIdAsync(int? assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(

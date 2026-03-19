@@ -12,4 +12,5 @@ public interface IAssetRepository
     Task<int> CreateAsync(Asset asset);
     Task<bool> UpdateAsync(Asset asset);
     Task<bool> DeleteAsync(int id, int tenantId, int associationId);
+    Task<int> CountAsync(int tenantId, int associationId);
 }
