@@ -2,6 +2,7 @@ using AssociationManager.Data.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Data.Repositories;
@@ -15,36 +16,36 @@ public class VehicleRepository : IVehicleRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Vehicle>(
-            "SELECT * FROM Vehicles WHERE AssetId = @AssetId AND TenantId = @TenantId AND AssociationId = @AssociationId AND IsActive = 1", 
-            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId });
+            "sp_Vehicles_GetByAssetId", 
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> CreateAsync(Vehicle vehicle)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            INSERT INTO Vehicles (AssetId, TenantId, AssociationId, Make, Model, LicensePlate, Color, ParkingSlot, IsActive)
-            OUTPUT INSERTED.VehicleId
-            VALUES (@AssetId, @TenantId, @AssociationId, @Make, @Model, @LicensePlate, @Color, @ParkingSlot, @IsActive)";
-        return await connection.ExecuteScalarAsync<int>(sql, vehicle);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_Vehicles_Create", 
+            vehicle,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateAsync(Vehicle vehicle)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            UPDATE Vehicles SET Make = @Make, Model = @Model, LicensePlate = @LicensePlate, 
-                               Color = @Color, ParkingSlot = @ParkingSlot, IsActive = @IsActive 
-            WHERE VehicleId = @VehicleId AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        return await connection.ExecuteAsync(sql, vehicle) > 0;
+        return await connection.ExecuteAsync(
+            "sp_Vehicles_Update", 
+            vehicle,
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "UPDATE Vehicles SET IsActive = 0 WHERE VehicleId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId", 
-            new { Id = id, TenantId = tenantId, AssociationId = associationId }) > 0;
+            "sp_Vehicles_Delete", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }
 
@@ -57,35 +58,35 @@ public class PetRepository : IPetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Pet>(
-            "SELECT * FROM Pets WHERE AssetId = @AssetId AND TenantId = @TenantId AND AssociationId = @AssociationId AND IsActive = 1", 
-            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId });
+            "sp_Pets_GetByAssetId", 
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> CreateAsync(Pet pet)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            INSERT INTO Pets (AssetId, TenantId, AssociationId, Name, Species, Breed, TagNumber, IsActive)
-            OUTPUT INSERTED.PetId
-            VALUES (@AssetId, @TenantId, @AssociationId, @Name, @Species, @Breed, @TagNumber, @IsActive)";
-        return await connection.ExecuteScalarAsync<int>(sql, pet);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_Pets_Create", 
+            pet,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateAsync(Pet pet)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            UPDATE Pets SET Name = @Name, Species = @Species, Breed = @Breed, 
-                            TagNumber = @TagNumber, IsActive = @IsActive 
-            WHERE PetId = @PetId AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        return await connection.ExecuteAsync(sql, pet) > 0;
+        return await connection.ExecuteAsync(
+            "sp_Pets_Update", 
+            pet,
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "UPDATE Pets SET IsActive = 0 WHERE PetId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId", 
-            new { Id = id, TenantId = tenantId, AssociationId = associationId }) > 0;
+            "sp_Pets_Delete", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

@@ -3,6 +3,7 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Data.Repositories;
@@ -22,16 +23,18 @@ public class PaymentRepository : IPaymentRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Payment>(
-            "SELECT * FROM Payments WHERE PaymentId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId", 
-            new { Id = id, TenantId = tenantId, AssociationId = associationId });
+            "sp_Payments_GetById", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<Payment>> GetByTenantIdAsync(int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Payment>(
-            "SELECT * FROM Payments WHERE TenantId = @TenantId AND AssociationId = @AssociationId", 
-            new { TenantId = tenantId, AssociationId = associationId });
+            "sp_Payments_GetByTenantId", 
+            new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> CreateAsync(Payment payment)
@@ -39,17 +42,18 @@ public class PaymentRepository : IPaymentRepository
         payment.TenantId = _tenantContext.TenantId;
         payment.AssociationId = _tenantContext.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "INSERT INTO Payments (TenantId, AssociationId, UserId, Amount, Currency, Status, CreatedDate, GatewayReference) " +
-                     "OUTPUT INSERTED.PaymentId " +
-                     "VALUES (@TenantId, @AssociationId, @UserId, @Amount, @Currency, @Status, @CreatedDate, @GatewayReference)";
-        return await connection.ExecuteScalarAsync<int>(sql, payment);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_Payments_Create", 
+            payment,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string status, string? gatewayReference, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "UPDATE Payments SET Status = @Status, GatewayReference = @GatewayReference WHERE PaymentId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, Status = status, GatewayReference = gatewayReference, TenantId = tenantId, AssociationId = associationId });
-        return affectedRows > 0;
+        return await connection.ExecuteAsync(
+            "sp_Payments_UpdateStatus", 
+            new { Id = id, Status = status, GatewayReference = gatewayReference, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

@@ -3,6 +3,7 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
@@ -13,11 +14,13 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly ITenantContext _tenantContext;
-
-    public AuthController(IAuthService authService, ITenantContext tenantContext)
+    private readonly ILogger<AuthController> _logger;
+ 
+    public AuthController(IAuthService authService, ITenantContext tenantContext, ILogger<AuthController> logger)
     {
         _authService = authService;
         _tenantContext = tenantContext;
+        _logger = logger;
     }
 
     [HttpPost("google")]
@@ -28,6 +31,7 @@ public class AuthController : ControllerBase
         {
             return Ok(response);
         }
+        _logger.LogWarning("Google Login failed: {Message}", response.Message);
         return Unauthorized(response);
     }
 

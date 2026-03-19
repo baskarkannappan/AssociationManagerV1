@@ -2,6 +2,7 @@ using AssociationManager.Data.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Data.Repositories;
@@ -19,29 +20,35 @@ public class TenantRepository : ITenantRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Tenant>(
-            "SELECT * FROM Tenants WHERE TenantId = @Id", new { Id = id });
+            "sp_Tenants_GetById", 
+            new { Id = id },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<Tenant>> GetAllAsync()
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<Tenant>("SELECT * FROM Tenants");
+        return await connection.QueryAsync<Tenant>(
+            "sp_Tenants_GetAll", 
+            null,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> CreateAsync(Tenant tenant)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "INSERT INTO Tenants (Name, CreatedDate, IsActive) " +
-                     "OUTPUT INSERTED.TenantId " +
-                     "VALUES (@Name, @CreatedDate, @IsActive)";
-        return await connection.ExecuteScalarAsync<int>(sql, tenant);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_Tenants_Create", 
+            tenant,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateAsync(Tenant tenant)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "UPDATE Tenants SET Name = @Name, IsActive = @IsActive WHERE TenantId = @TenantId";
-        int affectedRows = await connection.ExecuteAsync(sql, tenant);
-        return affectedRows > 0;
+        return await connection.ExecuteAsync(
+            "sp_Tenants_Update", 
+            tenant,
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

@@ -3,6 +3,7 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Data.Repositories;
@@ -22,16 +23,18 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Asset>(
-            "SELECT * FROM Assets WHERE AssetId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId", 
-            new { Id = id, TenantId = tenantId, AssociationId = associationId });
+            "sp_Assets_GetById", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<Asset>> GetByParentIdAsync(int? parentId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "SELECT * FROM Assets WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND " + 
-                     (parentId.HasValue ? "ParentId = @ParentId" : "ParentId IS NULL");
-        return await connection.QueryAsync<Asset>(sql, new { TenantId = tenantId, AssociationId = associationId, ParentId = parentId });
+        return await connection.QueryAsync<Asset>(
+            "sp_Assets_GetByParentId", 
+            new { ParentId = parentId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<Asset>> GetHierarchyAsync(int tenantId, int associationId)
@@ -39,42 +42,36 @@ public class AssetRepository : IAssetRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         // Fetch all assets for the association and build the hierarchy in memory
         return await connection.QueryAsync<Asset>(
-            "SELECT * FROM Assets WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND IsActive = 1 ORDER BY ParentId, AssetType", 
-            new { TenantId = tenantId, AssociationId = associationId });
+            "sp_Assets_GetHierarchy", 
+            new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> CreateAsync(Asset asset)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            INSERT INTO Assets (ParentId, TenantId, AssociationId, Name, Description, AssetType, MetadataJson, CreatedDate, CreatedBy, IsActive)
-            OUTPUT INSERTED.AssetId
-            VALUES (@ParentId, @TenantId, @AssociationId, @Name, @Description, @AssetType, @MetadataJson, @CreatedDate, @CreatedBy, @IsActive)";
-        return await connection.ExecuteScalarAsync<int>(sql, asset);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_Assets_Create", 
+            asset,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateAsync(Asset asset)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            UPDATE Assets 
-            SET ParentId = @ParentId, 
-                Name = @Name, 
-                Description = @Description, 
-                AssetType = @AssetType, 
-                MetadataJson = @MetadataJson, 
-                IsActive = @IsActive 
-            WHERE AssetId = @AssetId AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        int affectedRows = await connection.ExecuteAsync(sql, asset);
-        return affectedRows > 0;
+        return await connection.ExecuteAsync(
+            "sp_Assets_Update", 
+            asset,
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         // Soft delete for safety
-        string sql = "UPDATE Assets SET IsActive = 0 WHERE AssetId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, TenantId = tenantId, AssociationId = associationId });
-        return affectedRows > 0;
+        return await connection.ExecuteAsync(
+            "sp_Assets_Delete", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

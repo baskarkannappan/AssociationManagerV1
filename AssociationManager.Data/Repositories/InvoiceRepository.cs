@@ -3,6 +3,7 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Data.Repositories;
@@ -22,35 +23,27 @@ public class InvoiceRepository : IInvoiceRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Invoice>(
-            @"SELECT i.*, a.Name as AssetName 
-              FROM Invoices i 
-              LEFT JOIN Assets a ON i.AssetId = a.AssetId
-              WHERE i.InvoiceId = @Id AND i.TenantId = @TenantId AND i.AssociationId = @AssociationId", 
-            new { Id = id, TenantId = tenantId, AssociationId = associationId });
+            "sp_Invoices_GetById", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Invoice>(
-            @"SELECT i.*, a.Name as AssetName 
-              FROM Invoices i 
-              LEFT JOIN Assets a ON i.AssetId = a.AssetId
-              WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
-              ORDER BY i.DueDate DESC", 
-            new { TenantId = tenantId, AssociationId = associationId });
+            "sp_Invoices_GetAll", 
+            new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Invoice>(
-            @"SELECT i.*, a.Name as AssetName 
-              FROM Invoices i 
-              LEFT JOIN Assets a ON i.AssetId = a.AssetId
-              WHERE i.AssetId = @AssetId AND i.TenantId = @TenantId AND i.AssociationId = @AssociationId
-              ORDER BY i.DueDate DESC", 
-            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId });
+            "sp_Invoices_GetByAssetId", 
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<int> CreateAsync(Invoice invoice)
@@ -58,25 +51,27 @@ public class InvoiceRepository : IInvoiceRepository
         invoice.TenantId = _tenantContext.TenantId;
         invoice.AssociationId = _tenantContext.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"INSERT INTO Invoices (TenantId, AssociationId, AssetId, Title, Description, Amount, DueDate, Status, CreatedDate) 
-                       OUTPUT INSERTED.InvoiceId 
-                       VALUES (@TenantId, @AssociationId, @AssetId, @Title, @Description, @Amount, @DueDate, @Status, @CreatedDate)";
-        return await connection.ExecuteScalarAsync<int>(sql, invoice);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_Invoices_Create", 
+            invoice,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "UPDATE Invoices SET Status = @Status WHERE InvoiceId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId });
-        return affectedRows > 0;
+        return await connection.ExecuteAsync(
+            "sp_Invoices_UpdateStatus", 
+            new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "DELETE FROM Invoices WHERE InvoiceId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        int affectedRows = await connection.ExecuteAsync(sql, new { Id = id, TenantId = tenantId, AssociationId = associationId });
-        return affectedRows > 0;
+        return await connection.ExecuteAsync(
+            "sp_Invoices_Delete", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

@@ -3,6 +3,7 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Data.Repositories;
@@ -23,17 +24,18 @@ public class AuditLogRepository : IAuditLogRepository
         log.TenantId = _tenantContext.TenantId;
         log.AssociationId = _tenantContext.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = "INSERT INTO AuditLogs (TenantId, AssociationId, UserId, Action, Entity, EntityId, IpAddress, Timestamp) " +
-                     "OUTPUT INSERTED.AuditLogId " +
-                     "VALUES (@TenantId, @AssociationId, @UserId, @Action, @Entity, @EntityId, @IpAddress, @Timestamp)";
-        return await connection.ExecuteScalarAsync<int>(sql, log);
+        return await connection.ExecuteScalarAsync<int>(
+            "sp_AuditLogs_Create", 
+            log,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<AuditLog>> GetByTenantIdAsync(int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AuditLog>(
-            "SELECT * FROM AuditLogs WHERE TenantId = @TenantId AND AssociationId = @AssociationId ORDER BY Timestamp DESC", 
-            new { TenantId = tenantId, AssociationId = associationId });
+            "sp_AuditLogs_GetByTenantId", 
+            new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 }

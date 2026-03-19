@@ -16,6 +16,12 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    await next();
+});
+
 app.UseCors("DefaultPolicy");
 app.MapReverseProxy();
 
