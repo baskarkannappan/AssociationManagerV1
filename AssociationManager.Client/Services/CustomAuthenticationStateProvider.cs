@@ -47,7 +47,24 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         var payload = jwt.Split('.')[1];
         var jsonBytes = ParseBase64WithoutPadding(payload);
         var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-        return keyValuePairs!.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString()!));
+        
+        var claims = new List<Claim>();
+        if (keyValuePairs != null)
+        {
+            foreach (var kvp in keyValuePairs)
+            {
+                var key = kvp.Key;
+                var value = kvp.Value.ToString()!;
+
+                // Map standard JWT claim names to ClaimTypes URIs for Blazor's Authorize attribute compatibility
+                if (key == "role") claims.Add(new Claim(ClaimTypes.Role, value));
+                else if (key == "unique_name" || key == "name") claims.Add(new Claim(ClaimTypes.Name, value));
+                else if (key == "email") claims.Add(new Claim(ClaimTypes.Email, value));
+                else if (key == "sub") claims.Add(new Claim(ClaimTypes.NameIdentifier, value));
+                else claims.Add(new Claim(key, value));
+            }
+        }
+        return claims;
     }
 
     private byte[] ParseBase64WithoutPadding(string base64)

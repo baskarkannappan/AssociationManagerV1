@@ -23,7 +23,7 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Asset>(
-            "sp_Assets_GetById", 
+            "assoc.sp_Assets_GetById", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -32,7 +32,7 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Asset>(
-            "sp_Assets_GetByParentId", 
+            "assoc.sp_Assets_GetByParentId", 
             new { ParentId = parentId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -42,7 +42,7 @@ public class AssetRepository : IAssetRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         // Fetch all assets for the association and build the hierarchy in memory
         return await connection.QueryAsync<Asset>(
-            "sp_Assets_GetHierarchy", 
+            "assoc.sp_Assets_GetHierarchy", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -51,8 +51,20 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Assets_Create", 
-            asset,
+            "assoc.sp_Assets_Create", 
+            new 
+            { 
+                asset.ParentId, 
+                asset.TenantId, 
+                asset.AssociationId, 
+                asset.Name, 
+                asset.Description, 
+                asset.AssetType, 
+                asset.MetadataJson, 
+                asset.CreatedDate, 
+                asset.CreatedBy, 
+                asset.IsActive 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -60,8 +72,19 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Assets_Update", 
-            asset,
+            "assoc.sp_Assets_Update", 
+            new 
+            { 
+                asset.AssetId,
+                asset.TenantId, 
+                asset.AssociationId, 
+                asset.ParentId, 
+                asset.Name, 
+                asset.Description, 
+                asset.AssetType, 
+                asset.MetadataJson, 
+                asset.IsActive 
+            },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -70,7 +93,7 @@ public class AssetRepository : IAssetRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         // Soft delete for safety
         return await connection.ExecuteAsync(
-            "sp_Assets_Delete", 
+            "assoc.sp_Assets_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }

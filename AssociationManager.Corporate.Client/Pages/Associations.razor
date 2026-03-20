@@ -1,9 +1,10 @@
 @page "/associations"
 @attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
 @using AssociationManager.Shared.Enums
-@using AssociationManager.Client.Services
+@using AssociationManager.Corporate.Client.Services
 @using AssociationManager.Shared.Models
 @inject ApiService ApiService
+@inject ToastService _toastService
 @inject RealtimeService RealtimeService
 
 <AuthorizeView Context="authContext">
@@ -51,42 +52,41 @@
             }
             else
             {
-                <div class="border bg-white">
-                    <div class="table-responsive">
-                        <table class="table mb-0 align-middle compact-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 80px;">ID</th>
-                                    <th>Association Name</th>
-                                    <th style="width: 150px;">Created</th>
-                                    <th style="width: 100px;" class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (associations != null)
-                                {
-                                    @foreach (var assoc in associations)
-                                    {
-                                        <tr>
-                                            <td class="text-muted font-monospace" style="font-size: 11px;">#@assoc.AssociationId</td>
-                                            <td>
-                                                <div class="fw-medium">@assoc.Name</div>
-                                                <div class="text-muted" style="font-size: 11px;">@assoc.Description</div>
-                                            </td>
-                                            <td class="text-muted">
-                                                @assoc.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")
-                                            </td>
-                                            <td class="text-end">
-                                                <button @onclick="() => DeleteAssociation(assoc.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="border bg-white p-2">
+                    <Grid @ref="grid" TItem="Association"
+                          Class="table table-hover table-bordered table-striped compact-table"
+                          DataProvider="AssociationsDataProvider"
+                          Responsive="true"
+                          AllowPaging="true"
+                          PageSize="10"
+                          AllowSorting="true">
+
+                        <GridColumn TItem="Association" HeaderText="ID" PropertyName="AssociationId" SortKeySelector="item => item.AssociationId">
+                            <span class="text-muted font-monospace" style="font-size: 11px;">#@context.AssociationId</span>
+                        </GridColumn>
+
+                        <GridColumn TItem="Association" HeaderText="Association Name" PropertyName="Name" SortKeySelector="item => item.Name">
+                            <div class="fw-medium">@context.Name</div>
+                            <div class="text-muted" style="font-size: 11px;">@context.Description</div>
+                        </GridColumn>
+
+                        <GridColumn TItem="Association" HeaderText="Subscription Plan" PropertyName="PlanName" SortKeySelector="item => item.PlanName">
+                            <span class="badge @(context.PlanName == null ? "bg-secondary-subtle text-secondary" : "bg-info-subtle text-info") border border-info-subtle">
+                                @(context.PlanName ?? "Starter")
+                            </span>
+                        </GridColumn>
+
+                        <GridColumn TItem="Association" HeaderText="Created" PropertyName="CreatedDate" SortKeySelector="item => item.CreatedDate">
+                            @context.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")
+                        </GridColumn>
+
+                        <GridColumn TItem="Association" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                            <button @onclick="() => DeleteAssociation(context.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </GridColumn>
+
+                    </Grid>
                 </div>
             }
         </div>
@@ -108,27 +108,29 @@
 
 @code {
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    private Grid<Association> grid = default!;
     private List<Association>? associations;
     private Association newAssociation = new();
     private bool _showCreateForm = false;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        if (authState.User.Identity?.IsAuthenticated == true)
-        {
-            await LoadAssociations();
-        }
-        
         RealtimeService.OnNotificationReceived += HandleNotification;
         await RealtimeService.StartAsync();
+        await LoadAssociations();
+    }
+
+    private async Task<GridDataProviderResult<Association>> AssociationsDataProvider(GridDataProviderRequest<Association> request)
+    {
+        if (associations == null) await LoadAssociations();
+        return request.ApplyTo(associations ?? new List<Association>());
     }
 
     private async Task LoadAssociations()
     {
         try 
         {
-            associations = await ApiService.GetAsync<List<Association>>("api/associations/my-tenants");
+            associations = await ApiService.GetAsync<List<Association>>("associations/my-tenants");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -143,16 +145,30 @@
     private async Task CreateAssociation()
     {
         if (string.IsNullOrWhiteSpace(newAssociation.Name)) return;
-        await ApiService.PostAsync("api/associations", newAssociation);
-        newAssociation = new();
-        _showCreateForm = false;
-        await LoadAssociations();
+        var success = await ApiService.PostAsync("associations", newAssociation);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Association created successfully."));
+            newAssociation = new();
+            _showCreateForm = false;
+            associations = null; // Clear so DataProvider reloads
+            await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to create association."));
+        }
     }
 
     private async Task DeleteAssociation(int id)
     {
-        await ApiService.DeleteAsync($"api/associations/{id}");
-        await LoadAssociations();
+        var success = await ApiService.DeleteAsync($"associations/{id}");
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Association removed."));
+            associations = null; // Clear so DataProvider reloads
+            await grid.RefreshDataAsync();
+        }
     }
 
     private void HandleNotification(string message)

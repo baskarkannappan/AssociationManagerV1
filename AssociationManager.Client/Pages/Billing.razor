@@ -4,16 +4,30 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = $"{AppRole.FinanceManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
 @inject ApiService Api
+@inject ToastService _toastService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="vscode-page-header">
     <div class="header-left">
-        <h5 class="m-0 fw-semibold"><i class="bi bi-wallet2 me-2"></i>Finance & Billing</h5>
+        <h5 class="m-0 fw-semibold">
+            <i class="bi bi-wallet2 me-2"></i>
+            @(_scope == "tenant" ? "Corporate Finance & Billing" : "Association Finance & Billing")
+        </h5>
     </div>
     <div class="header-right">
-        <button class="btn-vscode" @onclick="ShowCreateInvoice">
-            <i class="bi bi-plus-lg"></i> New Invoice
-        </button>
+        @if (_scope == "association")
+        {
+            <button class="btn-vscode" @onclick="ShowCreateInvoice">
+                <i class="bi bi-plus-lg"></i> New Association Invoice
+            </button>
+        }
+        else
+        {
+             <button class="btn btn-sm btn-vscode-accent px-3" disabled title="Tenant billing is aggregated">
+                <i class="bi bi-bar-chart-fill me-1"></i> Aggregate View
+            </button>
+        }
     </div>
 </div>
 
@@ -24,13 +38,13 @@
             <div class="col-md-3">
                 <div class="compact-card text-center">
                     <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Total Unpaid</div>
-                    <div class="h4 m-0 fw-bold text-danger">$@(_invoices?.Where(i => i.Status == "Unpaid").Sum(i => i.Amount) ?? 0)</div>
+                    <div class="h4 m-0 fw-bold text-danger">₹@(_invoices?.Where(i => i.Status == "Unpaid").Sum(i => i.Amount) ?? 0)</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="compact-card text-center">
                     <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Collected (30d)</div>
-                    <div class="h4 m-0 fw-bold text-success">$@(_payments?.Where(p => p.CreatedDate > DateTime.Now.AddDays(-30)).Sum(p => p.Amount) ?? 0)</div>
+                    <div class="h4 m-0 fw-bold text-success">₹@(_payments?.Where(p => p.CreatedDate > DateTime.Now.AddDays(-30)).Sum(p => p.Amount) ?? 0)</div>
                 </div>
             </div>
         </div>
@@ -62,43 +76,46 @@
                     }
                     else
                     {
-                        <table class="table compact-table w-100">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Unit</th>
-                                    <th>Amount</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var inv in _invoices)
+                        <Grid @ref="invoiceGrid" TItem="Invoice"
+                              Class="table table-hover table-bordered table-striped compact-table"
+                              DataProvider="InvoicesDataProvider"
+                              Responsive="true"
+                              AllowPaging="true"
+                              PageSize="10"
+                              AllowSorting="true">
+
+                            <GridColumn TItem="Invoice" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
+                                <span class="fw-medium">@context.Title</span>
+                            </GridColumn>
+
+                            <GridColumn TItem="Invoice" HeaderText="Unit" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
+                                <span class="tree-badge">@context.AssetName</span>
+                            </GridColumn>
+
+                            <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
+                                <span class="fw-semibold">₹@context.Amount</span>
+                            </GridColumn>
+
+                            <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
+                                @context.DueDate.ToShortDateString()
+                            </GridColumn>
+
+                            <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                                <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
+                            </GridColumn>
+
+                            <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                                @if (context.Status == "Unpaid")
                                 {
-                                    <tr>
-                                        <td class="fw-medium">@inv.Title</td>
-                                        <td><span class="tree-badge">@inv.AssetName</span></td>
-                                        <td class="fw-semibold">$@inv.Amount</td>
-                                        <td>@inv.DueDate.ToShortDateString()</td>
-                                        <td>
-                                            <span class="badge @GetStatusClass(inv.Status)" style="font-size: 11px; border-radius: 2px;">@inv.Status</span>
-                                        </td>
-                                        <td class="text-end">
-                                            @if (inv.Status == "Unpaid")
-                                            {
-                                                <button class="btn btn-sm btn-link p-0 text-success me-2" @onclick="() => RecordPayment(inv)">
-                                                    <i class="bi bi-cash-stack"></i>
-                                                </button>
-                                            }
-                                            <button class="btn btn-sm btn-link p-0 text-muted">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <button class="btn btn-sm btn-link p-0 text-success me-2" @onclick="() => RecordPayment(context)">
+                                        <i class="bi bi-cash-stack"></i>
+                                    </button>
                                 }
-                            </tbody>
-                        </table>
+                                <button class="btn btn-sm btn-link p-0 text-muted">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                            </GridColumn>
+                        </Grid>
                     }
                 </div>
             </div>
@@ -123,7 +140,7 @@
                                 <div class="list-group-item px-0 py-2 border-0">
                                     <div class="d-flex justify-content-between">
                                         <span class="small fw-medium">Manual Payment</span>
-                                        <span class="small fw-bold text-success">+$@pay.Amount</span>
+                                        <span class="small fw-bold text-success">+₹@pay.Amount</span>
                                     </div>
                                     <div class="d-flex justify-content-between opacity-50" style="font-size: 10px;">
                                         <span>@pay.CreatedDate.ToString("g")</span>
@@ -180,28 +197,79 @@
 }
 
 @code {
-    private IEnumerable<Invoice>? _invoices;
-    private IEnumerable<Payment>? _payments;
+    private Grid<Invoice> invoiceGrid = default!;
+    private List<Invoice>? _invoices;
+    private List<Payment>? _payments;
     private bool _isCreateModalOpen;
     private Invoice _newInvoice = new() { DueDate = DateTime.Today.AddDays(7) };
+    private string _scope = "tenant";
 
     protected override async Task OnInitializedAsync()
     {
+        ParseQueryParameters();
         await LoadData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ParseQueryParameters())
+        {
+            _invoices = null;
+            _payments = null;
+            await LoadData();
+        }
+    }
+
+    private bool ParseQueryParameters()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query;
+        var newScope = query.Contains("scope=association") ? "association" : "tenant";
+        
+        if (newScope != _scope)
+        {
+            _scope = newScope;
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<GridDataProviderResult<Invoice>> InvoicesDataProvider(GridDataProviderRequest<Invoice> request)
+    {
+        if (_invoices == null) await LoadData();
+        return request.ApplyTo(_invoices ?? new List<Invoice>());
     }
 
     private async Task LoadData()
     {
         try 
         {
-            _invoices = await Api.GetAsync<IEnumerable<Invoice>>("api/finance/invoices");
-            _payments = await Api.GetAsync<IEnumerable<Payment>>("api/finance/payments");
+            string baseUrl = "api/finance";
+            string invoicesUrl = $"{baseUrl}/invoices";
+            string paymentsUrl = $"{baseUrl}/payments";
+
+            if (_scope == "association")
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var aid = authState.User.FindFirst("AssociationId")?.Value;
+                if (int.TryParse(aid, out int associationId) && associationId != 0)
+                {
+                    invoicesUrl += $"?associationId={associationId}";
+                    paymentsUrl += $"?associationId={associationId}";
+                }
+            }
+
+            var invoices = await Api.GetAsync<IEnumerable<Invoice>>(invoicesUrl);
+            _invoices = invoices?.ToList();
+            
+            var payments = await Api.GetAsync<IEnumerable<Payment>>(paymentsUrl);
+            _payments = payments?.ToList();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading billing data: {ex.Message}");
-            _invoices = Enumerable.Empty<Invoice>();
-            _payments = Enumerable.Empty<Payment>();
+            _invoices = new List<Invoice>();
+            _payments = new List<Payment>();
         }
     }
 
@@ -213,9 +281,22 @@
 
     private async Task HandleCreateInvoice()
     {
-        await Api.PostAsync<object>("api/finance/invoices", _newInvoice);
-        _isCreateModalOpen = false;
-        await LoadData();
+        var success = await Api.PostAsync<object>("api/finance/invoices", _newInvoice);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Invoice created successfully."));
+            _isCreateModalOpen = false;
+            _invoices = null;
+            await invoiceGrid.RefreshDataAsync();
+            
+            // Also refresh payments just in case
+            _payments = null; 
+            await LoadData(); // Full reload to update dashboard stats too
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to generate invoice."));
+        }
     }
 
     private async Task RecordPayment(Invoice invoice)
@@ -225,10 +306,17 @@
             Amount = invoice.Amount,
             InvoiceId = invoice.InvoiceId,
             Status = "Paid",
-            Currency = "USD"
+            Currency = "INR"
         };
-        await Api.PostAsync<object>("api/finance/payments", payment);
-        await LoadData();
+        var success = await Api.PostAsync<object>("api/finance/payments", payment);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, $"Payment of ₹{invoice.Amount} recorded."));
+            _invoices = null;
+            _payments = null;
+            await invoiceGrid.RefreshDataAsync();
+            await LoadData(); // Reload for stats and payment list
+        }
     }
 
     private void CloseModals() => _isCreateModalOpen = false;

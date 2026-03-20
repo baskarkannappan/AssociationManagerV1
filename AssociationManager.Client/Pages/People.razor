@@ -1,0 +1,138 @@
+@page "/people"
+@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin},{AppRole.UserManager}")]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Client.Services
+@inject ApiService ApiService
+@inject ToastService _toastService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-people-fill text-muted" style="font-size: 14px;"></i>
+        <span class="fw-medium">
+            @(_scope == "tenant" ? "Corporate Resident Directory" : "Association Residents")
+        </span>
+    </div>
+</div>
+
+<div class="p-3">
+    @if (_people == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border spinner-border-sm text-muted mb-2" role="status"></div>
+            <p class="text-muted small">Loading directory...</p>
+        </div>
+    }
+    else
+    {
+        <div class="border bg-white p-2">
+            <Grid @ref="_grid" TItem="Person"
+                  Class="table table-hover table-bordered table-striped compact-table"
+                  DataProvider="PeopleDataProvider"
+                  Responsive="true"
+                  AllowPaging="true"
+                  PageSize="15"
+                  AllowSorting="true">
+
+                <GridColumn TItem="Person" HeaderText="Name" PropertyName="FirstName" SortKeySelector="item => item.LastName + item.FirstName">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-sm bg-light text-muted d-flex align-items-center justify-content-center rounded-circle" style="width: 24px; height: 24px; font-size: 10px;">
+                            @(context.FirstName?[0])@(context.LastName?[0])
+                        </div>
+                        <div>
+                            <div class="fw-medium">@context.FirstName @context.LastName</div>
+                            @if (_scope == "tenant")
+                            {
+                                <div class="text-muted" style="font-size: 10px;">Association ID: #@context.AssociationId</div>
+                            }
+                        </div>
+                    </div>
+                </GridColumn>
+
+                <GridColumn TItem="Person" HeaderText="Contact" PropertyName="Email">
+                    <div class="small">@context.Email</div>
+                    <div class="text-muted" style="font-size: 10px;">@context.Phone</div>
+                </GridColumn>
+
+                <GridColumn TItem="Person" HeaderText="Status" PropertyName="IsActive">
+                    <span class="badge @(context.IsActive ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger") border">
+                        @(context.IsActive ? "Active" : "Archived")
+                    </span>
+                </GridColumn>
+
+                <GridColumn TItem="Person" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                    <button class="btn btn-link btn-sm text-muted p-0">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </GridColumn>
+
+            </Grid>
+        </div>
+    }
+</div>
+
+@code {
+    private Grid<Person> _grid = default!;
+    private List<Person>? _people;
+    private string _scope = "tenant";
+
+    protected override async Task OnInitializedAsync()
+    {
+        ParseQueryParameters();
+        await LoadPeople();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ParseQueryParameters())
+        {
+            _people = null;
+            await LoadPeople();
+        }
+    }
+
+    private bool ParseQueryParameters()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query;
+        var newScope = query.Contains("scope=association") ? "association" : "tenant";
+        
+        if (newScope != _scope)
+        {
+            _scope = newScope;
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<GridDataProviderResult<Person>> PeopleDataProvider(GridDataProviderRequest<Person> request)
+    {
+        if (_people == null) await LoadPeople();
+        return request.ApplyTo(_people ?? new List<Person>());
+    }
+
+    private async Task LoadPeople()
+    {
+        try 
+        {
+            string url = "api/people";
+            if (_scope == "association")
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var aid = authState.User.FindFirst("AssociationId")?.Value;
+                if (int.TryParse(aid, out int associationId) && associationId != 0)
+                {
+                    url = $"{url}?associationId={associationId}";
+                }
+            }
+            _people = await ApiService.GetAsync<List<Person>>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading people: {ex.Message}");
+            _people = new List<Person>();
+        }
+    }
+}

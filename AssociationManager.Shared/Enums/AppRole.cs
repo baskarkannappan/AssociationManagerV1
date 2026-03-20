@@ -9,6 +9,26 @@ public static class AppRole
     public const string FinanceManager = "FinanceManager";
     public const string Resident = "Resident";
 
+    // Role Levels (Hierarchy)
+    public const int LevelSystemAdmin = 100;
+    public const int LevelAssociationAdmin = 80;
+    public const int LevelAssetManager = 60;
+    public const int LevelUserManager = 50;
+    public const int LevelFinanceManager = 40;
+    public const int LevelResident = 10;
+    public const int LevelGuest = 0;
+
+    public static int GetLevel(string? role) => role switch
+    {
+        SystemAdmin => LevelSystemAdmin,
+        AssociationAdmin => LevelAssociationAdmin,
+        AssetManager => LevelAssetManager,
+        UserManager => LevelUserManager,
+        FinanceManager => LevelFinanceManager,
+        Resident => LevelResident,
+        _ => LevelGuest
+    };
+
     public static readonly string[] All = { SystemAdmin, AssociationAdmin, AssetManager, UserManager, FinanceManager, Resident };
 
     public static string[] GetCapabilities(string role) => role switch

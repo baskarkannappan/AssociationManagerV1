@@ -1,13 +1,15 @@
 @page "/assets"
-@attribute [Authorize]
+@attribute [Authorize(Roles = $"{AppRole.Resident},{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
 @using AssociationManager.Client.Services
 @using AssociationManager.Client.Components
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 @inject ApiService ApiService
+@inject ToastService _toastService
 @inject NavigationManager Navigation
+@inject IAppAuthorizationService AuthService
 
-<AuthorizeView Context="authContext">
+<AuthorizeView Context="assetAuthContext">
     <Authorized>
         <div class="assets-page h-100 d-flex flex-column bg-white forced-text-dark">
             <div class="vscode-page-header border-bottom px-3 py-2">
@@ -15,7 +17,8 @@
                     <i class="bi bi-diagram-3" style="font-size: 14px;"></i>
                     <span class="fw-medium">Asset Registry</span>
                 </div>
-                <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
+                @if (AuthService.HasLevel(assetAuthContext.User, AppRole.LevelAssociationAdmin))
+                {
                     <div class="actions d-flex gap-2">
                         <button class="btn-vscode" @onclick="() => _bulkModal.ShowAsync()">
                             <i class="bi bi-grid-3x3-gap"></i> Select from Template
@@ -24,7 +27,7 @@
                             <i class="bi bi-plus"></i> New Property
                         </button>
                     </div>
-                </AuthorizeView>
+                }
             </div>
 
             <div class="flex-grow-1 d-flex overflow-hidden">
@@ -81,6 +84,7 @@
                             {
                                 <AssetDetailForm Asset="_selectedAsset" 
                                                 IsNew="_isNew" 
+                                                IsReadOnly="_isResident"
                                                 OnSave="HandleSave" 
                                                 OnAddChild="CreateChild" 
                                                 OnDelete="HandleDelete" />
@@ -110,9 +114,12 @@
                             {
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="fw-bold small mb-0">Unit Announcements</h6>
-                                    <button class="btn btn-sm btn-vscode" @onclick="() => _assetBroadcastList?.ShowCreateModal()">
-                                        <i class="bi bi-plus"></i> Post to Unit
-                                    </button>
+                                    @if (AuthService.HasLevel(assetAuthContext.User, AppRole.LevelAssociationAdmin))
+                                    {
+                                        <button class="btn btn-sm btn-vscode" @onclick="() => _assetBroadcastList?.ShowCreateModal()">
+                                            <i class="bi bi-plus"></i> Post to Unit
+                                        </button>
+                                    }
                                 </div>
                                 <BroadcastList @ref="_assetBroadcastList" AssetId="_selectedAsset.AssetId" />
                             }
@@ -164,6 +171,7 @@
     private List<Asset>? _hierarchy;
     private Asset? _selectedAsset;
     private bool _isNew;
+    private bool _isResident;
     private string _activeTab = "details";
     private HashSet<int> _expandedIds = new();
 
@@ -185,6 +193,7 @@
         var authState = await AuthStateTask;
         if (authState.User.Identity?.IsAuthenticated == true)
         {
+            _isResident = !AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
             await LoadHierarchy();
         }
     }
@@ -269,49 +278,84 @@
     {
         if (_selectedAsset == null) return;
 
+        bool success;
         if (_isNew)
         {
-            await ApiService.PostAsync("api/assets", _selectedAsset);
+            success = await ApiService.PostAsync("api/assets", _selectedAsset);
+            if (success) _toastService.Notify(new(ToastType.Success, "New asset created."));
         }
         else
         {
-            await ApiService.PutAsync($"api/assets/{_selectedAsset.AssetId}", _selectedAsset);
+            success = await ApiService.PutAsync($"api/assets/{_selectedAsset.AssetId}", _selectedAsset);
+            if (success) _toastService.Notify(new(ToastType.Success, "Asset updated."));
         }
 
-        await LoadHierarchy();
-        _isNew = false;
+        if (success)
+        {
+            await LoadHierarchy();
+            _isNew = false;
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to save asset."));
+        }
         StateHasChanged();
     }
 
     private async Task HandleDelete()
     {
         if (_selectedAsset == null) return;
-        await ApiService.DeleteAsync($"api/assets/{_selectedAsset.AssetId}");
-        _selectedAsset = null;
-        await LoadHierarchy();
+        var success = await ApiService.DeleteAsync($"api/assets/{_selectedAsset.AssetId}");
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Asset deleted."));
+            _selectedAsset = null;
+            await LoadHierarchy();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to delete asset."));
+        }
     }
 
     private async Task HandleBulkSubmit(BulkCreateRequest request)
     {
         await _bulkModal.HideAsync();
-        await ApiService.PostAsync("api/assets/bulk", request);
-        await LoadHierarchy();
+        var success = await ApiService.PostAsync("api/assets/bulk", request);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Bulk asset creation complete."));
+            await LoadHierarchy();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Bulk creation failed."));
+        }
         StateHasChanged();
     }
 
     private async Task RemoveOccupant(int id) {
-        await ApiService.DeleteAsync($"api/people/occupancy/{id}");
-        if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        var success = await ApiService.DeleteAsync($"api/people/occupancy/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Occupant removed."));
+            if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        }
     }
 
     private async Task RemoveVehicle(int id) {
-        await ApiService.DeleteAsync($"api/people/vehicles/{id}");
-        if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        var success = await ApiService.DeleteAsync($"api/people/vehicles/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Vehicle removed."));
+            if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        }
     }
 
     private async Task RemovePet(int id) {
-        await ApiService.DeleteAsync($"api/people/pets/{id}");
-        if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        var success = await ApiService.DeleteAsync($"api/people/pets/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Pet record removed."));
+            if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        }
     }
 
     private bool IsUnitType(AssetType type) => type == AssetType.Unit || type == AssetType.Villa;

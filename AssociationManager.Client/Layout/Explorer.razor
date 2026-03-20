@@ -1,73 +1,72 @@
 @using Microsoft.AspNetCore.Components.Routing
+@using AssociationManager.Client.Services
+@inject IAppAuthorizationService AuthService
 
-<div class="vscode-explorer">
-    <div class="vscode-explorer-header">Navigation</div>
+<AuthorizeView Context="rootAuthContext">
+    @{
+        var assocId = rootAuthContext.User.FindFirst("AssociationId")?.Value;
+        bool hasAccess = !string.IsNullOrEmpty(assocId) && assocId != "0";
+    }
     
-    <div class="vscode-tree-group">
-        <NavLink href="" Match="NavLinkMatch.All" class="vscode-tree-item text-decoration-none">
-            <i class="bi bi-house-door"></i>
-            <span>Overview</span>
-        </NavLink>
+    <div class="vscode-explorer">
+        <div class="vscode-explorer-header">Navigation</div>
         
-        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin}")">
-            <NavLink href="associations" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-diagram-3"></i>
-                <span>Associations</span>
-            </NavLink>
-        </AuthorizeView>
+        @if (hasAccess)
+        {
 
-        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.AssetManager}")">
-            <NavLink href="assets" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-layers"></i>
-                <span>Assets</span>
-            </NavLink>
-            
-            <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-tools"></i>
-                <span>Operations</span>
-            </NavLink>
-        </AuthorizeView>
+            <div class="vscode-tree-group mt-3">
+                <div class="vscode-tree-item py-1 text-muted" style="font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                    Association Level
+                </div>
+                
+                <AuthorizeView Context="assocAuthContext">
+                    <NavLink href="assets" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-layers text-secondary"></i>
+                        <span>Assets</span>
+                    </NavLink>
+                    
+                    <NavLink href="users?scope=association" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-person-gear text-info"></i>
+                        <span>User & Roles</span>
+                    </NavLink>
 
-        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin}")">
-            <NavLink href="users" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-people-fill"></i>
-                <span>Users & Roles</span>
-            </NavLink>
-        </AuthorizeView>
-        
-        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.FinanceManager}")">
-            <NavLink href="billing" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-wallet2"></i>
-                <span>Finance</span>
-            </NavLink>
-            <NavLink href="tariffs" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-layers-half"></i>
-                <span>Tariff Management</span>
-            </NavLink>
-        </AuthorizeView>
+                    <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-tag text-success"></i>
+                        <span>Tariff Management</span>
+                    </NavLink>
 
-        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin}")">
-            <NavLink href="broadcasts" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-megaphone"></i>
-                <span>Communications</span>
-            </NavLink>
-        </AuthorizeView>
-        
-        <AuthorizeView Roles="@($"{AppRole.SystemAdmin},{AppRole.AssociationAdmin},{AppRole.UserManager}")">
-            <NavLink href="people" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-people"></i>
-                <span>Community</span>
-            </NavLink>
-        </AuthorizeView>
+                    <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-cash-stack text-success"></i>
+                        <span>Finance</span>
+                    </NavLink>
+
+                    <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-tools text-dark"></i>
+                        <span>Operations</span>
+                    </NavLink>
+
+                    <NavLink href="broadcasts?scope=association" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-chat-left-dots text-warning"></i>
+                        <span>Communication</span>
+                    </NavLink>
+
+                    <NavLink href="people?scope=association" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-person-lines-fill text-danger"></i>
+                        <span>Community</span>
+                    </NavLink>
+
+                    <NavLink href="settings" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-gear text-secondary"></i>
+                        <span>Settings</span>
+                    </NavLink>
+                </AuthorizeView>
+            </div>
+        }
+        else
+        {
+            <div class="p-3 text-muted small italic">
+                <i class="bi bi-lock"></i> Pending Activation
+            </div>
+        }
     </div>
-
-    <div class="mt-auto pb-3">
-        <div class="vscode-tree-item py-1 text-muted" style="font-size: 11px; font-weight: 600; border-top: 1px solid var(--vscode-border);">
-            Configuration
-        </div>
-        <div class="vscode-tree-item text-decoration-none opacity-80">
-            <i class="bi bi-gear"></i>
-            <span>Settings</span>
-        </div>
-    </div>
-</div>
+</AuthorizeView>

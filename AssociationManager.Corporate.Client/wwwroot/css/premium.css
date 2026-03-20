@@ -1,0 +1,204 @@
+/* 
+   AssociationManager "Midnight Professional" Design System 
+   Inspired by Linear, Stripe, and Vercel.
+*/
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    /* Color Palette - Light Professional */
+    --base-midnight: #ffffff;
+    --surface-low: #f8fafc;
+    --surface-mid: #f1f5f9;
+    --surface-high: #e2e8f0;
+    
+    --brand-primary: #4f46e5;
+    --brand-secondary: #7c3aed;
+    --brand-accent: #0ea5e9;
+    
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-tertiary: #94a3b8;
+    
+    --border-subtle: #e2e8f0;
+    --border-bright: #cbd5e1;
+    
+    /* Effects */
+    --glow-primary: none;
+    --glass-blur: none;
+    --transition-smooth: all 0.1s ease;
+}
+
+body {
+    background: var(--base-midnight);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* Force dark theme only when explicitly requested */
+.premium-dark-mode {
+    background: #020617 !important;
+    color: #f8fafc !important;
+}
+
+/* Base Layout Overrides */
+.page {
+    background: #ffffff;
+}
+
+.sidebar {
+    background: var(--surface-low) !important;
+    border-right: 1px solid var(--border-subtle) !important;
+    width: 250px !important;
+}
+
+.top-row {
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    height: 64px !important;
+}
+
+/* Typography - Allowing overrides for light themes */
+h1, h2, h3, h4, h5 {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: inherit;
+}
+
+/* Premium Card System */
+.card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0px !important;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-bright) !important;
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+}
+
+/* Professional Buttons */
+.btn-primary {
+    background: var(--brand-primary) !important;
+    border: 1px solid var(--brand-primary) !important;
+    border-radius: 2px !important;
+    font-weight: 500 !important;
+    padding: 6px 16px !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: var(--glow-primary);
+}
+
+/* Navigation System */
+.nav-link {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    padding: 12px 16px !important;
+    margin: 4px 12px !important;
+    border-radius: 8px !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: white !important;
+}
+
+.nav-link.active {
+    background: rgba(99, 102, 241, 0.1) !important;
+    color: var(--brand-primary) !important;
+    border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Utility Animations */
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.shimmer-effect {
+    position: relative;
+    overflow: hidden;
+}
+
+.shimmer-effect::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    animation: shimmer 2s infinite;
+}
+
+/* Glass Panels */
+.glass-panel {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 32px;
+}
+/* Registry & Tree Enhancements */
+.asset-tree-node { transition: none; }
+.vscode-tree-item.active { background: #e2e8f0 !important; color: #000000 !important; font-weight: 600; border-radius: 0; }
+.tree-count { font-size: 10px; color: #64748b; margin-left: 6px; background: #f1f5f9; padding: 1px 4px; border: 1px solid #e2e8f0; }
+.tree-badge { font-size: 9px; text-transform: uppercase; padding: 1px 4px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; color: #64748b; margin-left: auto; }
+
+/* Property Card Redesign */
+.premium-property-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0;
+    padding: 20px;
+}
+
+.premium-header-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 1.1rem;
+}
+
+/* Simple Forms */
+.form-control-premium, .form-select-premium {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 0px !important;
+    color: #1e293b !important;
+    padding: 6px 10px !important;
+}
+.form-control-premium:focus, .form-select-premium:focus {
+    border-color: var(--brand-primary) !important;
+    outline: none;
+}
+.btn-primary-premium {
+    background: var(--brand-primary) !important;
+    border: 1px solid var(--brand-primary) !important;
+    color: white !important;
+    font-weight: 500 !important;
+    padding: 8px 16px !important;
+    border-radius: 2px !important;
+}

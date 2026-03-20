@@ -25,8 +25,18 @@ public class AuditLogRepository : IAuditLogRepository
         log.AssociationId = _tenantContext.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_AuditLogs_Create", 
-            log,
+            "corp.sp_AuditLogs_Create", 
+            new 
+            { 
+                log.TenantId, 
+                log.AssociationId, 
+                log.UserId, 
+                log.Action, 
+                log.Entity, 
+                log.EntityId, 
+                log.IpAddress, 
+                log.Timestamp 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -34,7 +44,7 @@ public class AuditLogRepository : IAuditLogRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AuditLog>(
-            "sp_AuditLogs_GetByTenantId", 
+            "corp.sp_AuditLogs_GetByTenantId", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }

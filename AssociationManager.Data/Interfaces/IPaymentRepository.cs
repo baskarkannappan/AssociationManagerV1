@@ -6,8 +6,8 @@ namespace AssociationManager.Data.Interfaces;
 
 public interface IPaymentRepository
 {
-    Task<Payment?> GetByIdAsync(int id, int tenantId, int associationId);
-    Task<IEnumerable<Payment>> GetByTenantIdAsync(int tenantId, int associationId);
+    Task<Payment?> GetByIdAsync(int id, int tenantId, int? associationId);
+    Task<IEnumerable<Payment>> GetByTenantIdAsync(int tenantId, int? associationId);
     Task<int> CreateAsync(Payment payment);
-    Task<bool> UpdateStatusAsync(int id, string status, string? gatewayReference, int tenantId, int associationId);
+    Task<bool> UpdateStatusAsync(int id, string status, string? gatewayReference, int tenantId, int? associationId);
 }

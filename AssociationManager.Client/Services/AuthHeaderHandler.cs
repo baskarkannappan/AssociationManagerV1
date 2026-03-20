@@ -21,6 +21,11 @@ public class AuthHeaderHandler : DelegatingHandler
         if (!string.IsNullOrEmpty(token))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            System.Console.WriteLine($"[AuthHeaderHandler] Attaching token to {request.RequestUri}");
+        }
+        else
+        {
+            System.Console.WriteLine($"[AuthHeaderHandler] No token found for {request.RequestUri}");
         }
 
         return await base.SendAsync(request, cancellationToken);

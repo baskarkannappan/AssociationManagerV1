@@ -8,7 +8,7 @@ namespace AssociationManager.Data.Interfaces;
 public interface ITariffRepository
 {
     // Groups
-    Task<IEnumerable<TariffGroup>> GetGroupsByTenantIdAsync(int tenantId);
+    Task<IEnumerable<TariffGroup>> GetGroupsByTenantIdAsync(int tenantId, int? associationId = null);
     Task<int> CreateGroupAsync(TariffGroup group);
     Task<bool> UpdateGroupAsync(TariffGroup group);
     Task<bool> DeleteGroupAsync(int groupId);

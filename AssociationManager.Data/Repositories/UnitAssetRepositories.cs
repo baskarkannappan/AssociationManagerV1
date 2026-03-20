@@ -16,7 +16,7 @@ public class VehicleRepository : IVehicleRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Vehicle>(
-            "sp_Vehicles_GetByAssetId", 
+            "assoc.sp_Vehicles_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -25,8 +25,19 @@ public class VehicleRepository : IVehicleRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Vehicles_Create", 
-            vehicle,
+            "assoc.sp_Vehicles_Create", 
+            new 
+            { 
+                vehicle.AssetId, 
+                vehicle.TenantId, 
+                vehicle.AssociationId, 
+                vehicle.Make, 
+                vehicle.Model, 
+                vehicle.LicensePlate, 
+                vehicle.Color, 
+                vehicle.ParkingSlot, 
+                vehicle.IsActive 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -34,7 +45,7 @@ public class VehicleRepository : IVehicleRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Vehicles_Update", 
+            "assoc.sp_Vehicles_Update", 
             vehicle,
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -43,7 +54,7 @@ public class VehicleRepository : IVehicleRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Vehicles_Delete", 
+            "assoc.sp_Vehicles_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -58,7 +69,7 @@ public class PetRepository : IPetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Pet>(
-            "sp_Pets_GetByAssetId", 
+            "assoc.sp_Pets_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -67,8 +78,18 @@ public class PetRepository : IPetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Pets_Create", 
-            pet,
+            "assoc.sp_Pets_Create", 
+            new 
+            { 
+                pet.AssetId, 
+                pet.TenantId, 
+                pet.AssociationId, 
+                pet.Name, 
+                pet.Species, 
+                pet.Breed, 
+                pet.TagNumber, 
+                pet.IsActive 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -76,7 +97,7 @@ public class PetRepository : IPetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Pets_Update", 
+            "assoc.sp_Pets_Update", 
             pet,
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -85,7 +106,7 @@ public class PetRepository : IPetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Pets_Delete", 
+            "assoc.sp_Pets_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }

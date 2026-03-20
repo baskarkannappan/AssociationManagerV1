@@ -1,0 +1,124 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject AssociationManager.Corporate.Client.Services.ApiService ApiService
+@inject AssociationManager.Corporate.Client.Services.IAppAuthorizationService AuthService
+@inject ToastService _toastService
+
+<div class="occupants-section forced-text-dark">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Current Occupants</h6>
+        <AuthorizeView Context="occupancyAuthContext">
+            @if (AuthService.HasLevel(occupancyAuthContext.User, AppRole.LevelResident))
+            {
+                <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+            }
+        </AuthorizeView>
+    </div>
+
+    @if (_showAddForm)
+    {
+        <div class="bg-light p-2 mb-3 border compact-form">
+            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Resident/Occupant</h6>
+            <div class="row g-1">
+                <div class="col-6"><input @bind="_newPerson.FirstName" class="form-control" placeholder="First Name" /></div>
+                <div class="col-6"><input @bind="_newPerson.LastName" class="form-control" placeholder="Last Name" /></div>
+                <div class="col-12"><input @bind="_newPerson.Email" class="form-control" placeholder="Email" /></div>
+                <div class="col-6">
+                    <select @bind="_newOccupancy.OccupancyType" class="form-select">
+                        @foreach (var type in Enum.GetValues<OccupancyType>()) { <option value="@type">@type</option> }
+                    </select>
+                </div>
+                <div class="col-6 d-flex align-items-center px-2">
+                    <div class="form-check m-0">
+                        <input type="checkbox" class="form-check-input" @bind="_newOccupancy.IsPrimaryContact" id="primary-contact" />
+                        <label class="form-check-label" style="font-size: 11px;" for="primary-contact">Primary</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = false'>Cancel</button>
+                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SaveOccupant">Add Occupant</button>
+            </div>
+        </div>
+    }
+
+        <Grid TItem="Occupancy"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="OccupanciesDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="5"
+              AllowSorting="true">
+
+            <GridColumn TItem="Occupancy" HeaderText="Type" PropertyName="OccupancyType" SortKeySelector="item => item.OccupancyType">
+                @context.OccupancyType
+            </GridColumn>
+
+            <GridColumn TItem="Occupancy" HeaderText="Contact" PropertyName="PersonId" SortKeySelector="item => item.PersonId">
+                Person #@context.PersonId
+            </GridColumn>
+
+            <GridColumn TItem="Occupancy" HeaderText="Primary" PropertyName="IsPrimaryContact" SortKeySelector="item => item.IsPrimaryContact">
+                @(context.IsPrimaryContact ? "Yes" : "No")
+            </GridColumn>
+
+            <GridColumn TItem="Occupancy" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                <AuthorizeView Context="occupancyAuthContext">
+                    @if (AuthService.HasLevel(occupancyAuthContext.User, AppRole.LevelResident))
+                    {
+                        <button class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="() => OnDelete.InvokeAsync(context.OccupancyId)">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    }
+                </AuthorizeView>
+            </GridColumn>
+        </Grid>
+</div>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    [Parameter] public List<Occupancy>? Occupants { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private Grid<Occupancy> grid = default!;
+
+    private async Task<GridDataProviderResult<Occupancy>> OccupanciesDataProvider(GridDataProviderRequest<Occupancy> request)
+    {
+        return await Task.FromResult(request.ApplyTo(Occupants ?? new List<Occupancy>()));
+    }
+
+    private bool _showAddForm;
+    private Person _newPerson = new();
+    private Occupancy _newOccupancy = new();
+
+    private async Task SaveOccupant()
+    {
+        var personId = await ApiService.PostAsync<Person, int>("api/people", _newPerson);
+        if (personId > 0)
+        {
+            _newOccupancy.PersonId = personId;
+            _newOccupancy.AssetId = AssetId;
+            var success = await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
+            
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Occupant added."));
+                _newPerson = new();
+                _newOccupancy = new();
+                _showAddForm = false;
+                await grid.RefreshDataAsync();
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to add occupant."));
+            }
+            await OnDataChanged.InvokeAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to create person record."));
+        }
+    }
+}

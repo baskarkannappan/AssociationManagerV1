@@ -23,7 +23,7 @@ public class WorkOrderRepository : IWorkOrderRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<WorkOrder>(
-            "sp_WorkOrders_GetById", 
+            "assoc.sp_WorkOrders_GetById", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -32,7 +32,7 @@ public class WorkOrderRepository : IWorkOrderRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<WorkOrder>(
-            "sp_WorkOrders_GetAll", 
+            "assoc.sp_WorkOrders_GetAll", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -41,7 +41,7 @@ public class WorkOrderRepository : IWorkOrderRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<WorkOrder>(
-            "sp_WorkOrders_GetByAssetId", 
+            "assoc.sp_WorkOrders_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -53,8 +53,20 @@ public class WorkOrderRepository : IWorkOrderRepository
         workOrder.CreatedBy = _tenantContext.UserId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_WorkOrders_Create", 
-            workOrder,
+            "assoc.sp_WorkOrders_Create", 
+            new 
+            { 
+                workOrder.TenantId, 
+                workOrder.AssociationId, 
+                workOrder.AssetId, 
+                workOrder.Title, 
+                workOrder.Description, 
+                workOrder.Priority, 
+                workOrder.Status, 
+                workOrder.CreatedDate, 
+                workOrder.CreatedBy, 
+                workOrder.AssignedTo 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -62,12 +74,19 @@ public class WorkOrderRepository : IWorkOrderRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_WorkOrders_Update", 
-            new { 
-                workOrder.AssetId, workOrder.Title, workOrder.Description, 
-                workOrder.Priority, workOrder.Status, workOrder.AssignedTo, 
-                workOrder.CompletedDate, workOrder.WorkOrderId, 
-                TenantId = _tenantContext.TenantId, AssociationId = _tenantContext.AssociationId 
+            "assoc.sp_WorkOrders_Update", 
+            new 
+            { 
+                workOrder.WorkOrderId,
+                workOrder.TenantId, 
+                workOrder.AssociationId, 
+                workOrder.AssetId, 
+                workOrder.Title, 
+                workOrder.Description, 
+                workOrder.Priority, 
+                workOrder.Status, 
+                workOrder.AssignedTo, 
+                workOrder.CompletedDate 
             },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -76,7 +95,7 @@ public class WorkOrderRepository : IWorkOrderRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_WorkOrders_UpdateStatus", 
+            "assoc.sp_WorkOrders_UpdateStatus", 
             new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -85,7 +104,7 @@ public class WorkOrderRepository : IWorkOrderRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_WorkOrders_Delete", 
+            "assoc.sp_WorkOrders_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }

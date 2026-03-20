@@ -4,12 +4,16 @@
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Client.Services
 @inject ApiService ApiService
+@inject ToastService _toastService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="vscode-page-header border-bottom">
     <div class="d-flex align-items-center gap-2">
         <i class="bi bi-wallet2 text-muted" style="font-size: 14px;"></i>
-        <span class="fw-medium">Tariff Management</span>
+        <span class="fw-medium">
+            @(_scope == "tenant" ? "Corporate Tariff Management" : "Association Tariff Management")
+        </span>
     </div>
 </div>
 
@@ -57,7 +61,7 @@
         {
             <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
                 <i class="bi bi-layers display-1 mb-3"></i>
-                <p>Select a billing group to manage its tariff layers.</p>
+                <p>Select a billing group to manage its tariffs.</p>
             </div>
         }
         else
@@ -67,31 +71,73 @@
                     <h5 class="mb-0">@SelectedGroup.Name</h5>
                     <small class="text-muted">@SelectedGroup.Description</small>
                 </div>
-                <button class="btn btn-sm btn-vscode" @onclick="ShowCreateLayerForm">
-                    <i class="bi bi-plus me-1"></i> New Layer
-                </button>
+                <div class="nav nav-pills small-pills">
+                    <button class="nav-link @(_activeTab == "layers" ? "active" : "")" @onclick='() => _activeTab = "layers"'>Layers</button>
+                    <button class="nav-link @(_activeTab == "assignments" ? "active" : "")" @onclick='() => _activeTab = "assignments"'>Assignments</button>
+                </div>
             </div>
 
             <div class="flex-grow-1 overflow-auto p-3">
-                @if (_layers == null)
+                @if (_activeTab == "layers")
                 {
-                    <div class="text-center py-5 opacity-50"><div class="spinner-border"></div></div>
-                }
-                else if (!_layers.Any())
-                {
-                    <div class="p-5 text-center bg-light rounded border border-dashed text-muted">
-                        <i class="bi bi-info-circle mb-2 d-block"></i>
-                        No tariff layers defined in this group.
+                    <div class="mb-3 d-flex justify-content-end">
+                        <button class="btn btn-sm btn-vscode" @onclick="ShowCreateLayerForm">
+                            <i class="bi bi-plus me-1"></i> New Layer
+                        </button>
                     </div>
+                    @if (_layers == null)
+                    {
+                        <div class="text-center py-5 opacity-50"><div class="spinner-border"></div></div>
+                    }
+                    else if (!_layers.Any())
+                    {
+                        <div class="p-5 text-center bg-light rounded border border-dashed text-muted">
+                            <i class="bi bi-info-circle mb-2 d-block"></i>
+                            No tariff layers defined in this group.
+                        </div>
+                    }
+                    else
+                    {
+                        <TariffLayerList Layers="_layers" OnDelete="DeleteLayer" />
+                    }
                 }
                 else
                 {
-                    <TariffLayerList Layers="_layers" OnDelete="DeleteLayer" />
+                    <p class="small text-muted mb-3">Select a layer to manage asset assignments.</p>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" @bind="_selectedLayerIdForAssignment">
+                                <option value="0">-- Select Layer --</option>
+                                @foreach (var layer in _layers ?? new())
+                                {
+                                    <option value="@layer.TariffLayerId">@layer.Name (₹@layer.BaseRate)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            @if (_selectedLayerIdForAssignment > 0)
+                            {
+                                <div class="p-3 border rounded bg-light">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="small fw-bold">Assigned Assets</span>
+                                        <button class="btn btn-xs btn-primary">Assign Assets</button>
+                                    </div>
+                                    <small class="text-muted">UI for mass assignment coming soon.</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
                 }
             </div>
         }
     </div>
 </div>
+
+<style>
+    .small-pills .nav-link { padding: 4px 12px; font-size: 11px; border-radius: 4px; border: 1px solid transparent; margin-left: 5px; color: #64748b; }
+    .small-pills .nav-link.active { background: #007acc; color: white; border-color: #007acc; }
+    .small-pills .nav-link:not(.active):hover { background: #f1f5f9; }
+</style>
 
 <!-- Modals (Simplified for now using simple flags) -->
 @if (_showGroupModal)
@@ -142,7 +188,7 @@
                             <input @bind="_newLayer.AccountingCategory" class="form-control" placeholder="e.g. Operational" />
                         </div>
                         <div class="col-md-4">
-                            <label>Base Rate ($)</label>
+                            <label>Base Rate (₹)</label>
                             <input type="number" @bind="_newLayer.BaseRate" class="form-control" />
                         </div>
                         <div class="col-md-4">
@@ -181,9 +227,12 @@
     .btn-vscode:hover { opacity: 0.9; color: white; }
     .compact-form label { font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px; }
     .compact-form .form-control, .compact-form .form-select { border-radius: 2px; border: 1px solid #e2e8f0; font-size: 13px; }
+    .btn-xs { padding: 2px 8px; font-size: 10px; border-radius: 2px; }
 </style>
 
 @code {
+    private string _activeTab = "layers";
+    private int _selectedLayerIdForAssignment;
     private List<TariffGroup>? _groups;
     private List<TariffLayer>? _layers;
     private TariffGroup? SelectedGroup;
@@ -192,15 +241,51 @@
     private bool _showLayerModal = false;
     private TariffGroup _newGroup = new();
     private TariffLayer _newLayer = new();
+    private string _scope = "tenant";
 
     protected override async Task OnInitializedAsync()
     {
+        ParseQueryParameters();
         await LoadGroups();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ParseQueryParameters())
+        {
+            _groups = null;
+            SelectedGroup = null;
+            await LoadGroups();
+        }
+    }
+
+    private bool ParseQueryParameters()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query;
+        var newScope = query.Contains("scope=association") ? "association" : "tenant";
+        
+        if (newScope != _scope)
+        {
+            _scope = newScope;
+            return true;
+        }
+        return false;
     }
 
     private async Task LoadGroups()
     {
-        _groups = await ApiService.GetAsync<List<TariffGroup>>("api/tariff/groups");
+        string url = "api/tariff/groups";
+        if (_scope == "association")
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var aid = authState.User.FindFirst("AssociationId")?.Value;
+            if (int.TryParse(aid, out int associationId) && associationId != 0)
+            {
+                url = $"{url}?associationId={associationId}";
+            }
+        }
+        _groups = await ApiService.GetAsync<List<TariffGroup>>(url);
     }
 
     private async Task SelectGroup(TariffGroup group)
@@ -219,9 +304,17 @@
     private async Task CreateGroup()
     {
         if (string.IsNullOrWhiteSpace(_newGroup.Name)) return;
-        await ApiService.PostAsync("api/tariff/groups", _newGroup);
-        _showGroupModal = false;
-        await LoadGroups();
+        var success = await ApiService.PostAsync("api/tariff/groups", _newGroup);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Billing group created."));
+            _showGroupModal = false;
+            await LoadGroups();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to create group."));
+        }
     }
 
     private void ShowCreateLayerForm()
@@ -233,14 +326,26 @@
     private async Task CreateLayer()
     {
         if (string.IsNullOrWhiteSpace(_newLayer.Name)) return;
-        await ApiService.PostAsync("api/tariff/layers", _newLayer);
-        _showLayerModal = false;
-        if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+        var success = await ApiService.PostAsync("api/tariff/layers", _newLayer);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Tariff layer added."));
+            _showLayerModal = false;
+            if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to add layer."));
+        }
     }
 
     private async Task DeleteLayer(int id)
     {
-        await ApiService.DeleteAsync($"api/tariff/layers/{id}");
-        if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+        var success = await ApiService.DeleteAsync($"api/tariff/layers/{id}");
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Tariff layer deleted."));
+            if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+        }
     }
 }

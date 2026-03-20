@@ -19,29 +19,29 @@ public class InvoiceRepository : IInvoiceRepository
         _tenantContext = tenantContext;
     }
 
-    public async Task<Invoice?> GetByIdAsync(int id, int tenantId, int associationId)
+    public async Task<Invoice?> GetByIdAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Invoice>(
-            "sp_Invoices_GetById", 
+            "assoc.sp_Invoices_GetById", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int associationId)
+    public async Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Invoice>(
-            "sp_Invoices_GetAll", 
+            "assoc.sp_Invoices_GetAll", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
+    public async Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Invoice>(
-            "sp_Invoices_GetByAssetId", 
+            "assoc.sp_Invoices_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -52,25 +52,36 @@ public class InvoiceRepository : IInvoiceRepository
         invoice.AssociationId = _tenantContext.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Invoices_Create", 
-            invoice,
+            "assoc.sp_Invoices_Create", 
+            new 
+            { 
+                invoice.TenantId, 
+                invoice.AssociationId, 
+                invoice.AssetId, 
+                invoice.Title, 
+                invoice.Description, 
+                invoice.Amount, 
+                invoice.DueDate, 
+                invoice.Status, 
+                invoice.CreatedDate 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int associationId)
+    public async Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Invoices_UpdateStatus", 
+            "assoc.sp_Invoices_UpdateStatus", 
             new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
+    public async Task<bool> DeleteAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Invoices_Delete", 
+            "assoc.sp_Invoices_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }

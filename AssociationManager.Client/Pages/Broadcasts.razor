@@ -7,24 +7,55 @@
 @attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
 @inject ApiService Api
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="vscode-page-header">
     <div class="header-left">
-        <h5 class="m-0 fw-semibold"><i class="bi bi-megaphone me-2"></i>Communications</h5>
+        <h5 class="m-0 fw-semibold">
+            <i class="bi bi-megaphone me-2"></i>
+            @(_scope == "tenant" ? "Corporate Communications" : "Association Communications")
+        </h5>
     </div>
     <div class="header-right">
-        <button class="btn-vscode" @onclick="() => _broadcastList.ShowCreateModal()">
-            <i class="bi bi-plus-lg"></i> Post Announcement
-        </button>
+        @if (_scope == "association")
+        {
+            <button class="btn-vscode" @onclick="() => _broadcastList.ShowCreateModal()">
+                <i class="bi bi-plus-lg"></i> Post Association Announcement
+            </button>
+        }
+        else
+        {
+             <button class="btn btn-sm btn-vscode-accent px-3" disabled title="Tenant broadcasts are global">
+                <i class="bi bi-globe me-1"></i> Global Broadcasts
+            </button>
+        }
     </div>
 </div>
 
 <div class="vscode-content custom-scrollbar">
     <div class="container py-4" style="max-width: 800px;">
-        <BroadcastList @ref="_broadcastList" />
+        <BroadcastList @ref="_broadcastList" Scope="@_scope" />
     </div>
 </div>
 
 @code {
     private BroadcastList _broadcastList = default!;
+    private string _scope = "tenant";
+
+    protected override void OnInitialized()
+    {
+        ParseQueryParameters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ParseQueryParameters();
+    }
+
+    private void ParseQueryParameters()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query;
+        _scope = query.Contains("scope=association") ? "association" : "tenant";
+    }
 }

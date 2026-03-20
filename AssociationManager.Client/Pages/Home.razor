@@ -3,115 +3,165 @@
 @inject TokenService TokenService
 @inject NavigationManager Navigation
 
-<div class="p-3">
-    <div class="vscode-page-header border-bottom mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem; padding-left: 1rem; padding-right: 1rem;">
-        <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-grid-fill text-muted" style="font-size: 14px;"></i>
-            <span class="fw-medium">Command Center</span>
-        </div>
-        <button class="btn-vscode">
-            <i class="bi bi-plus"></i> New Association
-        </button>
-    </div>
+<AuthorizeView Context="authContext">
+    <Authorized>
+        @{
+            var assocIdClaim = authContext.User.FindFirst("AssociationId")?.Value;
+            bool isSystemAdmin = authContext.User.IsInRole("SystemAdmin");
+            bool isPending = !isSystemAdmin && (string.IsNullOrEmpty(assocIdClaim) || assocIdClaim == "0");
+        }
 
-    <!-- Stats Grid -->
-    <div class="row g-2 mb-3">
-        <div class="col-md-3">
-            <div class="compact-card h-100 bg-white border">
-                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Total Members</div>
-                <div class="h4 mb-1 fw-bold">1,280</div>
-                <div class="small text-success" style="font-size: 11px;">
-                    <i class="bi bi-arrow-up"></i> 12% <span class="text-muted">vs last month</span>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="compact-card h-100 bg-white border border-start-0 border-primary" style="border-left: 2px solid var(--vscode-accent) !important;">
-                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Active Tenants</div>
-                <div class="h4 mb-1 fw-bold">14</div>
-                <div class="small text-muted" style="font-size: 11px;">
-                    3 pending activation
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="compact-card h-100 bg-white border">
-                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Revenue (MTD)</div>
-                <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);"> $42,500 </div>
-                <div class="small text-success" style="font-size: 11px;">
-                    <i class="bi bi-caret-up-fill"></i> Robust growth
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="compact-card h-100 bg-white border">
-                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">System Health</div>
-                <div class="h4 mb-1 fw-bold">99.9%</div>
-                <div class="d-flex align-items-center gap-1 small text-success" style="font-size: 11px;">
-                    <span class="status-pulse" style="width: 6px; height: 6px;"></span> Healthy
-                </div>
-            </div>
-        </div>
-    </div>
+        @if (isPending)
+        {
+            <div class="pending-dashboard animate-fade-in">
+                <div class="welcome-container text-center p-5">
+                    <div class="mb-4">
+                        <div class="app-icon-large mx-auto mb-3">
+                            <i class="bi bi-shield-lock" style="font-size: 4rem; color: var(--vscode-accent);"></i>
+                        </div>
+                        <h1 class="display-5 fw-bold mb-3">Welcome to Association Manager</h1>
+                        <p class="lead text-muted mb-5">Your account has been successfully created, but it is currently pending activation.</p>
+                    </div>
 
-    <div class="row g-2">
-        <div class="col-lg-8">
-            <div class="border bg-white">
-                <div class="vscode-page-header border-bottom py-2 px-3">
-                    <span class="fw-bold small text-uppercase text-muted">Recent Activity</span>
-                    <button class="btn btn-link btn-sm text-decoration-none p-0 text-accent" style="font-size: 11px; color: var(--vscode-accent);">View All</button>
+                    <div class="info-card mx-auto shadow-sm p-4 bg-white border rounded-3" style="max-width: 600px;">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>What happens next?</h5>
+                        <p class="text-start">To access the association features, a system administrator or an association manager needs to assign you to a specific role and association.</p>
+                        
+                        <hr class="my-4" />
+                        
+                        <div class="contact-section text-start">
+                            <p class="fw-bold mb-2">Please contact your administrator:</p>
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="bi bi-envelope me-2"></i> support@associationmanager.com</li>
+                                <li><i class="bi bi-person-badge me-2"></i> Or your local Association Office</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 text-muted small">
+                        Logged in as: <strong>@authContext.User.FindFirst("email")?.Value</strong>
+                    </div>
                 </div>
-                <div class="p-3">
-                    <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
-                        <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                            <i class="bi bi-person-plus"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="fw-medium">New association registered</div>
-                            <div class="text-muted small">Global Tech Innovators • 2 hours ago</div>
+            </div>
+        }
+        else
+        {
+            <div class="p-3">
+                <div class="vscode-page-header border-bottom mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem; padding-left: 1rem; padding-right: 1rem;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-grid-fill text-muted" style="font-size: 14px;"></i>
+                        <span class="fw-medium">Command Center</span>
+                    </div>
+                    <button class="btn-vscode" @onclick='() => Navigation.NavigateTo("/assets")'>
+                        <i class="bi bi-plus"></i> New Asset
+                    </button>
+                </div>
+
+                <!-- Stats Grid -->
+                <!-- ... existing dashboard content ... -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <div class="compact-card h-100 bg-white border">
+                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Total Members</div>
+                            <div class="h4 mb-1 fw-bold">1,280</div>
+                            <div class="small text-success" style="font-size: 11px;">
+                                <i class="bi bi-arrow-up"></i> 12% <span class="text-muted">vs last month</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
-                        <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                            <i class="bi bi-credit-card"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="fw-medium">Subscription payment received</div>
-                            <div class="text-muted small">Designers United • $499.00 • 5 hours ago</div>
+                    <div class="col-md-3">
+                        <div class="compact-card h-100 bg-white border border-start-0 border-primary" style="border-left: 2px solid var(--vscode-accent) !important;">
+                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Occupancy Rate</div>
+                            <div class="h4 mb-1 fw-bold">88%</div>
+                            <div class="small text-muted" style="font-size: 11px;">
+                                12 units vacant
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex gap-3 align-items-center">
-                        <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                            <i class="bi bi-megaphone"></i>
+                    <div class="col-md-3">
+                        <div class="compact-card h-100 bg-white border">
+                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Assoc. Revenue</div>
+                            <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);"> ₹28,450 </div>
+                            <div class="small text-success" style="font-size: 11px;">
+                                <i class="bi bi-caret-up-fill"></i> On track
+                            </div>
                         </div>
-                        <div class="flex-grow-1">
-                            <div class="fw-medium">System maintenance scheduled</div>
-                            <div class="text-muted small">Internal Alert • March 20, 02:00 AM UTC</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="compact-card h-100 bg-white border">
+                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Open Maintenance</div>
+                            <div class="h4 mb-1 fw-bold">12</div>
+                            <div class="d-flex align-items-center gap-1 small text-warning" style="font-size: 11px;">
+                                <span class="status-pulse" style="width: 6px; height: 6px; background: orange;"></span> 4 Urgent
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-lg-8">
+                        <div class="border bg-white">
+                            <div class="vscode-page-header border-bottom py-2 px-3">
+                                <span class="fw-bold small text-uppercase text-muted">Recent Activity</span>
+                                <button class="btn btn-link btn-sm text-decoration-none p-0 text-accent" style="font-size: 11px; color: var(--vscode-accent);">View All</button>
+                            </div>
+                            <div class="p-3">
+                                <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
+                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
+                                        <i class="bi bi-person-plus"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium">New person registered</div>
+                                        <div class="text-muted small">Unit A-102 • 2 hours ago</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
+                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
+                                        <i class="bi bi-credit-card"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium">Maintenance fee received</div>
+                                        <div class="text-muted small">Unit B-205 • ₹2,500.00 • 5 hours ago</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-3 align-items-center">
+                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
+                                        <i class="bi bi-megaphone"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium">System maintenance scheduled</div>
+                                        <div class="text-muted small">Internal Alert • March 20, 02:00 AM UTC</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="border h-100" style="background: #f8f8f8;">
+                            <div class="vscode-page-header border-bottom py-2 px-3">
+                                <span class="fw-bold small text-uppercase text-muted">Quick Shortcuts</span>
+                            </div>
+                            <div class="p-3 d-grid gap-2">
+                                <a href="/associations" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
+                                    <i class="bi bi-people"></i> Manage Members
+                                </a>
+                                <a href="/reports" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
+                                    <i class="bi bi-file-earmark-bar-graph"></i> Financial Reports
+                                </a>
+                                <a href="/settings" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
+                                    <i class="bi bi-gear"></i> System Config
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="border h-100" style="background: #f8f8f8;">
-                <div class="vscode-page-header border-bottom py-2 px-3">
-                    <span class="fw-bold small text-uppercase text-muted">Quick Shortcuts</span>
-                </div>
-                <div class="p-3 d-grid gap-2">
-                    <a href="/associations" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                        <i class="bi bi-people"></i> Manage Members
-                    </a>
-                    <a href="/reports" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                        <i class="bi bi-file-earmark-bar-graph"></i> Financial Reports
-                    </a>
-                    <a href="/settings" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                        <i class="bi bi-gear"></i> System Config
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        @{ Navigation.NavigateTo("/login"); }
+    </NotAuthorized>
+</AuthorizeView>
 
 <style>
     .dashboard-animate { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace AssociationManager.Api.Controllers;
 
 [Authorize]
-[RequireRole(AppRole.UserManager, AppRole.AssociationAdmin, AppRole.AssetManager, AppRole.SystemAdmin)]
+[Authorize(Policy = "RequireResident")]
 [ApiController]
 [Route("api/[controller]")]
 public class PeopleController : ControllerBase
@@ -25,13 +25,15 @@ public class PeopleController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllPeople()
+    [Authorize(Policy = "RequireUserManager")]
+    public async Task<IActionResult> GetAllPeople([FromQuery] int? associationId = null)
     {
-        var people = await _peopleService.GetAllPeopleAsync();
+        var people = await _peopleService.GetAllPeopleAsync(associationId);
         return Ok(ApiResponse<IEnumerable<Person>>.SuccessResponse(people));
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> CreatePerson([FromBody] Person person)
     {
         var id = await _peopleService.CreatePersonAsync(person);

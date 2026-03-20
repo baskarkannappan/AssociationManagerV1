@@ -4,13 +4,14 @@ using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
 [Authorize]
-[RequireRole(AppRole.FinanceManager, AppRole.AssociationAdmin)]
+[Authorize(Policy = "RequireResident")]
 [ApiController]
 [Route("api/[controller]")]
 public class FinanceController : ControllerBase
@@ -25,21 +26,23 @@ public class FinanceController : ControllerBase
     }
 
     [HttpGet("invoices")]
-    public async Task<IActionResult> GetInvoices()
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetInvoices([FromQuery] int? associationId = null)
     {
-        var invoices = await _financeService.GetAllInvoicesAsync();
+        var invoices = await _financeService.GetAllInvoicesAsync(associationId);
         return Ok(ApiResponse<IEnumerable<Invoice>>.SuccessResponse(invoices));
     }
 
     [HttpGet("invoices/{id}")]
-    public async Task<IActionResult> GetInvoice(int id)
+    public async Task<IActionResult> GetInvoice(int id, [FromQuery] int? associationId = null)
     {
-        var invoice = await _financeService.GetInvoiceByIdAsync(id);
+        var invoice = await _financeService.GetInvoiceByIdAsync(id, associationId);
         if (invoice == null) return NotFound(ApiResponse.FailureResponse("Invoice not found."));
         return Ok(ApiResponse<Invoice>.SuccessResponse(invoice));
     }
 
     [HttpPost("invoices")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> CreateInvoice([FromBody] Invoice invoice)
     {
         var id = await _financeService.CreateInvoiceAsync(invoice);
@@ -48,6 +51,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpPut("invoices/{id}/status")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> UpdateInvoiceStatus(int id, [FromBody] string status)
     {
         var success = await _financeService.UpdateInvoiceStatusAsync(id, status);
@@ -57,6 +61,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpGet("payments")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> GetPayments()
     {
         var payments = await _financeService.GetPaymentsAsync();
@@ -86,6 +91,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpGet("transactions/tenant")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> GetTenantTransactions([FromQuery] DateTime? start, [FromQuery] DateTime? end)
     {
         var transactions = await _financeService.GetTenantTransactionsAsync(start, end);

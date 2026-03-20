@@ -20,29 +20,29 @@ public class BroadcastRepository : IBroadcastRepository
         _tenantContext = tenantContext;
     }
 
-    public async Task<Broadcast?> GetByIdAsync(int id, int tenantId, int associationId)
+    public async Task<Broadcast?> GetByIdAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Broadcast>(
-            "sp_Broadcasts_GetById", 
+            "assoc.sp_Broadcasts_GetById", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Broadcast>> GetAllAsync(int tenantId, int associationId)
+    public async Task<IEnumerable<Broadcast>> GetAllAsync(int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Broadcast>(
-            "sp_Broadcasts_GetAll", 
+            "assoc.sp_Broadcasts_GetAll", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Broadcast>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
+    public async Task<IEnumerable<Broadcast>> GetByAssetIdAsync(int assetId, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Broadcast>(
-            "sp_Broadcasts_GetByAssetId", 
+            "assoc.sp_Broadcasts_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -54,16 +54,28 @@ public class BroadcastRepository : IBroadcastRepository
         broadcast.CreatedBy = _tenantContext.UserId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Broadcasts_Create", 
-            broadcast,
+            "assoc.sp_Broadcasts_Create", 
+            new 
+            { 
+                broadcast.TenantId, 
+                broadcast.AssociationId, 
+                broadcast.Title, 
+                broadcast.Content, 
+                broadcast.Category, 
+                broadcast.CreatedDate, 
+                broadcast.CreatedBy, 
+                broadcast.IsPinned, 
+                broadcast.ExpiresDate, 
+                broadcast.AssetId 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
+    public async Task<bool> DeleteAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Broadcasts_Delete", 
+            "assoc.sp_Broadcasts_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }

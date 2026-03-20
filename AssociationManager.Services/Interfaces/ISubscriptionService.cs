@@ -10,4 +10,6 @@ public interface ISubscriptionService
     Task<AssociationSubscription?> GetSubscriptionAsync(int associationId);
     Task<bool> SubscribeAsync(int associationId, int planId);
     Task<decimal> CalculateNextBillAsync(int associationId);
+    Task<IEnumerable<AssociationSubscription>> GetAllSubscriptionsAsync();
+    Task<bool> SavePlanAsync(SubscriptionPlan plan);
 }

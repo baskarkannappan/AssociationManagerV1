@@ -16,12 +16,12 @@ public class TariffRepository : ITariffRepository
         _dbConnectionFactory = dbConnectionFactory;
     }
 
-    public async Task<IEnumerable<TariffGroup>> GetGroupsByTenantIdAsync(int tenantId)
+    public async Task<IEnumerable<TariffGroup>> GetGroupsByTenantIdAsync(int tenantId, int? associationId = null)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<TariffGroup>(
-            "sp_TariffGroups_GetByTenantId", 
-            new { tenantId },
+            "assoc.sp_TariffGroups_GetByTenantId", 
+            new { tenantId, associationId },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -29,8 +29,8 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_TariffGroups_Create", 
-            group,
+            "assoc.sp_TariffGroups_Create", 
+            new { group.TenantId, group.AssociationId, group.Name, group.Description },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -38,8 +38,8 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_TariffGroups_Update", 
-            group,
+            "assoc.sp_TariffGroups_Update", 
+            new { group.TariffGroupId, group.Name, group.Description },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -47,7 +47,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_TariffGroups_Delete", 
+            "assoc.sp_TariffGroups_Delete", 
             new { groupId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -56,7 +56,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<TariffLayer>(
-            "sp_TariffLayers_GetByGroupId", 
+            "assoc.sp_TariffLayers_GetByGroupId", 
             new { groupId },
             commandType: CommandType.StoredProcedure);
     }
@@ -65,8 +65,17 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_TariffLayers_Create", 
-            layer,
+            "assoc.sp_TariffLayers_Create", 
+            new 
+            { 
+                layer.TariffGroupId, 
+                layer.TenantId, 
+                layer.Name, 
+                layer.BaseRate, 
+                layer.Frequency, 
+                layer.CalculationType, 
+                layer.AccountingCategory 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -74,8 +83,16 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_TariffLayers_Update", 
-            layer,
+            "assoc.sp_TariffLayers_Update", 
+            new 
+            { 
+                layer.TariffLayerId, 
+                layer.Name, 
+                layer.BaseRate, 
+                layer.Frequency, 
+                layer.CalculationType, 
+                layer.AccountingCategory 
+            },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -83,7 +100,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_TariffLayers_Delete", 
+            "assoc.sp_TariffLayers_Delete", 
             new { layerId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -92,7 +109,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AssetTariff>(
-            "sp_AssetTariffs_GetByAssetId", 
+            "assoc.sp_AssetTariffs_GetByAssetId", 
             new { assetId },
             commandType: CommandType.StoredProcedure);
     }
@@ -101,7 +118,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_AssetTariffs_Upsert", 
+            "assoc.sp_AssetTariffs_Upsert", 
             assetTariff,
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -110,7 +127,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_AssetTariffs_Delete", 
+            "assoc.sp_AssetTariffs_Delete", 
             new { assetId, layerId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -119,7 +136,7 @@ public class TariffRepository : ITariffRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AssetTariff>(
-            "sp_AssetTariffs_GetActiveByTenantId", 
+            "assoc.sp_AssetTariffs_GetActiveByTenantId", 
             new { tenantId },
             commandType: CommandType.StoredProcedure);
     }

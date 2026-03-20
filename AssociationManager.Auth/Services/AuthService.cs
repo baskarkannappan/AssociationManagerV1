@@ -23,6 +23,7 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly ITenantRepository _tenantRepository;
+    private readonly IAssociationRepository _associationRepository;
     private readonly IDistributedCache _cache;
     private readonly JwtSettings _jwtSettings;
     private readonly GoogleSettings _googleSettings;
@@ -30,12 +31,14 @@ public class AuthService : IAuthService
     public AuthService(
         IUserRepository userRepository,
         ITenantRepository tenantRepository,
+        IAssociationRepository associationRepository,
         IDistributedCache cache,
         IOptions<JwtSettings> jwtSettings,
         IOptions<GoogleSettings> googleSettings)
     {
         _userRepository = userRepository;
         _tenantRepository = tenantRepository;
+        _associationRepository = associationRepository;
         _cache = cache;
         _jwtSettings = jwtSettings.Value;
         _googleSettings = googleSettings.Value;
@@ -79,11 +82,24 @@ public class AuthService : IAuthService
                 await _userRepository.AddUserToTenantAsync(user.UserId, user.TenantId, user.Role);
             }
             user.PictureUrl = payload.Picture;
+            
+            // Auto-select first association if none is assigned but mappings exist
+            if (user.AssociationId == null || user.AssociationId == 0)
+            {
+                var associations = await _associationRepository.GetByUserIdAsync(user.UserId);
+                var firstAssoc = associations.FirstOrDefault();
+                if (firstAssoc != null)
+                {
+                    user.AssociationId = firstAssoc.AssociationId;
+                    user.TenantId = firstAssoc.TenantId;
+                }
+            }
+
             await _userRepository.UpdateAsync(user);
 
-            // Ensure the role is correct for the current tenant
-            // TEMPORARY OVERRIDE: Set to SystemAdmin for now as requested
-            user.Role = AppRole.SystemAdmin;
+            // Get the role for the current tenant
+            var role = await _userRepository.GetRoleInTenantAsync(user.UserId, user.TenantId);
+            user.Role = role ?? AppRole.Resident;
 
             return await GenerateAuthResponse(user);
         }
@@ -189,10 +205,10 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> SwitchTenantAsync(int userId, int tenantId, int associationId)
     {
-        var isAuthorized = await _userRepository.IsUserInTenantAsync(userId, tenantId);
+        var isAuthorized = await _userRepository.IsUserAuthorisedForAssociationAsync(userId, tenantId, associationId);
         if (!isAuthorized)
         {
-            return new AuthResponse { Success = false, Message = "User does not belong to the requested tenant." };
+            return new AuthResponse { Success = false, Message = "User not authorized for this association." };
         }
 
         var user = await _userRepository.GetByIdAsync(userId);
@@ -206,8 +222,10 @@ public class AuthService : IAuthService
         user.AssociationId = associationId;
         
         // Refresh the role for this specific tenant
-        // TEMPORARY OVERRIDE: Set to SystemAdmin for now as requested
-        user.Role = AppRole.SystemAdmin;
+        var role = await _userRepository.GetRoleInTenantAsync(userId, tenantId);
+        user.Role = role ?? AppRole.Resident;
+
+        await _userRepository.UpdateAsync(user);
 
         return await GenerateAuthResponse(user);
     }

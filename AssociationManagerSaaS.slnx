@@ -2,6 +2,8 @@
   <Project Path="AssociationManager.Api/AssociationManager.Api.csproj" />
   <Project Path="AssociationManager.Auth/AssociationManager.Auth.csproj" />
   <Project Path="AssociationManager.Client/AssociationManager.Client.csproj" />
+  <Project Path="AssociationManager.Corporate.Api/AssociationManager.Corporate.Api.csproj" />
+  <Project Path="AssociationManager.Corporate.Client/AssociationManager.Corporate.Client.csproj" />
   <Project Path="AssociationManager.Data/AssociationManager.Data.csproj" />
   <Project Path="AssociationManager.Database/AssociationManager.Database.csproj" />
   <Project Path="AssociationManager.Gateway/AssociationManager.Gateway.csproj" />

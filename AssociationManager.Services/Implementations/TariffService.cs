@@ -21,14 +21,15 @@ public class TariffService : ITariffService
         _tenantContext = tenantContext;
     }
 
-    public async Task<IEnumerable<TariffGroup>> GetTariffGroupsAsync()
+    public async Task<IEnumerable<TariffGroup>> GetTariffGroupsAsync(int? associationId = null)
     {
-        return await _tariffRepository.GetGroupsByTenantIdAsync(_tenantContext.TenantId);
+        return await _tariffRepository.GetGroupsByTenantIdAsync(_tenantContext.TenantId, associationId ?? _tenantContext.AssociationId);
     }
 
     public async Task<int> CreateTariffGroupAsync(TariffGroup group)
     {
         group.TenantId = _tenantContext.TenantId;
+        group.AssociationId ??= _tenantContext.AssociationId;
         return await _tariffRepository.CreateGroupAsync(group);
     }
 

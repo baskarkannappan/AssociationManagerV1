@@ -6,10 +6,10 @@ namespace AssociationManager.Data.Interfaces;
 
 public interface IInvoiceRepository
 {
-    Task<Invoice?> GetByIdAsync(int id, int tenantId, int associationId);
-    Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int associationId);
-    Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
+    Task<Invoice?> GetByIdAsync(int id, int tenantId, int? associationId);
+    Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int? associationId);
+    Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int? associationId);
     Task<int> CreateAsync(Invoice invoice);
-    Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int associationId);
-    Task<bool> DeleteAsync(int id, int tenantId, int associationId);
+    Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId);
+    Task<bool> DeleteAsync(int id, int tenantId, int? associationId);
 }

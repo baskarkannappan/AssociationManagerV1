@@ -12,20 +12,20 @@ public class PersonRepository : IPersonRepository
     private readonly DbConnectionFactory _dbConnectionFactory;
     public PersonRepository(DbConnectionFactory dbConnectionFactory) => _dbConnectionFactory = dbConnectionFactory;
 
-    public async Task<Person?> GetByIdAsync(int id, int tenantId, int associationId)
+    public async Task<Person?> GetByIdAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Person>(
-            "sp_Persons_GetById", 
+            "assoc.sp_Persons_GetById", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Person>> GetAllAsync(int tenantId, int associationId)
+    public async Task<IEnumerable<Person>> GetAllAsync(int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Person>(
-            "sp_Persons_GetAll", 
+            "assoc.sp_Persons_GetAll", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -34,26 +34,47 @@ public class PersonRepository : IPersonRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Persons_Create", 
-            person,
+            "assoc.sp_Persons_Create", 
+            new 
+            { 
+                person.TenantId, 
+                person.AssociationId, 
+                person.FirstName, 
+                person.LastName, 
+                person.Email, 
+                person.Phone, 
+                person.PhotoUrl, 
+                person.CreatedDate, 
+                person.IsActive 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> UpdateAsync(Person person)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            UPDATE Persons SET FirstName = @FirstName, LastName = @LastName, Email = @Email, 
-                               Phone = @Phone, PhotoUrl = @PhotoUrl, IsActive = @IsActive 
-            WHERE PersonId = @PersonId AND TenantId = @TenantId AND AssociationId = @AssociationId";
-        return await connection.ExecuteAsync(sql, person) > 0;
+        return await connection.ExecuteAsync(
+            "assoc.sp_Persons_Update", 
+            new 
+            { 
+                person.PersonId,
+                person.TenantId, 
+                person.AssociationId, 
+                person.FirstName, 
+                person.LastName, 
+                person.Email, 
+                person.Phone, 
+                person.PhotoUrl, 
+                person.IsActive 
+            },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
+    public async Task<bool> DeleteAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Persons_Delete", 
+            "assoc.sp_Persons_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -68,8 +89,17 @@ public class OccupancyRepository : IOccupancyRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Occupancy>(
-            "sp_Occupancy_GetByAssetId", 
+            "assoc.sp_Occupancy_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<IEnumerable<Occupancy>> GetByUserIdAsync(int userId, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Occupancy>(
+            "assoc.sp_Occupancy_GetByUserId", 
+            new { UserId = userId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -77,16 +107,26 @@ public class OccupancyRepository : IOccupancyRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Occupancy_Create", 
-            occupancy,
+            "assoc.sp_Occupancy_Create", 
+            new 
+            { 
+                occupancy.AssetId, 
+                occupancy.PersonId, 
+                occupancy.TenantId, 
+                occupancy.AssociationId, 
+                occupancy.OccupancyType, 
+                occupancy.StartDate, 
+                occupancy.EndDate, 
+                occupancy.IsPrimaryContact 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<bool> DeleteAsync(int id, int tenantId, int associationId)
+    public async Task<bool> DeleteAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Occupancy_Delete", 
+            "assoc.sp_Occupancy_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }

@@ -18,14 +18,14 @@ public class CommunicationsService : ICommunicationsService
         _tenantContext = tenantContext;
     }
 
-    public async Task<Broadcast?> GetBroadcastByIdAsync(int id)
+    public async Task<Broadcast?> GetBroadcastByIdAsync(int id, int? associationId = null)
     {
-        return await _broadcastRepository.GetByIdAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
+        return await _broadcastRepository.GetByIdAsync(id, _tenantContext.TenantId, associationId ?? _tenantContext.AssociationId);
     }
 
-    public async Task<IEnumerable<Broadcast>> GetAllBroadcastsAsync()
+    public async Task<IEnumerable<Broadcast>> GetAllBroadcastsAsync(int? associationId = null)
     {
-        return await _broadcastRepository.GetAllAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
+        return await _broadcastRepository.GetAllAsync(_tenantContext.TenantId, associationId ?? _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Broadcast>> GetBroadcastsByAssetAsync(int assetId)
@@ -41,8 +41,8 @@ public class CommunicationsService : ICommunicationsService
         return await _broadcastRepository.CreateAsync(broadcast);
     }
 
-    public async Task<bool> DeleteBroadcastAsync(int id)
+    public async Task<bool> DeleteBroadcastAsync(int id, int? associationId = null)
     {
-        return await _broadcastRepository.DeleteAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
+        return await _broadcastRepository.DeleteAsync(id, _tenantContext.TenantId, associationId ?? _tenantContext.AssociationId);
     }
 }

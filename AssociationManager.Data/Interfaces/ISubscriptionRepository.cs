@@ -9,4 +9,5 @@ public interface ISubscriptionRepository
     Task<IEnumerable<SubscriptionPlan>> GetAllPlansAsync();
     Task<AssociationSubscription?> GetByAssociationIdAsync(int associationId);
     Task<bool> UpsertSubscriptionAsync(AssociationSubscription subscription);
+    Task<bool> UpsertPlanAsync(SubscriptionPlan plan);
 }

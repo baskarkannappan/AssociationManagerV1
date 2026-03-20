@@ -16,4 +16,6 @@ public interface IUserRepository
     Task<bool> AddUserToTenantAsync(int userId, int tenantId, string role);
     Task<string?> GetRoleInTenantAsync(int userId, int tenantId);
     Task<bool> RemoveUserFromTenantAsync(int userId, int tenantId);
+    Task<bool> IsUserAuthorisedForAssociationAsync(int userId, int tenantId, int associationId);
+    Task<IEnumerable<User>> GetByAssociationIdAsync(int associationId);
 }

@@ -20,7 +20,7 @@ public class SubscriptionRepository : ISubscriptionRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<SubscriptionPlan>(
-            "sp_SubscriptionPlans_GetAll",
+            "corp.sp_SubscriptionPlans_GetAll",
             commandType: CommandType.StoredProcedure);
     }
 
@@ -28,7 +28,7 @@ public class SubscriptionRepository : ISubscriptionRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<AssociationSubscription>(
-            "sp_Subscriptions_GetByAssociationId",
+            "corp.sp_Subscriptions_GetByAssociationId",
             new { associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -37,12 +37,27 @@ public class SubscriptionRepository : ISubscriptionRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Subscriptions_Upsert",
+            "corp.sp_Subscriptions_Upsert",
             new { 
                 subscription.AssociationId, 
                 subscription.PlanId, 
                 subscription.Status, 
                 subscription.NextBillingDate 
+            },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
+
+    public async Task<bool> UpsertPlanAsync(SubscriptionPlan plan)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "corp.sp_SubscriptionPlans_Upsert",
+            new { 
+                plan.PlanId,
+                plan.Name,
+                plan.BasePrice,
+                plan.PricePerAsset,
+                plan.IsActive
             },
             commandType: CommandType.StoredProcedure) > 0;
     }

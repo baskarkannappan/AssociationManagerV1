@@ -8,15 +8,15 @@ namespace AssociationManager.Services.Interfaces;
 public interface IFinanceService
 {
     // Invoice Operations
-    Task<Invoice?> GetInvoiceByIdAsync(int id);
-    Task<IEnumerable<Invoice>> GetAllInvoicesAsync();
-    Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId);
+    Task<Invoice?> GetInvoiceByIdAsync(int id, int? associationId = null);
+    Task<IEnumerable<Invoice>> GetAllInvoicesAsync(int? associationId = null);
+    Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId, int? associationId = null);
     Task<int> CreateInvoiceAsync(Invoice invoice);
-    Task<bool> UpdateInvoiceStatusAsync(int id, string status);
-    Task<bool> DeleteInvoiceAsync(int id);
+    Task<bool> UpdateInvoiceStatusAsync(int id, string status, int? associationId = null);
+    Task<bool> DeleteInvoiceAsync(int id, int? associationId = null);
 
     // Payment Operations
-    Task<IEnumerable<Payment>> GetPaymentsAsync();
+    Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null);
     Task<int> CreatePaymentAsync(Payment payment);
 
     // Ledger & Transactions

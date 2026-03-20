@@ -23,7 +23,7 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Association>(
-            "sp_Associations_GetById", 
+            "corp.sp_Associations_GetById", 
             new { Id = id, TenantId = tenantId },
             commandType: CommandType.StoredProcedure);
     }
@@ -32,7 +32,7 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Association>(
-            "sp_Associations_GetAllByTenantId", 
+            "corp.sp_Associations_GetAllByTenantId", 
             new { TenantId = tenantId },
             commandType: CommandType.StoredProcedure);
     }
@@ -42,8 +42,15 @@ public class AssociationRepository : IAssociationRepository
         association.TenantId = _tenantContext.TenantId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Associations_Create", 
-            association,
+            "corp.sp_Associations_Create", 
+            new 
+            { 
+                association.TenantId, 
+                association.Name, 
+                association.Description, 
+                association.CreatedDate, 
+                association.CreatedBy 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -51,8 +58,14 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Associations_Update", 
-            association,
+            "corp.sp_Associations_Update", 
+            new 
+            { 
+                association.AssociationId, 
+                association.TenantId, 
+                association.Name, 
+                association.Description 
+            },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -60,7 +73,7 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Associations_Delete", 
+            "corp.sp_Associations_Delete", 
             new { Id = id, TenantId = tenantId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -69,8 +82,15 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Association>(
-            "sp_Associations_GetByUserId", 
+            "corp.sp_Associations_GetByUserId", 
             new { UserId = userId },
             commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<IEnumerable<Association>> GetAllAsync()
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Association>(
+            "SELECT * FROM corp.Associations");
     }
 }

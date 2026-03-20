@@ -1,0 +1,97 @@
+@page "/login"
+@layout EmptyLayout
+@using AssociationManager.Corporate.Client.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="vh-100 d-flex align-items-center justify-content-center bg-login">
+    <div class="login-mesh"></div>
+    
+    <div class="glass-panel text-center shadow-lg animate-scale-in" style="max-width: 440px; width: 90%; position: relative; z-index: 10;">
+        <div class="mb-5">
+            <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-4 mb-4" 
+                 style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);">
+                <i class="bi bi-shield-lock-fill text-primary fs-2"></i>
+            </div>
+            <h1 class="fw-bold mb-2">AssociationManager</h1>
+            <p class="text-secondary small">Authenticate to access your organization dashboard</p>
+        </div>
+
+        <div class="py-4 position-relative" style="min-height: 100px;">
+            @if (_showTroubleshooting)
+            {
+                <div class="alert alert-warning small border-opacity-10 py-2 animate-scale-in" style="background: rgba(245, 158, 11, 0.05); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Button not appearing? Ensure <strong>https://localhost:7011</strong> is added to "Authorized JavaScript origins" in Google Console.
+                </div>
+            }
+
+            <div id="google-btn-parent" class="d-flex justify-content-center">
+                <!-- Skeleton Loader (Fallback while JS initializes) -->
+                <div class="btn-skeleton shimmer-effect"></div>
+            </div>
+        </div>
+
+        <div class="mt-5 border-top border-white border-opacity-5 pt-4">
+            <div class="d-flex justify-content-center gap-3 small">
+                <a href="#" class="text-secondary text-decoration-none hover-white">Terms</a>
+                <span class="text-muted opacity-25">•</span>
+                <a href="#" class="text-secondary text-decoration-none hover-white">Privacy</a>
+                <span class="text-muted opacity-25">•</span>
+                <a href="#" class="text-secondary text-decoration-none hover-white">Support</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-login { background: #020617; overflow: hidden; position: relative; }
+    .login-mesh {
+        position: absolute; inset: 0;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
+        opacity: 0.6;
+    }
+    .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+    @@keyframes scaleIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .hover-white:hover { color: white !important; }
+    .btn-skeleton { width: 200px; height: 44px; border-radius: 22px; background: rgba(255,255,255,0.05); }
+</style>
+
+@code {
+    private bool _showTroubleshooting = false;
+
+    [JSInvokable]
+    public async Task HandleGoogleLogin(string idToken)
+    {
+        var result = await AuthService.LoginWithGoogle(idToken);
+        if (result?.Success == true)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        // Show troubleshooting message if the Google button hasn't replaced the skeleton after 4 seconds
+        _ = ShowTroubleshootingAfterDelay();
+    }
+
+    private async Task ShowTroubleshootingAfterDelay()
+    {
+        await Task.Delay(4000);
+        _showTroubleshooting = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("setupGoogleCallback", DotNetObjectReference.Create(this));
+            await JS.InvokeVoidAsync("renderGoogleButton", "780387897793-0hvmtcnngq1eja17916219jtmk2rb7s4.apps.googleusercontent.com");
+        }
+    }
+}

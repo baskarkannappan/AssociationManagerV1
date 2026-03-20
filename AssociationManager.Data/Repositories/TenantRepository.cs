@@ -20,7 +20,7 @@ public class TenantRepository : ITenantRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<Tenant>(
-            "sp_Tenants_GetById", 
+            "corp.sp_Tenants_GetById", 
             new { Id = id },
             commandType: CommandType.StoredProcedure);
     }
@@ -29,7 +29,7 @@ public class TenantRepository : ITenantRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Tenant>(
-            "sp_Tenants_GetAll", 
+            "corp.sp_Tenants_GetAll", 
             null,
             commandType: CommandType.StoredProcedure);
     }
@@ -38,8 +38,8 @@ public class TenantRepository : ITenantRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Tenants_Create", 
-            tenant,
+            "corp.sp_Tenants_Create", 
+            new { tenant.Name, tenant.CreatedDate, tenant.IsActive },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -47,8 +47,8 @@ public class TenantRepository : ITenantRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Tenants_Update", 
-            tenant,
+            "corp.sp_Tenants_Update", 
+            new { tenant.TenantId, tenant.Name, tenant.IsActive },
             commandType: CommandType.StoredProcedure) > 0;
     }
 }

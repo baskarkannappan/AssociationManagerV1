@@ -12,4 +12,5 @@ public interface IAssociationRepository
     Task<bool> UpdateAsync(Association association);
     Task<bool> DeleteAsync(int id, int tenantId);
     Task<IEnumerable<Association>> GetByUserIdAsync(int userId);
+    Task<IEnumerable<Association>> GetAllAsync();
 }

@@ -2,6 +2,8 @@
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Client.Services
 @inject ApiService Api
+@inject ToastService _toastService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="broadcast-list h-100">
     @if (_broadcasts == null)
@@ -100,6 +102,7 @@
 
 @code {
     [Parameter] public int? AssetId { get; set; }
+    [Parameter] public string Scope { get; set; } = "tenant";
 
     private IEnumerable<Broadcast>? _broadcasts;
     private bool _isCreateModalOpen;
@@ -114,7 +117,22 @@
     {
         try 
         {
-            var url = AssetId.HasValue ? $"api/communications/broadcasts?assetId={AssetId}" : "api/communications/broadcasts";
+            var url = "api/communications/broadcasts";
+            
+            if (AssetId.HasValue)
+            {
+                url += $"?assetId={AssetId}";
+            }
+            else if (Scope == "association")
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var aid = authState.User.FindFirst("AssociationId")?.Value;
+                if (int.TryParse(aid, out int associationId) && associationId != 0)
+                {
+                    url += $"?associationId={associationId}";
+                }
+            }
+
             _broadcasts = await Api.GetAsync<IEnumerable<Broadcast>>(url);
             StateHasChanged();
         }
@@ -134,15 +152,27 @@
 
     private async Task HandleCreateBroadcast()
     {
-        await Api.PostAsync<object>("api/communications/broadcasts", _newBroadcast);
-        _isCreateModalOpen = false;
-        await LoadData();
+        var success = await Api.PostAsync<object>("api/communications/broadcasts", _newBroadcast);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Announcement posted."));
+            _isCreateModalOpen = false;
+            await LoadData();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to post announcement."));
+        }
     }
 
     private async Task HandleDelete(int id)
     {
-        await Api.DeleteAsync($"api/communications/broadcasts/{id}");
-        await LoadData();
+        var success = await Api.DeleteAsync($"api/communications/broadcasts/{id}");
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Announcement removed."));
+            await LoadData();
+        }
     }
 
     private void CloseModals() => _isCreateModalOpen = false;

@@ -5,6 +5,7 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -12,7 +13,7 @@ namespace AssociationManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+[Authorize(Policy = "RequireAssociationAdmin")]
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
@@ -25,10 +26,16 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetUsers()
+    public async Task<IActionResult> GetUsers([FromQuery] int? associationId = null)
     {
-        var users = await _userRepository.GetByTenantIdAsync(_tenantContext.TenantId);
-        return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(users));
+        if (associationId.HasValue)
+        {
+            var users = await _userRepository.GetByAssociationIdAsync(associationId.Value);
+            return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(users));
+        }
+
+        var tenantUsers = await _userRepository.GetByTenantIdAsync(_tenantContext.TenantId);
+        return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(tenantUsers));
     }
 
     [HttpPut("{userId}/role")]

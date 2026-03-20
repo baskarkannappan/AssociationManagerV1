@@ -11,11 +11,13 @@ public class SubscriptionService : ISubscriptionService
 {
     private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly IAssetRepository _assetRepository;
+    private readonly IAssociationRepository _associationRepository;
 
-    public SubscriptionService(ISubscriptionRepository subscriptionRepository, IAssetRepository assetRepository)
+    public SubscriptionService(ISubscriptionRepository subscriptionRepository, IAssetRepository assetRepository, IAssociationRepository associationRepository)
     {
         _subscriptionRepository = subscriptionRepository;
         _assetRepository = assetRepository;
+        _associationRepository = associationRepository;
     }
 
     public async Task<IEnumerable<SubscriptionPlan>> GetPlansAsync()
@@ -48,5 +50,41 @@ public class SubscriptionService : ISubscriptionService
         int assetCount = await _assetRepository.CountAsync(subscription.TenantId, associationId);
         
         return subscription.BasePrice + (assetCount * subscription.PricePerAsset);
+    }
+
+    public async Task<IEnumerable<AssociationSubscription>> GetAllSubscriptionsAsync()
+    {
+        var associations = await _associationRepository.GetAllAsync();
+        var subscriptions = new List<AssociationSubscription>();
+        
+        foreach (var assoc in associations)
+        {
+            var sub = await _subscriptionRepository.GetByAssociationIdAsync(assoc.AssociationId);
+            if (sub != null)
+            {
+                subscriptions.Add(sub);
+            }
+            else
+            {
+                // Create a placeholder for associations without a subscription
+                subscriptions.Add(new AssociationSubscription
+                {
+                    AssociationId = assoc.AssociationId,
+                    AssociationName = assoc.Name,
+                    PlanName = "No active plan",
+                    Status = "Inactive",
+                    PlanId = 0,
+                    BasePrice = 0,
+                    PricePerAsset = 0,
+                    NextBillingDate = DateTime.MinValue
+                });
+            }
+        }
+        return subscriptions;
+    }
+
+    public async Task<bool> SavePlanAsync(SubscriptionPlan plan)
+    {
+        return await _subscriptionRepository.UpsertPlanAsync(plan);
     }
 }

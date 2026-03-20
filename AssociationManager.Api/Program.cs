@@ -11,6 +11,9 @@ using AssociationManager.Shared.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using AssociationManager.Api.Authorization;
+using AssociationManager.Shared.Enums;
+using Microsoft.AspNetCore.Authorization;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -89,6 +92,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtSettings.Audience ?? throw new InvalidOperationException("JWT Audience is missing"),
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key ?? throw new InvalidOperationException("JWT Key is missing")))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogError("Authentication failed: {Message}", context.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogInformation("Token validated for {User}", context.Principal?.Identity?.Name);
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // Real-time
@@ -102,11 +120,29 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
     {
-        policy.WithOrigins("https://localhost:7001") // Client URL
+        policy.WithOrigins("https://localhost:7001", "https://localhost:7011") // Client URLs
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
     });
+});
+
+// Authorization Policies
+builder.Services.AddScoped<IAuthorizationHandler, RoleLevelHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireResident", policy => 
+        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelResident)));
+    options.AddPolicy("RequireUserManager", policy => 
+        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelUserManager)));
+    options.AddPolicy("RequireAssetManager", policy => 
+        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelAssetManager)));
+    options.AddPolicy("RequireFinanceManager", policy => 
+        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelFinanceManager)));
+    options.AddPolicy("RequireAssociationAdmin", policy => 
+        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
+    options.AddPolicy("RequireSystemAdmin", policy => 
+        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelSystemAdmin)));
 });
 
 var app = builder.Build();

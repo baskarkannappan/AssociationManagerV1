@@ -1,0 +1,96 @@
+@using AssociationManager.Shared.Models
+@inject AssociationManager.Corporate.Client.Services.ApiService ApiService
+@inject AssociationManager.Corporate.Client.Services.IAppAuthorizationService AuthService
+@inject ToastService _toastService
+
+<div class="pets-section forced-text-dark">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Registered Pets</h6>
+        <AuthorizeView Context="petAuthContext">
+            @if (AuthService.HasLevel(petAuthContext.User, AppRole.LevelResident))
+            {
+                <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+            }
+        </AuthorizeView>
+    </div>
+
+    @if (_showAddForm)
+    {
+        <div class="bg-light p-2 mb-3 border compact-form">
+            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Pet</h6>
+            <div class="row g-1">
+                <div class="col-4"><input @bind="_newPet.Name" class="form-control" placeholder="Pet Name" /></div>
+                <div class="col-4"><input @bind="_newPet.Species" class="form-control" placeholder="Species (Dog...)" /></div>
+                <div class="col-4"><input @bind="_newPet.TagNumber" class="form-control" placeholder="Tag #" /></div>
+            </div>
+            <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = false'>Cancel</button>
+                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SavePet">Add Pet</button>
+            </div>
+        </div>
+    }
+
+        <Grid TItem="Pet"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="PetsDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="5"
+              AllowSorting="true">
+
+            <GridColumn TItem="Pet" HeaderText="Name" PropertyName="Name" SortKeySelector="item => item.Name">
+                @context.Name
+            </GridColumn>
+
+            <GridColumn TItem="Pet" HeaderText="Species" PropertyName="Species" SortKeySelector="item => item.Species">
+                @context.Species (@context.Breed)
+            </GridColumn>
+
+            <GridColumn TItem="Pet" HeaderText="Tag" PropertyName="TagNumber" SortKeySelector="item => item.TagNumber">
+                @context.TagNumber
+            </GridColumn>
+
+            <GridColumn TItem="Pet" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                <AuthorizeView Context="petAuthContext">
+                    @if (AuthService.HasLevel(petAuthContext.User, AppRole.LevelResident))
+                    {
+                        <button class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="() => OnDelete.InvokeAsync(context.PetId)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    }
+                </AuthorizeView>
+            </GridColumn>
+        </Grid>
+</div>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    [Parameter] public List<Pet>? Pets { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+    [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private Grid<Pet> grid = default!;
+
+    private async Task<GridDataProviderResult<Pet>> PetsDataProvider(GridDataProviderRequest<Pet> request)
+    {
+        return await Task.FromResult(request.ApplyTo(Pets ?? new List<Pet>()));
+    }
+
+    private bool _showAddForm;
+    private Pet _newPet = new();
+
+    private async Task SavePet()
+    {
+        _newPet.AssetId = AssetId;
+        var success = await ApiService.PostAsync("api/people/pets", _newPet);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Pet record added."));
+            _newPet = new();
+            _showAddForm = false;
+            await grid.RefreshDataAsync();
+            await OnDataChanged.InvokeAsync();
+        }
+    }
+}

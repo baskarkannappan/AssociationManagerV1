@@ -12,11 +12,13 @@ namespace AssociationManager.Services.Implementations;
 public class AssetService : IAssetService
 {
     private readonly IAssetRepository _assetRepository;
+    private readonly IOccupancyRepository _occupancyRepository;
     private readonly ITenantContext _tenantContext;
 
-    public AssetService(IAssetRepository assetRepository, ITenantContext tenantContext)
+    public AssetService(IAssetRepository assetRepository, IOccupancyRepository occupancyRepository, ITenantContext tenantContext)
     {
         _assetRepository = assetRepository;
+        _occupancyRepository = occupancyRepository;
         _tenantContext = tenantContext;
     }
 
@@ -25,10 +27,26 @@ public class AssetService : IAssetService
         return await _assetRepository.GetByIdAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
-    public async Task<IEnumerable<Asset>> GetHierarchyAsync()
+    public async Task<IEnumerable<Asset>> GetHierarchyAsync(int? userId = null)
     {
         var allAssets = (await _assetRepository.GetHierarchyAsync(_tenantContext.TenantId, _tenantContext.AssociationId)).ToList();
         
+        // Filter if userId is provided (Resident Mode)
+        if (userId.HasValue)
+        {
+            var userOccupancies = await _occupancyRepository.GetByUserIdAsync(userId.Value, _tenantContext.TenantId, _tenantContext.AssociationId);
+            var userAssetIds = userOccupancies.Select(o => o.AssetId).ToHashSet();
+
+            // Find all ancestors of these assets so we can build the path
+            var accessibleAssetIds = new HashSet<int>();
+            foreach (var assetId in userAssetIds)
+            {
+                AddAssetAndAncestors(assetId, allAssets, accessibleAssetIds);
+            }
+
+            allAssets = allAssets.Where(a => accessibleAssetIds.Contains(a.AssetId)).ToList();
+        }
+
         // Build hierarchy in memory
         var lookup = allAssets.ToLookup(a => a.ParentId);
         var rootAssets = lookup[null].ToList();
@@ -48,6 +66,20 @@ public class AssetService : IAssetService
         }
 
         return rootAssets;
+    }
+
+    private void AddAssetAndAncestors(int assetId, List<Asset> allAssets, HashSet<int> result)
+    {
+        if (result.Contains(assetId)) return;
+        
+        var asset = allAssets.FirstOrDefault(a => a.AssetId == assetId);
+        if (asset == null) return;
+
+        result.Add(assetId);
+        if (asset.ParentId.HasValue)
+        {
+            AddAssetAndAncestors(asset.ParentId.Value, allAssets, result);
+        }
     }
 
     public async Task<int> CreateAsync(Asset asset)

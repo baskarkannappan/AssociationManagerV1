@@ -36,22 +36,18 @@
         <div class="header-right">
             <AuthorizeView Context="authContext">
                 <Authorized>
-                    <div class="tenant-switcher-container">
-                        <i class="bi bi-diagram-3" style="font-size: 14px;"></i>
-                        @if (_userTenants == null)
-                        {
-                            <span>Loading...</span>
-                        }
-                        else
-                        {
+                    @if (_userTenants != null && _userTenants.Any())
+                    {
+                        <div class="tenant-switcher-container">
+                            <i class="bi bi-diagram-3" style="font-size: 14px;"></i>
                             <select @onchange="HandleTenantChange" class="tenant-select" value="@_currentAssociationId">
                                 @foreach (var assoc in _userTenants)
                                 {
                                     <option value="@assoc.AssociationId">@assoc.Name</option>
                                 }
                             </select>
-                        }
-                    </div>
+                        </div>
+                    }
                     <div class="user-identity ms-3 me-2" title="@authContext.User.Identity?.Name">
                         <i class="bi bi-person me-1"></i>
                         <span>@authContext.User.FindFirst("email")?.Value</span>
@@ -66,9 +62,12 @@
 
     <div class="vscode-main">
         <!-- Sidebar Explorer -->
-        <div class="sidebar-wrapper @(_isMobileMenuOpen ? "mobile-active" : "")">
-            <Explorer />
-        </div>
+        @if (_currentAssociationId != 0)
+        {
+            <div class="sidebar-wrapper @(_isMobileMenuOpen ? "mobile-active" : "")">
+                <Explorer />
+            </div>
+        }
 
         @if (_isMobileMenuOpen)
         {
@@ -131,7 +130,7 @@
     [Inject] private ApiService ApiService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
-    [Inject] private ToastService ToastService { get; set; } = default!;
+    [Inject] private ToastService _toastService { get; set; } = default!;
 
     private IEnumerable<Association>? _userTenants;
     private int _currentTenantId;
@@ -193,6 +192,20 @@
             try 
             {
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");
+                
+                // Auto-select first association if none selected
+                if (_currentAssociationId == 0 && _userTenants != null && _userTenants.Any())
+                {
+                    var firstAssoc = _userTenants.First();
+                    _currentAssociationId = firstAssoc.AssociationId;
+                    
+                    // Trigger automatic switch to set session context
+                    var response = await AuthService.SwitchTenant(firstAssoc.TenantId, firstAssoc.AssociationId);
+                    if (response?.Success == true)
+                    {
+                        Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -212,7 +225,7 @@
         var capabilities = AppRole.GetCapabilities(role);
         var message = string.Join("<br/>", capabilities.Select(c => $"• {c}"));
         
-        ToastService.Notify(new(
+        _toastService.Notify(new(
             ToastType.Info,
             iconName: IconName.ShieldCheck,
             title: $"Current Role: {role}",

@@ -1,11 +1,16 @@
 @using AssociationManager.Shared.Models
 @inject AssociationManager.Client.Services.ApiService ApiService
+@inject AssociationManager.Client.Services.IAppAuthorizationService AuthService
+@inject ToastService _toastService
 
 <div class="pets-section forced-text-dark">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0 fw-bold">Registered Pets</h6>
-        <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+        <AuthorizeView Context="petAuthContext">
+            @if (AuthService.HasLevel(petAuthContext.User, AppRole.LevelResident))
+            {
+                <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+            }
         </AuthorizeView>
     </div>
 
@@ -25,29 +30,38 @@
         </div>
     }
 
-    @if (Pets == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-    else if (!Pets.Any()) { <p class="text-muted italic" style="font-size: 11px;">No pets registered.</p> }
-    else if (!Pets.Any()) { <p class="text-muted" style="font-size: 11px; font-style: italic;">No pets registered.</p> }
-    else
-    {
-        <table class="table table-sm compact-table">
-            <thead><tr><th>Name</th><th>Species</th><th>Tag</th><th></th></tr></thead>
-            <tbody>
-                @foreach(var p in Pets) {
-                    <tr>
-                        <td>@p.Name</td>
-                        <td>@p.Species (@p.Breed)</td>
-                        <td>@p.TagNumber</td>
-                        <td class="text-end">
-                            <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
-                                <button class="btn btn-link btn-sm text-danger" @onclick="() => OnDelete.InvokeAsync(p.PetId)"><i class="bi bi-trash"></i></button>
-                            </AuthorizeView>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
+        <Grid TItem="Pet"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="PetsDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="5"
+              AllowSorting="true">
+
+            <GridColumn TItem="Pet" HeaderText="Name" PropertyName="Name" SortKeySelector="item => item.Name">
+                @context.Name
+            </GridColumn>
+
+            <GridColumn TItem="Pet" HeaderText="Species" PropertyName="Species" SortKeySelector="item => item.Species">
+                @context.Species (@context.Breed)
+            </GridColumn>
+
+            <GridColumn TItem="Pet" HeaderText="Tag" PropertyName="TagNumber" SortKeySelector="item => item.TagNumber">
+                @context.TagNumber
+            </GridColumn>
+
+            <GridColumn TItem="Pet" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                <AuthorizeView Context="petAuthContext">
+                    @if (AuthService.HasLevel(petAuthContext.User, AppRole.LevelResident))
+                    {
+                        <button class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="() => OnDelete.InvokeAsync(context.PetId)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    }
+                </AuthorizeView>
+            </GridColumn>
+        </Grid>
 </div>
 
 @code {
@@ -56,15 +70,27 @@
     [Parameter] public EventCallback<int> OnDelete { get; set; }
     [Parameter] public EventCallback OnDataChanged { get; set; }
 
+    private Grid<Pet> grid = default!;
+
+    private async Task<GridDataProviderResult<Pet>> PetsDataProvider(GridDataProviderRequest<Pet> request)
+    {
+        return await Task.FromResult(request.ApplyTo(Pets ?? new List<Pet>()));
+    }
+
     private bool _showAddForm;
     private Pet _newPet = new();
 
     private async Task SavePet()
     {
         _newPet.AssetId = AssetId;
-        await ApiService.PostAsync("api/people/pets", _newPet);
-        _newPet = new();
-        _showAddForm = false;
-        await OnDataChanged.InvokeAsync();
+        var success = await ApiService.PostAsync("api/people/pets", _newPet);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Pet record added."));
+            _newPet = new();
+            _showAddForm = false;
+            await grid.RefreshDataAsync();
+            await OnDataChanged.InvokeAsync();
+        }
     }
 }

@@ -1,0 +1,353 @@
+@page "/users"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Corporate.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@inject ApiService Api
+@inject ToastService _toastService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="vscode-page-header">
+    <div class="header-left">
+        <h5 class="m-0 fw-semibold">
+            <i class="bi bi-people-fill me-2"></i>
+            @(_scope == "tenant" ? "Corporate Users & Roles" : "Association Users & Roles")
+        </h5>
+        <div class="ms-4 btn-group btn-group-sm">
+            <button class="btn @(_viewMode == ViewMode.List ? "btn-vscode-accent" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.List">
+                <i class="bi bi-list-ul me-1"></i>List
+            </button>
+            <button class="btn @(_viewMode == ViewMode.Hierarchy ? "btn-vscode-accent" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.Hierarchy">
+                <i class="bi bi-diagram-3 me-1"></i>Hierarchy
+            </button>
+        </div>
+    </div>
+    <div class="header-right">
+        @if (_scope == "association")
+        {
+            <button class="btn btn-sm btn-primary px-3" @onclick="ShowAddMemberModal">
+                <i class="bi bi-person-plus-fill me-1"></i>Add Association Member
+            </button>
+        }
+        else
+        {
+             <button class="btn btn-sm btn-vscode-accent px-3" disabled title="Tenant users are managed globally">
+                <i class="bi bi-lock-fill me-1"></i>Global Access
+            </button>
+        }
+    </div>
+</div>
+
+<div class="vscode-content custom-scrollbar p-4">
+    <div class="container-fluid" style="max-width: 1000px;">
+
+        @if (_viewMode == ViewMode.List)
+        {
+            <div class="compact-card p-0 overflow-hidden mb-4">
+                <div class="vscode-page-header py-2 px-3 border-bottom">
+                    <h6 class="m-0 small fw-bold text-uppercase opacity-75">Association Members</h6>
+                </div>
+                <Grid @ref="grid" TItem="User"
+                      Class="table table-hover table-bordered table-striped vscode-table"
+                      DataProvider="UsersDataProvider"
+                      Responsive="true"
+                      AllowPaging="true"
+                      PageSize="10"
+                      AllowSorting="true">
+
+                    <GridColumn TItem="User" HeaderText="User" PropertyName="Name" SortKeySelector="item => item.Name">
+                        <div class="d-flex align-items-center gap-3">
+                            @if (!string.IsNullOrEmpty(context.PictureUrl))
+                            {
+                                <img src="@context.PictureUrl" class="rounded-circle shadow-sm" style="width: 32px; height: 32px;" alt="@context.Name" />
+                            }
+                            else
+                            {
+                                <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center border" style="width: 32px; height: 32px; font-size: 12px;">
+                                    @GetInitials(context.Name)
+                                </div>
+                            }
+                            <div>
+                                <div class="fw-semibold">@context.Name</div>
+                                @if (!context.IsActive)
+                                {
+                                    <span class="badge bg-danger-subtle text-danger" style="font-size: 10px;">Inactive</span>
+                                }
+                            </div>
+                        </div>
+                    </GridColumn>
+
+                    <GridColumn TItem="User" HeaderText="Email" PropertyName="Email" SortKeySelector="item => item.Email">
+                        @context.Email
+                    </GridColumn>
+
+                    <GridColumn TItem="User" HeaderText="Current Role" PropertyName="Role" SortKeySelector="item => item.Role">
+                        <select class="form-select form-select-sm" style="width: 180px;" 
+                                value="@context.Role" 
+                                @onchange="(e) => HandleRoleChange(context.UserId, e.Value?.ToString())">
+                            @foreach (var role in AppRole.All)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </GridColumn>
+
+                    <GridColumn TItem="User" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                        <button class="btn btn-sm btn-link text-danger p-0 ms-2" title="Remove from Association" @onclick="() => ConfirmRemove(context)">
+                            <i class="bi bi-person-dash"></i>
+                        </button>
+                    </GridColumn>
+                </Grid>
+            </div>
+        }
+        else
+        {
+            <div class="mb-4">
+                <UserHierarchy Users="_users" Visible="@(_viewMode == ViewMode.Hierarchy)" />
+            </div>
+        }
+
+        <div class="compact-card p-4 bg-light-subtle opacity-75">
+            <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Role Capabilities</h6>
+            <div class="row g-3">
+                @foreach (var role in AppRole.All)
+                {
+                    <div class="col-md-4">
+                        <div class="fw-bold small mb-1 text-primary">@role</div>
+                        <ul class="ps-3 mb-0 small text-secondary">
+                            @foreach (var cap in AppRole.GetCapabilities(role))
+                            {
+                                <li>@cap</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Add Member Modal *@
+@if (_showAddModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg">
+                <div class="vscode-page-header py-2 px-3 border-bottom">
+                    <h6 class="m-0 fw-semibold"><i class="bi bi-person-plus-fill me-2"></i>Add Association Member</h6>
+                    <button type="button" class="btn-close" @onclick="HideAddMemberModal"></button>
+                </div>
+                <div class="p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">User Email</label>
+                        <input type="email" class="form-control" @bind="_newMemberEmail" placeholder="Enter user's registration email..." />
+                        <div class="form-text x-small mt-1 opacity-75">Note: The user must have signed in to the application at least once before they can be added to an association.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted">Initial Role</label>
+                        <select class="form-select" @bind="_newMemberRole">
+                            @foreach (var role in AppRole.All)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn-vscode-secondary" @onclick="HideAddMemberModal">Cancel</button>
+                        <button type="button" class="btn btn-primary px-4" @onclick="HandleAddMember" disabled="@(string.IsNullOrEmpty(_newMemberEmail) || _isAdding)">
+                            @if (_isAdding)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            Add Member
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Remove Member Modal *@
+@if (_userToRemove != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg border-danger">
+                <div class="vscode-page-header py-2 px-3 bg-danger-subtle text-danger">
+                    <h6 class="m-0 fw-semibold">Confirm Removal</h6>
+                    <button type="button" class="btn-close" @onclick="CancelRemove"></button>
+                </div>
+                <div class="p-3">
+                    <p class="mb-4">Are you sure you want to remove <strong>@_userToRemove.Name</strong> from this association? This will revoke all their access to this tenant.</p>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn-vscode-secondary" @onclick="CancelRemove">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="HandleRemoveUser">Remove Member</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private Grid<User> grid = default!;
+    private List<User>? _users;
+    private User? _userToRemove;
+    private bool _showAddModal;
+    private string _newMemberEmail = "";
+    private string _newMemberRole = AppRole.Resident;
+    private bool _isAdding;
+    private ViewMode _viewMode = ViewMode.List;
+    private string _scope = "tenant";
+    private int _associationId;
+
+    public enum ViewMode { List, Hierarchy }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ParseQueryParameters();
+        await LoadUsers();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Re-parse when query string changes (e.g. clicking another link)
+        if (ParseQueryParameters())
+        {
+            _users = null;
+            await LoadUsers();
+        }
+    }
+
+    private bool ParseQueryParameters()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query;
+        var newScope = query.Contains("scope=association") ? "association" : "tenant";
+        
+        if (newScope != _scope)
+        {
+            _scope = newScope;
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<GridDataProviderResult<User>> UsersDataProvider(GridDataProviderRequest<User> request)
+    {
+        if (_users == null) await LoadUsers();
+        return request.ApplyTo(_users ?? new List<User>());
+    }
+
+    private async Task LoadUsers()
+    {
+        const string baseUrl = "users";
+        string url = baseUrl;
+
+        if (_scope == "association")
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var aid = authState.User.FindFirst("AssociationId")?.Value;
+            if (int.TryParse(aid, out int associationId) && associationId != 0)
+            {
+                url = $"{baseUrl}?associationId={associationId}";
+                _associationId = associationId;
+            }
+        }
+
+        var users = await Api.GetAsync<IEnumerable<User>>(url);
+        _users = users?.ToList();
+    }
+
+    private async Task HandleRoleChange(int userId, string? newRole)
+    {
+        if (string.IsNullOrEmpty(newRole)) return;
+        
+        var success = await Api.PutAsync($"users/{userId}/role", new UpdateRoleRequest(newRole));
+        if (success) {
+            _toastService.Notify(new(ToastType.Success, "User role updated successfully."));
+            _users = null;
+            await grid.RefreshDataAsync();
+        } else {
+            _toastService.Notify(new(ToastType.Danger, "Failed to update user role."));
+        }
+    }
+
+    private void ShowAddMemberModal()
+    {
+        _showAddModal = true;
+        _newMemberEmail = "";
+        _newMemberRole = AppRole.Resident;
+    }
+
+    private void HideAddMemberModal()
+    {
+        _showAddModal = false;
+    }
+
+    private async Task HandleAddMember()
+    {
+        if (string.IsNullOrEmpty(_newMemberEmail)) return;
+
+        _isAdding = true;
+        try {
+            var success = await Api.PostAsync("users/add-by-email", new { Email = _newMemberEmail, Role = _newMemberRole });
+            
+            if (success) {
+                _toastService.Notify(new(ToastType.Success, "Member added successfully."));
+                _showAddModal = false;
+                _users = null;
+                await grid.RefreshDataAsync();
+            } else {
+                _toastService.Notify(new(ToastType.Danger, "Failed to add member. Ensure email is correct."));
+            }
+        } catch (Exception ex) {
+            _toastService.Notify(new(ToastType.Danger, ex.Message));
+        } finally {
+            _isAdding = false;
+        }
+    }
+
+    private void ConfirmRemove(User user)
+    {
+        _userToRemove = user;
+    }
+
+    private void CancelRemove()
+    {
+        _userToRemove = null;
+    }
+
+    private async Task HandleRemoveUser()
+    {
+        if (_userToRemove == null) return;
+
+        var success = await Api.DeleteAsync($"users/{_userToRemove.UserId}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "User removed from association."));
+            _users = null;
+            await grid.RefreshDataAsync();
+        } else {
+            _toastService.Notify(new(ToastType.Danger, "Failed to remove user."));
+        }
+        _userToRemove = null;
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "U";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpper();
+        return (parts[0][0].ToString() + parts[^1][0].ToString()).ToUpper();
+    }
+}
+
+<style>
+    .vscode-table th { font-size: 11px; text-transform: uppercase; opacity: 0.6; letter-spacing: 0.5px; border-bottom-width: 1px; }
+    .vscode-table td { font-size: 13px; vertical-align: middle; }
+    .btn-link:hover { opacity: 0.7; }
+    .x-small { font-size: 10px; }
+</style>

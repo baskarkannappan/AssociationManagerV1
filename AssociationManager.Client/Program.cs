@@ -4,11 +4,8 @@ using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.Authorization;
-// 
-// 
-// 
-// 
-// 
+using System.Globalization;
+
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
@@ -29,6 +26,7 @@ builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredServ
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiService>();
+builder.Services.AddScoped<IAppAuthorizationService, AppAuthorizationService>();
 builder.Services.AddTransient<AuthHeaderHandler>();
 
 // Base API URL (Gateway)
@@ -46,4 +44,8 @@ builder.Services.AddScoped(sp => new RealtimeService(
     sp.GetRequiredService<TokenService>(), 
     $"{gatewayUrl}hubs/notifications"));
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+var culture = new CultureInfo("en-IN");
+CultureInfo.DefaultThreadCurrentCulture = culture;
+CultureInfo.DefaultThreadCurrentUICulture = culture;
+await host.RunAsync();

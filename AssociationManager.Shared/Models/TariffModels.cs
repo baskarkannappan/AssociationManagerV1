@@ -7,6 +7,7 @@ public class TariffGroup
 {
     public int TariffGroupId { get; set; }
     public int TenantId { get; set; }
+    public int? AssociationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public List<TariffLayer> Layers { get; set; } = new();
@@ -17,6 +18,7 @@ public class TariffLayer
     public int TariffLayerId { get; set; }
     public int TariffGroupId { get; set; }
     public int TenantId { get; set; }
+    public int? AssociationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal BaseRate { get; set; }
     public BillingFrequency Frequency { get; set; }
@@ -68,6 +70,7 @@ public class AssociationSubscription
 
     // Join properties
     public string? PlanName { get; set; }
+    public string? AssociationName { get; set; }
     public decimal BasePrice { get; set; }
     public decimal PricePerAsset { get; set; }
 }

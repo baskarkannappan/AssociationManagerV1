@@ -20,7 +20,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<User>(
-            "sp_Users_GetById", 
+            "corp.sp_Users_GetById", 
             new { Id = id },
             commandType: CommandType.StoredProcedure);
     }
@@ -29,7 +29,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<User>(
-            "sp_Users_GetByGoogleId", 
+            "corp.sp_Users_GetByGoogleId", 
             new { GoogleId = googleId },
             commandType: CommandType.StoredProcedure);
     }
@@ -38,7 +38,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<User>(
-            "sp_Users_GetByEmail", 
+            "corp.sp_Users_GetByEmail", 
             new { Email = email },
             commandType: CommandType.StoredProcedure);
     }
@@ -47,7 +47,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<User>(
-            "sp_Users_GetByTenantId", 
+            "corp.sp_Users_GetByTenantId", 
             new { TenantId = tenantId },
             commandType: CommandType.StoredProcedure);
     }
@@ -56,8 +56,19 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_Users_Create", 
-            user,
+            "corp.sp_Users_Create", 
+            new 
+            { 
+                user.TenantId, 
+                user.GoogleId, 
+                user.Email, 
+                user.Name, 
+                user.PictureUrl, 
+                user.Role, 
+                user.CreatedDate, 
+                user.LastLoginDate, 
+                user.IsActive 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -65,8 +76,16 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_Users_Update", 
-            user,
+            "corp.sp_Users_Update", 
+            new 
+            { 
+                user.UserId,
+                user.Name, 
+                user.PictureUrl, 
+                user.Role, 
+                user.LastLoginDate, 
+                user.IsActive 
+            },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -74,7 +93,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "sp_UserAssociations_CheckExists", 
+            "corp.sp_UserAssociations_CheckExists", 
             new { UserId = userId, TenantId = tenantId },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -83,7 +102,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_UserAssociations_Upsert", 
+            "corp.sp_UserAssociations_Upsert", 
             new { UserId = userId, TenantId = tenantId, Role = role },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -92,7 +111,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<string>(
-            "sp_UserAssociations_GetRole", 
+            "corp.sp_UserAssociations_GetRole", 
             new { UserId = userId, TenantId = tenantId },
             commandType: CommandType.StoredProcedure);
     }
@@ -101,8 +120,52 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "sp_UserAssociations_Delete", 
+            "corp.sp_UserAssociations_Delete", 
             new { UserId = userId, TenantId = tenantId },
             commandType: CommandType.StoredProcedure) > 0;
+    }
+
+    public async Task<bool> IsUserAuthorisedForAssociationAsync(int userId, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        const string sql = @"
+            SELECT COUNT(1) FROM (
+                -- 1. High-level Admins see everything in their tenant
+                SELECT a.AssociationId 
+                FROM corp.Associations a
+                INNER JOIN corp.UserAssociations ua ON a.TenantId = ua.TenantId
+                WHERE ua.UserId = @UserId AND ua.Role IN ('SystemAdmin', 'AssociationAdmin') AND a.AssociationId = @AssociationId
+
+                UNION
+
+                -- 2. Everyone else (Resident, UserManager, AssetManager, etc.) 
+                -- only see associations they are directly linked to via Occupancy/Assets
+                SELECT a.AssociationId
+                FROM corp.Associations a
+                INNER JOIN assoc.Occupancy o ON a.AssociationId = o.AssociationId
+                INNER JOIN assoc.Persons p ON o.PersonId = p.PersonId
+                INNER JOIN corp.Users u ON p.Email = u.Email
+                WHERE u.UserId = @UserId AND a.AssociationId = @AssociationId
+            ) AS AuthCheck";
+        
+        return await connection.ExecuteScalarAsync<int>(sql, new { UserId = userId, TenantId = tenantId, AssociationId = associationId }) > 0;
+    }
+
+    public async Task<IEnumerable<User>> GetByAssociationIdAsync(int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        const string sql = @"
+            SELECT DISTINCT u.*
+            FROM corp.Users u
+            LEFT JOIN assoc.Persons p ON u.Email = p.Email
+            LEFT JOIN assoc.Occupancy o ON p.PersonId = o.PersonId
+            LEFT JOIN corp.UserAssociations ua ON u.TenantId = ua.TenantId
+            WHERE 
+                u.AssociationId = @AssociationId -- Active association
+                OR o.AssociationId = @AssociationId -- Resident association
+                OR (ua.Role IN ('SystemAdmin', 'AssociationAdmin') AND u.TenantId = (SELECT TenantId FROM corp.Associations WHERE AssociationId = @AssociationId))
+            ORDER BY u.Name";
+        
+        return await connection.QueryAsync<User>(sql, new { AssociationId = associationId });
     }
 }

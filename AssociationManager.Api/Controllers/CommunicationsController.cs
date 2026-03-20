@@ -2,12 +2,13 @@ using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = "RequireAssociationAdmin")]
 [ApiController]
 [Route("api/[controller]")]
 public class CommunicationsController : ControllerBase
@@ -22,7 +23,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpGet("broadcasts")]
-    public async Task<IActionResult> GetBroadcasts([FromQuery] int? assetId = null)
+    public async Task<IActionResult> GetBroadcasts([FromQuery] int? assetId = null, [FromQuery] int? associationId = null)
     {
         IEnumerable<Broadcast> broadcasts;
         if (assetId.HasValue)
@@ -31,7 +32,7 @@ public class CommunicationsController : ControllerBase
         }
         else
         {
-            broadcasts = await _communicationsService.GetAllBroadcastsAsync();
+            broadcasts = await _communicationsService.GetAllBroadcastsAsync(associationId);
         }
         return Ok(ApiResponse<IEnumerable<Broadcast>>.SuccessResponse(broadcasts));
     }

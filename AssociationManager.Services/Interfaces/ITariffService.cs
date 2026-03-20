@@ -7,7 +7,7 @@ namespace AssociationManager.Services.Interfaces;
 public interface ITariffService
 {
     // Group & Layer Management
-    Task<IEnumerable<TariffGroup>> GetTariffGroupsAsync();
+    Task<IEnumerable<TariffGroup>> GetTariffGroupsAsync(int? associationId = null);
     Task<int> CreateTariffGroupAsync(TariffGroup group);
     Task<bool> UpdateTariffGroupAsync(TariffGroup group);
     Task<bool> DeleteTariffGroupAsync(int groupId);

@@ -1,11 +1,16 @@
 @using AssociationManager.Shared.Models
 @inject AssociationManager.Client.Services.ApiService ApiService
+@inject AssociationManager.Client.Services.IAppAuthorizationService AuthService
+@inject ToastService _toastService
 
 <div class="vehicles-section forced-text-dark">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0 fw-bold">Registered Vehicles</h6>
-        <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+        <AuthorizeView Context="vehicleAuthContext">
+            @if (AuthService.HasLevel(vehicleAuthContext.User, AppRole.LevelResident))
+            {
+                <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+            }
         </AuthorizeView>
     </div>
 
@@ -26,29 +31,38 @@
         </div>
     }
 
-    @if (Vehicles == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-    else if (!Vehicles.Any()) { <p class="text-muted italic" style="font-size: 11px;">No vehicles registered.</p> }
-    else if (!Vehicles.Any()) { <p class="text-muted" style="font-size: 11px; font-style: italic;">No vehicles registered.</p> }
-    else
-    {
-        <table class="table table-sm compact-table">
-            <thead><tr><th>Make/Model</th><th>Plate</th><th>Slot</th><th></th></tr></thead>
-            <tbody>
-                @foreach(var v in Vehicles) {
-                    <tr>
-                        <td>@v.Make @v.Model</td>
-                        <td><span class="badge bg-light text-dark border">@v.LicensePlate</span></td>
-                        <td>@v.ParkingSlot</td>
-                        <td class="text-end">
-                            <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
-                                <button class="btn btn-link btn-sm text-danger" @onclick="() => OnDelete.InvokeAsync(v.VehicleId)"><i class="bi bi-trash"></i></button>
-                            </AuthorizeView>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
+        <Grid TItem="Vehicle"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="VehiclesDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="5"
+              AllowSorting="true">
+
+            <GridColumn TItem="Vehicle" HeaderText="Make/Model" PropertyName="Make" SortKeySelector="item => item.Make">
+                @context.Make @context.Model
+            </GridColumn>
+
+            <GridColumn TItem="Vehicle" HeaderText="Plate" PropertyName="LicensePlate" SortKeySelector="item => item.LicensePlate">
+                <span class="badge bg-light text-dark border">@context.LicensePlate</span>
+            </GridColumn>
+
+            <GridColumn TItem="Vehicle" HeaderText="Slot" PropertyName="ParkingSlot" SortKeySelector="item => item.ParkingSlot">
+                @context.ParkingSlot
+            </GridColumn>
+
+            <GridColumn TItem="Vehicle" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                <AuthorizeView Context="vehicleAuthContext">
+                    @if (AuthService.HasLevel(vehicleAuthContext.User, AppRole.LevelResident))
+                    {
+                        <button class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="() => OnDelete.InvokeAsync(context.VehicleId)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    }
+                </AuthorizeView>
+            </GridColumn>
+        </Grid>
 </div>
 
 @code {
@@ -57,15 +71,27 @@
     [Parameter] public EventCallback<int> OnDelete { get; set; }
     [Parameter] public EventCallback OnDataChanged { get; set; }
 
+    private Grid<Vehicle> grid = default!;
+
+    private async Task<GridDataProviderResult<Vehicle>> VehiclesDataProvider(GridDataProviderRequest<Vehicle> request)
+    {
+        return await Task.FromResult(request.ApplyTo(Vehicles ?? new List<Vehicle>()));
+    }
+
     private bool _showAddForm;
     private Vehicle _newVehicle = new();
 
     private async Task SaveVehicle()
     {
         _newVehicle.AssetId = AssetId;
-        await ApiService.PostAsync("api/people/vehicles", _newVehicle);
-        _newVehicle = new();
-        _showAddForm = false;
-        await OnDataChanged.InvokeAsync();
+        var success = await ApiService.PostAsync("api/people/vehicles", _newVehicle);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Vehicle registered."));
+            _newVehicle = new();
+            _showAddForm = false;
+            await grid.RefreshDataAsync();
+            await OnDataChanged.InvokeAsync();
+        }
     }
 }

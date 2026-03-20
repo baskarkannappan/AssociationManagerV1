@@ -3,9 +3,11 @@ using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace AssociationManager.Api.Controllers;
+namespace AssociationManager.Corporate.Api.Controllers;
 
 [Authorize]
 [ApiController]
@@ -31,6 +33,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> GetAll()
     {
         try 
@@ -53,6 +56,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> Create([FromBody] Association association)
     {
         var id = await _associationService.CreateAsync(association);
@@ -61,6 +65,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> Update(int id, [FromBody] Association association)
     {
         association.AssociationId = id;
@@ -71,6 +76,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _associationService.DeleteAsync(id);

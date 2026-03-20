@@ -30,19 +30,19 @@ public class FinanceService : IFinanceService
     private int CurrentTenantId => _tenantContext.TenantId;
     private int CurrentAssociationId => _tenantContext.AssociationId;
 
-    public async Task<Invoice?> GetInvoiceByIdAsync(int id)
+    public async Task<Invoice?> GetInvoiceByIdAsync(int id, int? associationId = null)
     {
-        return await _invoiceRepository.GetByIdAsync(id, CurrentTenantId, CurrentAssociationId);
+        return await _invoiceRepository.GetByIdAsync(id, CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
-    public async Task<IEnumerable<Invoice>> GetAllInvoicesAsync()
+    public async Task<IEnumerable<Invoice>> GetAllInvoicesAsync(int? associationId = null)
     {
-        return await _invoiceRepository.GetAllAsync(CurrentTenantId, CurrentAssociationId);
+        return await _invoiceRepository.GetAllAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
-    public async Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId)
+    public async Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId, int? associationId = null)
     {
-        return await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, CurrentAssociationId);
+        return await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
     public async Task<int> CreateInvoiceAsync(Invoice invoice)
@@ -68,19 +68,19 @@ public class FinanceService : IFinanceService
         return id;
     }
 
-    public async Task<bool> UpdateInvoiceStatusAsync(int id, string status)
+    public async Task<bool> UpdateInvoiceStatusAsync(int id, string status, int? associationId = null)
     {
-        return await _invoiceRepository.UpdateStatusAsync(id, status, CurrentTenantId, CurrentAssociationId);
+        return await _invoiceRepository.UpdateStatusAsync(id, status, CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
-    public async Task<bool> DeleteInvoiceAsync(int id)
+    public async Task<bool> DeleteInvoiceAsync(int id, int? associationId = null)
     {
-        return await _invoiceRepository.DeleteAsync(id, CurrentTenantId, CurrentAssociationId);
+        return await _invoiceRepository.DeleteAsync(id, CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
-    public async Task<IEnumerable<Payment>> GetPaymentsAsync()
+    public async Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null)
     {
-        return await _paymentRepository.GetByTenantIdAsync(CurrentTenantId, CurrentAssociationId);
+        return await _paymentRepository.GetByTenantIdAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
     public async Task<int> CreatePaymentAsync(Payment payment)

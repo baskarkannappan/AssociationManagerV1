@@ -13,15 +13,18 @@ namespace AssociationManager.Services.Implementations;
 public class AssociationService : IAssociationService
 {
     private readonly IAssociationRepository _associationRepository;
+    private readonly ISubscriptionService _subscriptionService;
     private readonly ITenantContext _tenantContext;
     private readonly IDistributedCache _cache;
 
     public AssociationService(
         IAssociationRepository associationRepository,
+        ISubscriptionService subscriptionService,
         ITenantContext tenantContext,
         IDistributedCache cache)
     {
         _associationRepository = associationRepository;
+        _subscriptionService = subscriptionService;
         _tenantContext = tenantContext;
         _cache = cache;
     }
@@ -73,6 +76,10 @@ public class AssociationService : IAssociationService
     {
         association.TenantId = CurrentTenantId;
         int id = await _associationRepository.CreateAsync(association);
+        
+        // Auto-subscribe to Starter Plan (ID: 1)
+        await _subscriptionService.SubscribeAsync(id, 1);
+        
         await InvalidateCache();
         return id;
     }

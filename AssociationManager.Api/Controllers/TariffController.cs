@@ -4,13 +4,13 @@ using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize]
-[RequireRole(AppRole.FinanceManager, AppRole.AssociationAdmin)]
+[Authorize(Policy = "RequireFinanceManager")]
 [ApiController]
 [Route("api/[controller]")]
 public class TariffController : ControllerBase
@@ -25,9 +25,9 @@ public class TariffController : ControllerBase
     }
 
     [HttpGet("groups")]
-    public async Task<IActionResult> GetGroups()
+    public async Task<IActionResult> GetGroups([FromQuery] int? associationId = null)
     {
-        var groups = await _tariffService.GetTariffGroupsAsync();
+        var groups = await _tariffService.GetTariffGroupsAsync(associationId);
         return Ok(ApiResponse<IEnumerable<TariffGroup>>.SuccessResponse(groups));
     }
 

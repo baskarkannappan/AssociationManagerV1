@@ -1,0 +1,286 @@
+@page "/subscriptions"
+@attribute [Authorize(Roles = AppRole.SystemAdmin)]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Corporate.Client.Services
+@inject ApiService ApiService
+@inject ToastService _toastService
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center justify-content-between w-100">
+        <div class="d-flex align-items-center gap-2 ps-2">
+            <i class="bi bi-shield-check text-muted" style="font-size: 14px;"></i>
+            <span class="fw-medium">Platform Subscriptions</span>
+        </div>
+        <div class="nav nav-pills small-pills me-2">
+            <button class="nav-link @(_activeTab == "associations" ? "active" : "")" @onclick='() => _activeTab = "associations"'>Association Subscriptions</button>
+            <button class="nav-link @(_activeTab == "plans" ? "active" : "")" @onclick='() => _activeTab = "plans"'>Subscription Plans</button>
+        </div>
+    </div>
+</div>
+
+<div class="p-3">
+    @if (_activeTab == "associations")
+    {
+        <div class="border bg-white p-2">
+            <Grid @ref="subGrid" TItem="AssociationSubscription"
+                  Class="table table-hover table-bordered table-striped compact-table"
+                  DataProvider="SubscriptionsDataProvider"
+                  Responsive="true"
+                  AllowPaging="true"
+                  PageSize="10"
+                  AllowSorting="true">
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Association" PropertyName="AssociationName" SortKeySelector="item => item.AssociationName">
+                    <div class="fw-medium">@context.AssociationName</div>
+                    <div class="text-muted" style="font-size: 11px;">#@context.AssociationId</div>
+                </GridColumn>
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Plan" PropertyName="PlanName" SortKeySelector="item => item.PlanName">
+                    <span class="fw-medium">@context.PlanName</span>
+                </GridColumn>
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                    <span class="badge @(context.Status == "Active" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning") border border-success-subtle">
+                        @context.Status
+                    </span>
+                </GridColumn>
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Base Fee" PropertyName="BasePrice" SortKeySelector="item => item.BasePrice">
+                    ₹@context.BasePrice.ToString("F2") /mo
+                </GridColumn>
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Per Asset" PropertyName="PricePerAsset" SortKeySelector="item => item.PricePerAsset">
+                    ₹@context.PricePerAsset.ToString("F2")
+                </GridColumn>
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Next Bill Date" PropertyName="NextBillingDate" SortKeySelector="item => item.NextBillingDate">
+                    @context.NextBillingDate.ToShortDateString()
+                </GridColumn>
+
+                <GridColumn TItem="AssociationSubscription" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                    <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowChangePlanModal(context)">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                </GridColumn>
+            </Grid>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="small text-muted">Manage the global subscription plans available to associations.</div>
+            <button class="btn btn-sm btn-vscode" @onclick="ShowCreatePlanModal">
+                <i class="bi bi-plus me-1"></i> New Plan
+            </button>
+        </div>
+        <div class="border bg-white p-2">
+            <Grid @ref="planGrid" TItem="SubscriptionPlan"
+                  Class="table table-hover table-bordered table-striped compact-table"
+                  DataProvider="PlansDataProvider"
+                  Responsive="true"
+                  AllowPaging="true"
+                  PageSize="10"
+                  AllowSorting="true">
+
+                <GridColumn TItem="SubscriptionPlan" HeaderText="Plan Name" PropertyName="Name" SortKeySelector="item => item.Name">
+                    <span class="fw-medium">@context.Name</span>
+                </GridColumn>
+
+                <GridColumn TItem="SubscriptionPlan" HeaderText="Base Price" PropertyName="BasePrice" SortKeySelector="item => item.BasePrice">
+                    ₹@context.BasePrice.ToString("F2") /mo
+                </GridColumn>
+
+                <GridColumn TItem="SubscriptionPlan" HeaderText="Price Per Asset" PropertyName="PricePerAsset" SortKeySelector="item => item.PricePerAsset">
+                    ₹@context.PricePerAsset.ToString("F2") /asset
+                </GridColumn>
+
+                <GridColumn TItem="SubscriptionPlan" HeaderText="Active" PropertyName="IsActive" SortKeySelector="item => item.IsActive">
+                    <i class="bi @(context.IsActive ? "bi-check-circle-fill text-success" : "bi-x-circle text-muted")"></i>
+                </GridColumn>
+
+                <GridColumn TItem="SubscriptionPlan" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                    <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowEditPlanModal(context)">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                </GridColumn>
+            </Grid>
+        </div>
+    }
+</div>
+
+@if (_showModal && _selectedSub != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Change Plan for Association #@_selectedSub.AssociationId</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showModal = false"></button>
+                </div>
+                <div class="modal-body compact-form">
+                    <label>Select New Plan</label>
+                    <select @bind="_selectedPlanId" class="form-select mb-3">
+                        @foreach (var plan in _plans ?? new())
+                        {
+                            <option value="@plan.PlanId">@plan.Name (₹@plan.BasePrice + ₹@plan.PricePerAsset/unit)</option>
+                        }
+                    </select>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => _showModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick="UpdateSubscription">Update Plan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showPlanModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">@(_editingPlan.PlanId == 0 ? "Create New Plan" : "Edit Plan")</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showPlanModal = false"></button>
+                </div>
+                <div class="modal-body compact-form">
+                    <div class="mb-2">
+                        <label>Plan Name</label>
+                        <input @bind="_editingPlan.Name" class="form-control" placeholder="e.g. Enterprise" />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-2">
+                            <label>Base Price ($)</label>
+                            <input type="number" step="0.01" @bind="_editingPlan.BasePrice" class="form-control" />
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label>Price Per Asset ($)</label>
+                            <input type="number" step="0.01" @bind="_editingPlan.PricePerAsset" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="form-check small mt-2">
+                        <input class="form-check-input" type="checkbox" @bind="_editingPlan.IsActive" id="planActive">
+                        <label class="form-check-label" for="planActive">Available for enrollment</label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => _showPlanModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick="SavePlan">Save Plan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .btn-xs { padding: 1px 5px; font-size: 11px; }
+    .bg-success-subtle { background-color: #f0fdf4 !important; }
+    .bg-warning-subtle { background-color: #fffbeb !important; }
+    .badge { font-weight: 500; font-size: 10px; text-transform: uppercase; }
+    .btn-vscode { background: #007acc; color: white; border: none; padding: 4px 12px; font-size: 12px; }
+    .small-pills .nav-link { padding: 4px 12px; font-size: 11px; border-radius: 4px; border: 1px solid transparent; margin-left: 5px; color: #64748b; cursor: pointer; }
+    .small-pills .nav-link.active { background: #007acc; color: white; border-color: #007acc; }
+    .bg-info-subtle { background-color: #f0f9ff !important; }
+</style>
+
+@code {
+    private string _activeTab = "associations";
+    private Grid<AssociationSubscription> subGrid = default!;
+    private Grid<SubscriptionPlan> planGrid = default!;
+    private List<AssociationSubscription>? _subscriptions;
+    private List<SubscriptionPlan>? _plans;
+    private AssociationSubscription? _selectedSub;
+    private int _selectedPlanId;
+    private bool _showModal;
+
+    private bool _showPlanModal;
+    private SubscriptionPlan _editingPlan = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task<GridDataProviderResult<AssociationSubscription>> SubscriptionsDataProvider(GridDataProviderRequest<AssociationSubscription> request)
+    {
+        if (_subscriptions == null) await LoadData();
+        return request.ApplyTo(_subscriptions ?? new List<AssociationSubscription>());
+    }
+
+    private async Task<GridDataProviderResult<SubscriptionPlan>> PlansDataProvider(GridDataProviderRequest<SubscriptionPlan> request)
+    {
+        if (_plans == null) await LoadData();
+        return request.ApplyTo(_plans ?? new List<SubscriptionPlan>());
+    }
+
+    private async Task LoadData()
+    {
+        _subscriptions = await ApiService.GetAsync<List<AssociationSubscription>>("subscription/summary");
+        _plans = await ApiService.GetAsync<List<SubscriptionPlan>>("subscription/plans");
+    }
+
+    private void ShowChangePlanModal(AssociationSubscription sub)
+    {
+        _selectedSub = sub;
+        _selectedPlanId = sub.PlanId;
+        _showModal = true;
+    }
+
+    private async Task UpdateSubscription()
+    {
+        if (_selectedSub == null) return;
+        
+        var request = new SubscriptionRequest(_selectedSub.AssociationId, _selectedPlanId);
+        var success = await ApiService.PostAsync("subscription/subscribe", request);
+        
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Association subscription updated."));
+            _showModal = false;
+            _subscriptions = null;
+            await subGrid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to update subscription."));
+        }
+    }
+
+    private void ShowCreatePlanModal()
+    {
+        _editingPlan = new SubscriptionPlan { IsActive = true };
+        _showPlanModal = true;
+    }
+
+    private void ShowEditPlanModal(SubscriptionPlan plan)
+    {
+        _editingPlan = new SubscriptionPlan 
+        { 
+            PlanId = plan.PlanId, 
+            Name = plan.Name, 
+            BasePrice = plan.BasePrice, 
+            PricePerAsset = plan.PricePerAsset, 
+            IsActive = plan.IsActive 
+        };
+        _showPlanModal = true;
+    }
+
+    private async Task SavePlan()
+    {
+        if (string.IsNullOrWhiteSpace(_editingPlan.Name)) return;
+        var success = await ApiService.PostAsync("subscription/plans", _editingPlan);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Subscription plan updated."));
+            _showPlanModal = false;
+            _plans = null;
+            await planGrid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Error saving plan details."));
+        }
+    }
+}

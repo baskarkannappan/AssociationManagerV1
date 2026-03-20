@@ -1,12 +1,17 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 @inject AssociationManager.Client.Services.ApiService ApiService
+@inject AssociationManager.Client.Services.IAppAuthorizationService AuthService
+@inject ToastService _toastService
 
 <div class="occupants-section forced-text-dark">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0 fw-bold">Current Occupants</h6>
-        <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+        <AuthorizeView Context="occupancyAuthContext">
+            @if (AuthService.HasLevel(occupancyAuthContext.User, AppRole.LevelResident))
+            {
+                <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+            }
         </AuthorizeView>
     </div>
 
@@ -37,28 +42,38 @@
         </div>
     }
 
-    @if (Occupants == null) { <p class="text-muted" style="font-size: 11px;">Loading...</p> }
-    else if (!Occupants.Any()) { <p class="text-muted" style="font-size: 11px; font-style: italic;">No occupants registered.</p> }
-    else
-    {
-        <table class="table table-sm compact-table">
-            <thead><tr><th>Type</th><th>Contact</th><th>Primary</th><th></th></tr></thead>
-            <tbody>
-                @foreach(var occ in Occupants) {
-                    <tr>
-                        <td>@occ.OccupancyType</td>
-                        <td>Person #@occ.PersonId</td>
-                        <td>@(occ.IsPrimaryContact ? "Yes" : "No")</td>
-                        <td class="text-end">
-                            <AuthorizeView Roles="@($"{AppRole.UserManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")">
-                                <button class="btn btn-link btn-sm text-danger" @onclick="() => OnDelete.InvokeAsync(occ.OccupancyId)"><i class="bi bi-x-circle"></i></button>
-                            </AuthorizeView>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
+        <Grid TItem="Occupancy"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="OccupanciesDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="5"
+              AllowSorting="true">
+
+            <GridColumn TItem="Occupancy" HeaderText="Type" PropertyName="OccupancyType" SortKeySelector="item => item.OccupancyType">
+                @context.OccupancyType
+            </GridColumn>
+
+            <GridColumn TItem="Occupancy" HeaderText="Contact" PropertyName="PersonId" SortKeySelector="item => item.PersonId">
+                Person #@context.PersonId
+            </GridColumn>
+
+            <GridColumn TItem="Occupancy" HeaderText="Primary" PropertyName="IsPrimaryContact" SortKeySelector="item => item.IsPrimaryContact">
+                @(context.IsPrimaryContact ? "Yes" : "No")
+            </GridColumn>
+
+            <GridColumn TItem="Occupancy" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                <AuthorizeView Context="occupancyAuthContext">
+                    @if (AuthService.HasLevel(occupancyAuthContext.User, AppRole.LevelResident))
+                    {
+                        <button class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="() => OnDelete.InvokeAsync(context.OccupancyId)">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    }
+                </AuthorizeView>
+            </GridColumn>
+        </Grid>
 </div>
 
 @code {
@@ -66,6 +81,13 @@
     [Parameter] public List<Occupancy>? Occupants { get; set; }
     [Parameter] public EventCallback<int> OnDelete { get; set; }
     [Parameter] public EventCallback OnDataChanged { get; set; }
+
+    private Grid<Occupancy> grid = default!;
+
+    private async Task<GridDataProviderResult<Occupancy>> OccupanciesDataProvider(GridDataProviderRequest<Occupancy> request)
+    {
+        return await Task.FromResult(request.ApplyTo(Occupants ?? new List<Occupancy>()));
+    }
 
     private bool _showAddForm;
     private Person _newPerson = new();
@@ -78,12 +100,25 @@
         {
             _newOccupancy.PersonId = personId;
             _newOccupancy.AssetId = AssetId;
-            await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
+            var success = await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
             
-            _newPerson = new();
-            _newOccupancy = new();
-            _showAddForm = false;
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Occupant added."));
+                _newPerson = new();
+                _newOccupancy = new();
+                _showAddForm = false;
+                await grid.RefreshDataAsync();
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to add occupant."));
+            }
             await OnDataChanged.InvokeAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to create person record."));
         }
     }
 }

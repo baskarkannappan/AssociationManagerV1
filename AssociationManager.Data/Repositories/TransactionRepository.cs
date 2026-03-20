@@ -19,12 +19,22 @@ public class TransactionRepository : ITransactionRepository
 
     public async Task<long> CreateTransactionAsync(Transaction transaction)
     {
-        transaction.TenantId = transaction.TenantId; // Ensure it's set
-        transaction.AssociationId = transaction.AssociationId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<long>(
-            "sp_Transactions_Create", 
-            transaction,
+            "assoc.sp_Transactions_Create", 
+            new 
+            { 
+                transaction.TenantId, 
+                transaction.AssociationId, 
+                transaction.AssetId, 
+                transaction.InvoiceId, 
+                transaction.PaymentId, 
+                transaction.Type, 
+                transaction.Amount, 
+                transaction.Category, 
+                transaction.Description, 
+                transaction.TransactionDate 
+            },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -32,7 +42,7 @@ public class TransactionRepository : ITransactionRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Transaction>(
-            "sp_Transactions_GetByAssetId", 
+            "assoc.sp_Transactions_GetByAssetId", 
             new { assetId, tenantId, associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -41,7 +51,7 @@ public class TransactionRepository : ITransactionRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Transaction>(
-            "sp_Transactions_GetByTenantId", 
+            "assoc.sp_Transactions_GetByTenantId", 
             new { tenantId, associationId, startDate, endDate },
             commandType: CommandType.StoredProcedure);
     }
@@ -50,7 +60,7 @@ public class TransactionRepository : ITransactionRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(
-            "sp_Transactions_GetBalanceByAssetId", 
+            "assoc.sp_Transactions_GetBalanceByAssetId", 
             new { assetId, tenantId, associationId },
             commandType: CommandType.StoredProcedure);
     }

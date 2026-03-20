@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = $"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
 @inject ApiService Api
+@inject ToastService _toastService
 @inject NavigationManager Navigation
 
 <div class="vscode-page-header">
@@ -59,44 +60,44 @@
             }
             else
             {
-                <table class="table compact-table w-100">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>Title</th>
-                            <th>Asset</th>
-                            <th>Created</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var wo in _workOrders)
-                        {
-                            <tr>
-                                <td class="text-muted">#@wo.WorkOrderId</td>
-                                <td>
-                                    <span class="badge @GetPriorityClass(wo.Priority)" style="font-size: 10px; border-radius: 2px;">@wo.Priority</span>
-                                </td>
-                                <td>
-                                    <span class="badge @GetStatusClass(wo.Status)" style="font-size: 10px; border-radius: 2px;">@wo.Status</span>
-                                </td>
-                                <td class="fw-medium">@wo.Title</td>
-                                <td><span class="tree-badge">@wo.AssetName</span></td>
-                                <td class="text-muted">@wo.CreatedDate.ToShortDateString()</td>
-                                <td class="text-end">
-                                    <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Edit">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-link p-0 text-muted">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <Grid @ref="grid" TItem="WorkOrder"
+                      Class="table table-hover table-bordered table-striped compact-table"
+                      DataProvider="WorkOrdersDataProvider"
+                      Responsive="true"
+                      AllowPaging="true"
+                      PageSize="10"
+                      AllowSorting="true">
+
+                    <GridColumn TItem="WorkOrder" HeaderText="ID" PropertyName="WorkOrderId" SortKeySelector="item => item.WorkOrderId" HeaderClass="white-space-nowrap">
+                        <span class="text-muted">#@context.WorkOrderId</span>
+                    </GridColumn>
+
+                    <GridColumn TItem="WorkOrder" HeaderText="Priority" PropertyName="Priority" SortKeySelector="item => item.Priority">
+                        <span class="badge @GetPriorityClass(context.Priority)" style="font-size: 10px; border-radius: 2px;">@context.Priority</span>
+                    </GridColumn>
+
+                    <GridColumn TItem="WorkOrder" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                        <span class="badge @GetStatusClass(context.Status)" style="font-size: 10px; border-radius: 2px;">@context.Status</span>
+                    </GridColumn>
+
+                    <GridColumn TItem="WorkOrder" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
+                        <span class="fw-medium">@context.Title</span>
+                    </GridColumn>
+
+                    <GridColumn TItem="WorkOrder" HeaderText="Asset" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
+                        <span class="tree-badge">@context.AssetName</span>
+                    </GridColumn>
+
+                    <GridColumn TItem="WorkOrder" HeaderText="Created" PropertyName="CreatedDate" SortKeySelector="item => item.CreatedDate">
+                        <span class="text-muted">@context.CreatedDate.ToShortDateString()</span>
+                    </GridColumn>
+
+                    <GridColumn TItem="WorkOrder" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                        <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Edit">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                    </GridColumn>
+                </Grid>
             }
         </div>
     </div>
@@ -157,7 +158,8 @@
 }
 
 @code {
-    private IEnumerable<WorkOrder>? _workOrders;
+    private Grid<WorkOrder> grid = default!;
+    private List<WorkOrder>? _workOrders;
     private IEnumerable<Asset>? _assets;
     private bool _isCreateModalOpen;
     private WorkOrder _newWorkOrder = new() { Priority = "Medium" };
@@ -167,11 +169,19 @@
         await LoadData();
     }
 
+    private async Task<GridDataProviderResult<WorkOrder>> WorkOrdersDataProvider(GridDataProviderRequest<WorkOrder> request)
+    {
+        if (_workOrders == null) await LoadData();
+        return request.ApplyTo(_workOrders ?? new List<WorkOrder>());
+    }
+
     private async Task LoadData()
     {
         try 
         {
-            _workOrders = await Api.GetAsync<IEnumerable<WorkOrder>>("api/operations/workorders");
+            var workOrders = await Api.GetAsync<IEnumerable<WorkOrder>>("api/operations/workorders");
+            _workOrders = workOrders?.ToList();
+            
             // Flattened assets for dropdown
             var hierarchy = await Api.GetAsync<IEnumerable<Asset>>("api/assets/hierarchy");
             _assets = hierarchy != null ? FlattenHierarchy(hierarchy) : new List<Asset>();
@@ -179,7 +189,7 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading maintenance data: {ex.Message}");
-            _workOrders = Enumerable.Empty<WorkOrder>();
+            _workOrders = new List<WorkOrder>();
         }
     }
 
@@ -205,9 +215,18 @@
 
     private async Task HandleCreateWorkOrder()
     {
-        await Api.PostAsync<object>("api/operations/workorders", _newWorkOrder);
-        _isCreateModalOpen = false;
-        await LoadData();
+        var success = await Api.PostAsync<object>("api/operations/workorders", _newWorkOrder);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Work order created successfully."));
+            _isCreateModalOpen = false;
+            _workOrders = null;
+            await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to create work order."));
+        }
     }
 
     private void CloseModals() => _isCreateModalOpen = false;

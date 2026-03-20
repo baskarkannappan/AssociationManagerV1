@@ -15,17 +15,22 @@ public class AssetsController : ControllerBase
 {
     private readonly IAssetService _assetService;
     private readonly IAuditService _auditService;
+    private readonly AssociationManager.Shared.Interfaces.ITenantContext _tenantContext;
 
-    public AssetsController(IAssetService assetService, IAuditService auditService)
+    public AssetsController(IAssetService assetService, IAuditService auditService, AssociationManager.Shared.Interfaces.ITenantContext tenantContext)
     {
         _assetService = assetService;
         _auditService = auditService;
+        _tenantContext = tenantContext;
     }
 
     [HttpGet("hierarchy")]
     public async Task<IActionResult> GetHierarchy()
     {
-        var hierarchy = await _assetService.GetHierarchyAsync();
+        // If the user is a Resident, only show their owned/occupied assets
+        int? filterUserId = AppRole.GetLevel(User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value) <= AppRole.LevelResident ? _tenantContext.UserId : null;
+        
+        var hierarchy = await _assetService.GetHierarchyAsync(filterUserId);
         return Ok(ApiResponse<IEnumerable<Asset>>.SuccessResponse(hierarchy));
     }
 
@@ -38,7 +43,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost]
-    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> Create([FromBody] Asset asset)
     {
         var id = await _assetService.CreateAsync(asset);
@@ -47,7 +52,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost("bulk")]
-    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> BulkCreate([FromBody] BulkCreateRequest request)
     {
         var count = await _assetService.BulkCreateAsync(request);
@@ -56,7 +61,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> Update(int id, [FromBody] Asset asset)
     {
         asset.AssetId = id;
@@ -67,7 +72,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _assetService.DeleteAsync(id);

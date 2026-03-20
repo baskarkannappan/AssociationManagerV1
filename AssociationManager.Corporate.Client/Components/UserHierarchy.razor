@@ -1,0 +1,148 @@
+@using Blazor.Diagrams
+@using Blazor.Diagrams.Core.Models
+@using Blazor.Diagrams.Core.PathGenerators
+@using Blazor.Diagrams.Core.Routers
+@using Blazor.Diagrams.Core.Geometry
+@using Blazor.Diagrams.Components
+
+<div class="hierarchy-container @(Visible ? "" : "d-none")">
+    <div class="diagram-wrapper">
+        <CascadingValue Value="Diagram">
+            <DiagramCanvas />
+        </CascadingValue>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<User>? Users { get; set; }
+    [Parameter] public bool Visible { get; set; }
+
+    private BlazorDiagram Diagram { get; set; } = null!;
+
+    protected override void OnInitialized()
+    {
+        Diagram = new BlazorDiagram();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Visible && Users != null)
+        {
+            BuildHierarchy();
+        }
+    }
+
+    private void BuildHierarchy()
+    {
+        Diagram.Nodes.Clear();
+        Diagram.Links.Clear();
+
+        if (Users == null || !Users.Any()) return;
+
+        // Grouping users by role level for layout purposes
+        var systemAdmins = Users.Where(u => u.Role == AppRole.SystemAdmin).ToList();
+        var assocAdmins = Users.Where(u => u.Role == AppRole.AssociationAdmin).ToList();
+        var managers = Users.Where(u => u.Role == AppRole.AssetManager || u.Role == AppRole.FinanceManager || u.Role == AppRole.UserManager).ToList();
+        var residents = Users.Where(u => u.Role == AppRole.Resident).ToList();
+
+        // 1. Create Nodes
+        var systemAdminNodes = CreateNodesForUsers(systemAdmins, 0);
+        var assocAdminNodes = CreateNodesForUsers(assocAdmins, 1);
+        var managerNodes = CreateNodesForUsers(managers, 2);
+        var residentNodes = CreateNodesForUsers(residents, 3);
+
+        // 2. Connect Nodes (Simple top-down connection for visualization)
+        // Connect each level to the next if nodes exist
+        ConnectLevels(systemAdminNodes, assocAdminNodes);
+        ConnectLevels(assocAdminNodes, managerNodes);
+        // Connect residents to AssocAdmins or Managers? Let's connect to AssocAdmins for space
+        ConnectLevels(assocAdminNodes, residentNodes);
+    }
+
+    private List<NodeModel> CreateNodesForUsers(List<User> users, int level)
+    {
+        var nodes = new List<NodeModel>();
+        int xOffset = 50;
+        int yOffset = level * 150 + 50;
+        int spacing = 180;
+
+        for (int i = 0; i < users.Count; i++)
+        {
+            var user = users[i];
+            var node = new NodeModel(new Point(xOffset + (i * spacing), yOffset));
+            node.Title = user.Name;
+            
+            // Customize node look via CSS classes or metadata if the library supports it
+            // For now, standard nodes
+            node.AddPort(PortAlignment.Top);
+            node.AddPort(PortAlignment.Bottom);
+            
+            Diagram.Nodes.Add(node);
+            nodes.Add(node);
+        }
+        return nodes;
+    }
+
+    private void ConnectLevels(List<NodeModel> topNodes, List<NodeModel> bottomNodes)
+    {
+        if (!topNodes.Any() || !bottomNodes.Any()) return;
+
+        // Simple strategy: connect first top node to all bottom nodes for a "tree" look
+        // In a real hierarchy we might have direct relationships, but here it's role based.
+        var parentNode = topNodes.First();
+        var parentPort = parentNode.GetPort(PortAlignment.Bottom);
+
+        foreach (var childNode in bottomNodes)
+        {
+            var childPort = childNode.GetPort(PortAlignment.Top);
+            if (parentPort != null && childPort != null)
+            {
+                var link = new LinkModel(parentPort, childPort);
+                Diagram.Links.Add(link);
+            }
+        }
+    }
+}
+
+<style>
+    .hierarchy-container {
+        height: 600px;
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-border);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .diagram-wrapper {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Override default diagram styles to match VS Code theme */
+    ::deep .diagram-canvas {
+        background-color: transparent !important;
+    }
+
+    ::deep .node {
+        background-color: var(--vscode-card-background) !important;
+        border: 1px solid var(--vscode-accent) !important;
+        color: var(--vscode-foreground) !important;
+        border-radius: 4px;
+        padding: 8px 12px;
+        min-width: 140px;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    ::deep .node .title {
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    ::deep .link path {
+        stroke: var(--vscode-accent) !important;
+        stroke-width: 2px;
+        opacity: 0.5;
+    }
+</style>

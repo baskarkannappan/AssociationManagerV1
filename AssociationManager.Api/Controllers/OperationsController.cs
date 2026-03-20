@@ -4,13 +4,13 @@ using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize]
-[RequireRole(AppRole.AssetManager, AppRole.AssociationAdmin)]
+[Authorize(Policy = "RequireResident")]
 [ApiController]
 [Route("api/[controller]")]
 public class OperationsController : ControllerBase
@@ -40,6 +40,7 @@ public class OperationsController : ControllerBase
     }
 
     [HttpPost("workorders")]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> CreateWorkOrder([FromBody] WorkOrder workOrder)
     {
         var id = await _operationsService.CreateWorkOrderAsync(workOrder);
@@ -48,6 +49,7 @@ public class OperationsController : ControllerBase
     }
 
     [HttpPut("workorders/{id}")]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> UpdateWorkOrder(int id, [FromBody] WorkOrder workOrder)
     {
         workOrder.WorkOrderId = id;
@@ -58,6 +60,7 @@ public class OperationsController : ControllerBase
     }
 
     [HttpPut("workorders/{id}/status")]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
     {
         var success = await _operationsService.UpdateWorkOrderStatusAsync(id, status);
@@ -67,6 +70,7 @@ public class OperationsController : ControllerBase
     }
 
     [HttpDelete("workorders/{id}")]
+    [Authorize(Policy = "RequireAssetManager")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _operationsService.DeleteWorkOrderAsync(id);
