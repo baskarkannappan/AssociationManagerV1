@@ -60,7 +60,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE sp_Subscriptions_Upsert
+CREATE OR ALTER PROCEDURE corp.sp_Subscriptions_Upsert
     @AssociationId INT,
     @PlanId INT,
     @Status NVARCHAR(50),

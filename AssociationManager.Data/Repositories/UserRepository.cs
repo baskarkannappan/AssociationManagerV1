@@ -168,4 +168,16 @@ public class UserRepository : IUserRepository
         
         return await connection.QueryAsync<User>(sql, new { AssociationId = associationId });
     }
+
+    public async Task<IEnumerable<User>> GetAllAsync()
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<User>("SELECT * FROM corp.Users ORDER BY Name");
+    }
+    public async Task<bool> DeleteUserGlobalAsync(int userId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        await connection.ExecuteAsync("DELETE FROM corp.UserAssociations WHERE UserId = @UserId", new { UserId = userId });
+        return await connection.ExecuteAsync("DELETE FROM corp.Users WHERE UserId = @UserId", new { UserId = userId }) > 0;
+    }
 }

@@ -33,12 +33,20 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireCorporate")]
     public async Task<IActionResult> GetAll()
     {
         try 
         {
-            var associations = await _associationService.GetAllByTenantAsync();
+            IEnumerable<Association> associations;
+            if (User.IsInRole("PlatformAdmin") || User.IsInRole("SystemAdmin"))
+            {
+                associations = await _associationService.GetAllGlobalAsync();
+            }
+            else
+            {
+                associations = await _associationService.GetAllByTenantAsync();
+            }
             return Ok(ApiResponse<IEnumerable<Association>>.SuccessResponse(associations));
         }
         catch (Exception ex)
@@ -56,7 +64,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireManagement")]
     public async Task<IActionResult> Create([FromBody] Association association)
     {
         var id = await _associationService.CreateAsync(association);
@@ -65,7 +73,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireManagement")]
     public async Task<IActionResult> Update(int id, [FromBody] Association association)
     {
         association.AssociationId = id;
@@ -76,7 +84,7 @@ public class AssociationsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequirePlatformAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _associationService.DeleteAsync(id);

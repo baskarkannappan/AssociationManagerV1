@@ -57,7 +57,21 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                 var value = kvp.Value.ToString()!;
 
                 // Map standard JWT claim names to ClaimTypes URIs for Blazor's Authorize attribute compatibility
-                if (key == "role") claims.Add(new Claim(ClaimTypes.Role, value));
+                if (key == "role")
+                {
+                    var roleStr = value.ToString()!;
+                    if (roleStr.Contains(','))
+                    {
+                        foreach (var r in roleStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                        {
+                            claims.Add(new Claim(ClaimTypes.Role, r));
+                        }
+                    }
+                    else
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, roleStr));
+                    }
+                }
                 else if (key == "unique_name" || key == "name") claims.Add(new Claim(ClaimTypes.Name, value));
                 else if (key == "email") claims.Add(new Claim(ClaimTypes.Email, value));
                 else if (key == "sub") claims.Add(new Claim(ClaimTypes.NameIdentifier, value));

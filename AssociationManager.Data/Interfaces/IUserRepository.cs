@@ -18,4 +18,6 @@ public interface IUserRepository
     Task<bool> RemoveUserFromTenantAsync(int userId, int tenantId);
     Task<bool> IsUserAuthorisedForAssociationAsync(int userId, int tenantId, int associationId);
     Task<IEnumerable<User>> GetByAssociationIdAsync(int associationId);
+    Task<IEnumerable<User>> GetAllAsync();
+    Task<bool> DeleteUserGlobalAsync(int userId);
 }

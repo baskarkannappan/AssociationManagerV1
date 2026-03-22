@@ -185,12 +185,4 @@
 </style>
 
 @code {
-    protected override async Task OnInitializedAsync()
-    {
-        var token = await TokenService.GetToken();
-        if (string.IsNullOrEmpty(token))
-        {
-            Navigation.NavigateTo("/login");
-        }
-    }
 }

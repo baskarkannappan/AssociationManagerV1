@@ -1,9 +1,12 @@
+@page "/"
 @page "/login"
 @layout EmptyLayout
+@attribute [AllowAnonymous]
 @using AssociationManager.Corporate.Client.Services
-@inject AuthService AuthService
+@inject AssociationManager.Corporate.Client.Services.AuthService _authService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="vh-100 d-flex align-items-center justify-content-center bg-login">
     <div class="login-mesh"></div>
@@ -19,6 +22,14 @@
         </div>
 
         <div class="py-4 position-relative" style="min-height: 100px;">
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert-danger border-0 rounded-4 mb-4 small animate-fade-in" style="background: rgba(239, 68, 68, 0.1); color: #f87171;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    @_errorMessage
+                </div>
+            }
+
             @if (_showTroubleshooting)
             {
                 <div class="alert alert-warning small border-opacity-10 py-2 animate-scale-in" style="background: rgba(245, 158, 11, 0.05); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">
@@ -61,22 +72,75 @@
 </style>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
     private bool _showTroubleshooting = false;
+    private string? _errorMessage;
 
     [JSInvokable]
     public async Task HandleGoogleLogin(string idToken)
     {
-        var result = await AuthService.LoginWithGoogle(idToken);
+        var result = await _authService.LoginWithGoogle(idToken);
         if (result?.Success == true)
         {
-            Navigation.NavigateTo("/");
+            await RedirectAfterLogin();
+        }
+        else
+        {
+            _errorMessage = result?.Message ?? "Authentication failed.";
+            StateHasChanged();
         }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            await RedirectAfterLogin();
+            return;
+        }
+
         // Show troubleshooting message if the Google button hasn't replaced the skeleton after 4 seconds
         _ = ShowTroubleshootingAfterDelay();
+    }
+
+    private async Task RedirectAfterLogin()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        var allRoleClaims = user.FindAll(System.Security.Claims.ClaimTypes.Role)
+            .Select(c => c.Value).ToList()
+            .Concat(user.FindAll("Role").Select(c => c.Value))
+            .Concat(user.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value))
+            .ToList();
+
+        var individualRoles = allRoleClaims
+            .SelectMany(r => r.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .ToList();
+
+        if (individualRoles.Any(AppRole.IsCorporateRole))
+        {
+            if (!string.IsNullOrEmpty(ReturnUrl))
+            {
+                Navigation.NavigateTo(ReturnUrl);
+            }
+            else
+            {
+                Navigation.NavigateTo("/dashboard");
+            }
+        }
+        else
+        {
+            // Not a corporate role - block access
+            await _authService.Logout();
+            _errorMessage = "Access Denied: This portal is reserved for Corporate Administration. Please use the Association Client for resident or management tasks.";
+            _showTroubleshooting = false;
+            StateHasChanged();
+        }
     }
 
     private async Task ShowTroubleshootingAfterDelay()

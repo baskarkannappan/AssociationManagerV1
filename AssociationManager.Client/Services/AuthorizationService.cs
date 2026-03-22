@@ -15,10 +15,22 @@ public class AppAuthorizationService : IAppAuthorizationService
     {
         if (user.Identity?.IsAuthenticated != true) return false;
 
-        var roleClaim = user.FindFirst(ClaimTypes.Role)?.Value;
-        var userLevel = AppRole.GetLevel(roleClaim);
+        var roleClaims = user.FindAll(ClaimTypes.Role).Select(c => c.Value)
+            .Concat(user.FindAll("Role").Select(c => c.Value))
+            .Concat(user.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value))
+            .ToList();
+
+        if (!roleClaims.Any()) return false;
+
+        var individualRoles = roleClaims
+            .SelectMany(r => r.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .ToList();
+
+        if (!individualRoles.Any()) return false;
+
+        var maxLevel = individualRoles.Max(r => AppRole.GetLevel(r));
         
-        return userLevel >= requiredLevel;
+        return maxLevel >= requiredLevel;
     }
 
     public bool IsInRoleOrHigher(ClaimsPrincipal user, string role)

@@ -3,52 +3,38 @@
 @inject IAppAuthorizationService AuthService
 
 <AuthorizeView Context="rootAuthContext">
-    @{
-        var assocId = rootAuthContext.User.FindFirst("AssociationId")?.Value;
-        bool hasAccess = !string.IsNullOrEmpty(assocId) && assocId != "0";
-    }
-    
     <div class="vscode-explorer">
-        <div class="vscode-explorer-header">Navigation</div>
+        <div class="vscode-explorer-header">Corporate Explorer</div>
         
-        @if (hasAccess)
-        {
-            <div class="vscode-tree-group">
-                <div class="vscode-tree-item py-1 text-muted" style="font-size: 11px; font-weight: 600; text-transform: uppercase;">
-                    Corporate Level
-                </div>
-                <NavLink href="" Match="NavLinkMatch.All" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-house-door text-primary"></i>
-                    <span>Overview</span>
+        <div class="vscode-tree-group">
+            <div class="vscode-tree-item py-1 text-muted" style="font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                Corporate Level
+            </div>
+            <NavLink href="" Match="NavLinkMatch.All" class="vscode-tree-item text-decoration-none">
+                <i class="bi bi-house-door text-primary"></i>
+                <span>Overview</span>
+            </NavLink>
+            
+            <AuthorizeView Roles="PlatformAdmin,CorporateManager,SubscriptionManager,CorporateAuditor">
+                <NavLink href="associations" class="vscode-tree-item text-decoration-none">
+                    <i class="bi bi-buildings text-primary"></i>
+                    <span>Associations</span>
                 </NavLink>
-                
-                <AuthorizeView Context="navAuthContext">
-                    @if (AuthService.HasLevel(navAuthContext.User, AppRole.LevelSystemAdmin))
-                    {
-                        <NavLink href="associations" class="vscode-tree-item text-decoration-none">
-                            <i class="bi bi-buildings text-primary"></i>
-                            <span>Associations</span>
-                        </NavLink>
-                        
-                        <NavLink href="subscriptions" class="vscode-tree-item text-decoration-none">
-                            <i class="bi bi-shield-check text-primary"></i>
-                            <span>Platform Subscription</span>
-                        </NavLink>
+            </AuthorizeView>
+            
+            <AuthorizeView Roles="PlatformAdmin,SubscriptionManager,CorporateAuditor">
+                <NavLink href="subscriptions" class="vscode-tree-item text-decoration-none">
+                    <i class="bi bi-shield-check text-primary"></i>
+                    <span>Platform Subscription</span>
+                </NavLink>
+            </AuthorizeView>
 
-                        <NavLink href="users?scope=tenant" class="vscode-tree-item text-decoration-none">
-                            <i class="bi bi-people-fill text-info"></i>
-                            <span>Global Users</span>
-                        </NavLink>
-                    }
-                </AuthorizeView>
-            </div>
-
-        }
-        else
-        {
-            <div class="p-3 text-muted small italic">
-                <i class="bi bi-lock"></i> Pending Activation
-            </div>
-        }
+            <AuthorizeView Roles="PlatformAdmin,SystemAdmin,GlobalUserManager">
+                <NavLink href="users?scope=tenant" class="vscode-tree-item text-decoration-none">
+                    <i class="bi bi-people-fill text-info"></i>
+                    <span>Global Users</span>
+                </NavLink>
+            </AuthorizeView>
+        </div>
     </div>
 </AuthorizeView>

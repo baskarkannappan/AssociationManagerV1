@@ -72,6 +72,25 @@ public class AssociationService : IAssociationService
         return associations;
     }
 
+    public async Task<IEnumerable<Association>> GetAllGlobalAsync()
+    {
+        string cacheKey = $"associations:global";
+        var cachedData = await _cache.GetStringAsync(cacheKey);
+
+        if (!string.IsNullOrEmpty(cachedData))
+        {
+            return JsonSerializer.Deserialize<IEnumerable<Association>>(cachedData) ?? new List<Association>();
+        }
+
+        var associations = await _associationRepository.GetAllAsync();
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(associations), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+        });
+
+        return associations;
+    }
+
     public async Task<int> CreateAsync(Association association)
     {
         association.TenantId = CurrentTenantId;
@@ -107,6 +126,7 @@ public class AssociationService : IAssociationService
 
     private async Task InvalidateCache(int? id = null)
     {
+        await _cache.RemoveAsync($"associations:global");
         await _cache.RemoveAsync($"associations:{CurrentTenantId}");
         if (id.HasValue)
         {

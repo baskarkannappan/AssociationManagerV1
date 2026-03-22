@@ -56,33 +56,22 @@ public class AuthService : IAuthService
             var user = await _userRepository.GetByGoogleIdAsync(payload.Subject);
             if (user == null)
             {
-                // For demo/simplicity, ensure a default tenant exists or create one
-                var tenants = await _tenantRepository.GetAllAsync();
-                var defaultTenant = tenants.FirstOrDefault() ?? new Tenant { Name = "Default Organization" };
-                if (defaultTenant.TenantId == 0)
+                // Strict Login: Platform Admins must configure the user's email and role beforehand.
+                user = await _userRepository.GetByEmailAsync(payload.Email);
+                if (user == null)
                 {
-                    defaultTenant.TenantId = await _tenantRepository.CreateAsync(defaultTenant);
+                    return new AuthResponse { Success = false, Message = "Access Denied: Your email is not configured in the system. Please contact your administrator." };
                 }
 
-                user = new User
-                {
-                    GoogleId = payload.Subject,
-                    Email = payload.Email,
-                    Name = payload.Name,
-                    PictureUrl = payload.Picture,
-                    TenantId = defaultTenant.TenantId,
-                    CreatedDate = DateTime.UtcNow,
-                    LastLoginDate = DateTime.UtcNow,
-                    IsActive = true,
-                    Role = "User"
-                };
-                user.UserId = await _userRepository.CreateAsync(user);
-
-                // Add entry to UserAssociations for the initial tenant
-                await _userRepository.AddUserToTenantAsync(user.UserId, user.TenantId, user.Role);
+                // Link their newly authenticated GoogleId to their pre-configured account
+                user.GoogleId = payload.Subject;
             }
+
+            user.Name = payload.Name;
             user.PictureUrl = payload.Picture;
+            user.LastLoginDate = DateTime.UtcNow;
             
+            /* 
             // Auto-select first association if none is assigned but mappings exist
             if (user.AssociationId == null || user.AssociationId == 0)
             {
@@ -94,12 +83,21 @@ public class AuthService : IAuthService
                     user.TenantId = firstAssoc.TenantId;
                 }
             }
+            */
 
             await _userRepository.UpdateAsync(user);
 
             // Get the role for the current tenant
             var role = await _userRepository.GetRoleInTenantAsync(user.UserId, user.TenantId);
-            user.Role = role ?? AppRole.Resident;
+            
+            if (AppRole.IsCorporateRole(user.Role) && !string.IsNullOrEmpty(role) && user.Role != role)
+            {
+                user.Role = $"{user.Role}, {role}";
+            }
+            else if (!AppRole.IsCorporateRole(user.Role))
+            {
+                user.Role = role ?? AppRole.Resident;
+            }
 
             return await GenerateAuthResponse(user);
         }
@@ -108,6 +106,7 @@ public class AuthService : IAuthService
             return new AuthResponse { Success = false, Message = $"Authentication failed: {ex.Message}" };
         }
     }
+
 
     public async Task<AuthResponse> RefreshTokenAsync(string token, string refreshToken)
     {
@@ -152,7 +151,7 @@ public class AuthService : IAuthService
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Email),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
@@ -160,10 +159,18 @@ public class AuthService : IAuthService
             new Claim("UserId", user.UserId.ToString()),
             new Claim("TenantId", user.TenantId.ToString()),
             new Claim("AssociationId", (user.AssociationId?.ToString() ?? "0")),
-            new Claim(ClaimTypes.Role, user.Role),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim("DeviceId", "Web") // Simplified for now
         };
+
+        if (!string.IsNullOrEmpty(user.Role))
+        {
+            var roles = user.Role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var r in roles)
+            {
+                claims.Add(new Claim("role", r));
+            }
+        }
 
         var token = new JwtSecurityToken(
             issuer: _jwtSettings.Issuer,
@@ -223,7 +230,15 @@ public class AuthService : IAuthService
         
         // Refresh the role for this specific tenant
         var role = await _userRepository.GetRoleInTenantAsync(userId, tenantId);
-        user.Role = role ?? AppRole.Resident;
+        
+        if (AppRole.IsCorporateRole(user.Role) && !string.IsNullOrEmpty(role) && user.Role != role)
+        {
+            user.Role = $"{user.Role}, {role}";
+        }
+        else if (!AppRole.IsCorporateRole(user.Role))
+        {
+            user.Role = role ?? AppRole.Resident;
+        }
 
         await _userRepository.UpdateAsync(user);
 

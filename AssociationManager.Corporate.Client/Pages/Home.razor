@@ -1,48 +1,62 @@
-@page "/"
+@page "/dashboard"
 @using AssociationManager.Corporate.Client.Services
+@using AssociationManager.Shared.Models
 @inject TokenService TokenService
 @inject NavigationManager Navigation
+@inject ApiService Api
 
 <AuthorizeView Context="authContext">
     <Authorized>
         @{
             var assocIdClaim = authContext.User.FindFirst("AssociationId")?.Value;
-            bool isSystemAdmin = authContext.User.IsInRole("SystemAdmin");
-            bool isPending = !isSystemAdmin && (string.IsNullOrEmpty(assocIdClaim) || assocIdClaim == "0");
+            bool hasAssociation = !string.IsNullOrEmpty(assocIdClaim) && assocIdClaim != "0";
+            bool isSystemAdmin = authContext.User.IsInRole("SystemAdmin") || authContext.User.IsInRole("PlatformAdmin");
+            bool isPending = !isSystemAdmin && !hasAssociation;
         }
 
-        @if (isPending)
+        @if (!hasAssociation && !isSystemAdmin)
         {
-            <div class="pending-dashboard animate-fade-in">
-                <div class="welcome-container text-center p-5">
-                    <div class="mb-4">
-                        <div class="app-icon-large mx-auto mb-3">
-                            <i class="bi bi-shield-lock" style="font-size: 4rem; color: var(--vscode-accent);"></i>
+            @if (isPending)
+            {
+                <div class="pending-dashboard animate-fade-in">
+                    <div class="welcome-container text-center p-5">
+                        <div class="mb-4">
+                            <div class="app-icon-large mx-auto mb-3">
+                                <i class="bi bi-shield-lock" style="font-size: 4rem; color: var(--vscode-accent);"></i>
+                            </div>
+                            <h1 class="display-5 fw-bold mb-3">Welcome to Association Manager</h1>
+                            <p class="lead text-muted mb-5">Your account has been successfully created, but it is currently pending activation.</p>
                         </div>
-                        <h1 class="display-5 fw-bold mb-3">Welcome to Association Manager</h1>
-                        <p class="lead text-muted mb-5">Your account has been successfully created, but it is currently pending activation.</p>
-                    </div>
 
-                    <div class="info-card mx-auto shadow-sm p-4 bg-white border rounded-3" style="max-width: 600px;">
-                        <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>What happens next?</h5>
-                        <p class="text-start">To access the association features, a system administrator or an association manager needs to assign you to a specific role and association.</p>
-                        
-                        <hr class="my-4" />
-                        
-                        <div class="contact-section text-start">
-                            <p class="fw-bold mb-2">Please contact your administrator:</p>
-                            <ul class="list-unstyled">
-                                <li class="mb-2"><i class="bi bi-envelope me-2"></i> support@associationmanager.com</li>
-                                <li><i class="bi bi-person-badge me-2"></i> Or your local Association Office</li>
-                            </ul>
+                        <div class="info-card mx-auto shadow-sm p-4 bg-white border rounded-3" style="max-width: 600px;">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>What happens next?</h5>
+                            <p class="text-start">To access the association features, a system administrator or an association manager needs to assign you to a specific role and association.</p>
+                            
+                            <hr class="my-4" />
+                            
+                            <div class="contact-section text-start">
+                                <p class="fw-bold mb-2">Please contact your administrator:</p>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2"><i class="bi bi-envelope me-2"></i> support@associationmanager.com</li>
+                                    <li><i class="bi bi-person-badge me-2"></i> Or your local Association Office</li>
+                                </ul>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="mt-5 text-muted small">
-                        Logged in as: <strong>@authContext.User.FindFirst("email")?.Value</strong>
+                        <div class="mt-5 text-muted small">
+                            Logged in as: <strong>@authContext.User.FindFirst("email")?.Value</strong>
+                        </div>
                     </div>
                 </div>
-            </div>
+            }
+            else
+            {
+                Navigation.NavigateTo("/associations");
+                <div class="d-flex flex-column align-items-center justify-content-center vh-100 text-muted">
+                    <div class="spinner-border spinner-border-sm mb-3" role="status"></div>
+                    <span>Redirecting to context selection...</span>
+                </div>
+            }
         }
         else
         {
@@ -57,104 +71,120 @@
                     </button>
                 </div>
 
-                <!-- Stats Grid -->
-                <!-- ... existing dashboard content ... -->
-                <div class="row g-2 mb-3">
-                    <div class="col-md-3">
-                        <div class="compact-card h-100 bg-white border">
-                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Platform Users</div>
-                            <div class="h4 mb-1 fw-bold">2,450</div>
-                            <div class="small text-success" style="font-size: 11px;">
-                                <i class="bi bi-arrow-up"></i> 8% <span class="text-muted">growth</span>
+                @if (_isLoading)
+                {
+                    <div class="d-flex flex-column align-items-center justify-content-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <span class="text-muted">Synchronizing platform data...</span>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="alert alert-danger d-flex align-items-center justify-content-between mx-auto shadow-sm" style="max-width: 800px;">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                            <div>
+                                <div class="fw-bold">Connection Error</div>
+                                <div class="small">@_errorMessage</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm px-4" @onclick="LoadDashboardMetrics">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <!-- Stats Grid -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3">
+                            <div class="compact-card h-100 bg-white border">
+                                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Total Associations</div>
+                                <div class="h4 mb-1 fw-bold">@(dashboardData?.TotalAssociations ?? 0)</div>
+                                <div class="small text-muted" style="font-size: 11px;">
+                                    across the platform
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="compact-card h-100 bg-white border border-start-0 border-primary" style="border-left: 2px solid var(--vscode-accent) !important;">
+                                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Total Users</div>
+                                <div class="h4 mb-1 fw-bold">@(dashboardData?.TotalUsers ?? 0)</div>
+                                <div class="small text-muted" style="font-size: 11px;">
+                                    active globally
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="compact-card h-100 bg-white border">
+                                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Revenue (MTD)</div>
+                                <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);"> ₹42,500 </div>
+                                <div class="small text-success" style="font-size: 11px;">
+                                    <i class="bi bi-caret-up-fill"></i> Robust growth
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="compact-card h-100 bg-white border">
+                                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">System Health</div>
+                                <div class="h4 mb-1 fw-bold">99.9%</div>
+                                <div class="d-flex align-items-center gap-1 small text-success" style="font-size: 11px;">
+                                    <span class="status-pulse" style="width: 6px; height: 6px;"></span> Healthy
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="compact-card h-100 bg-white border border-start-0 border-primary" style="border-left: 2px solid var(--vscode-accent) !important;">
-                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Active Tenants</div>
-                            <div class="h4 mb-1 fw-bold">14</div>
-                            <div class="small text-muted" style="font-size: 11px;">
-                                3 pending activation
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="compact-card h-100 bg-white border">
-                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Revenue (MTD)</div>
-                            <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);"> ₹42,500 </div>
-                            <div class="small text-success" style="font-size: 11px;">
-                                <i class="bi bi-caret-up-fill"></i> Robust growth
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="compact-card h-100 bg-white border">
-                            <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">System Health</div>
-                            <div class="h4 mb-1 fw-bold">99.9%</div>
-                            <div class="d-flex align-items-center gap-1 small text-success" style="font-size: 11px;">
-                                <span class="status-pulse" style="width: 6px; height: 6px;"></span> Healthy
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="row g-2">
-                    <div class="col-lg-8">
-                        <div class="border bg-white">
-                            <div class="vscode-page-header border-bottom py-2 px-3">
-                                <span class="fw-bold small text-uppercase text-muted">Recent Activity</span>
-                                <button class="btn btn-link btn-sm text-decoration-none p-0 text-accent" style="font-size: 11px; color: var(--vscode-accent);">View All</button>
+                    <div class="row g-2">
+                        <div class="col-lg-8">
+                            <div class="border bg-white">
+                                <div class="vscode-page-header border-bottom py-2 px-3">
+                                    <span class="fw-bold small text-uppercase text-muted">Recent Activity</span>
+                                    <button class="btn btn-link btn-sm text-decoration-none p-0 text-accent" style="font-size: 11px; color: var(--vscode-accent);">View All</button>
+                                </div>
+                                <div class="p-3">
+                                    @if (dashboardData?.RecentActivities == null || !dashboardData.RecentActivities.Any())
+                                    {
+                                        <div class="text-muted text-center p-4 small">No recent activity found.</div>
+                                    }
+                                    else
+                                    {
+                                        foreach (var log in dashboardData.RecentActivities)
+                                        {
+                                            <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
+                                                <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-medium">@log.Action</div>
+                                                    <div class="text-muted small">@log.Entity @(log.EntityId != null ? $"#{log.EntityId}" : "") • @log.Timestamp.ToString("MMM dd, yyyy HH:mm")</div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
                             </div>
-                            <div class="p-3">
-                                <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
-                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                                        <i class="bi bi-person-plus"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="fw-medium">New association registered</div>
-                                        <div class="text-muted small">Global Tech Innovators • 2 hours ago</div>
-                                    </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="border h-100" style="background: #f8f8f8;">
+                                <div class="vscode-page-header border-bottom py-2 px-3">
+                                    <span class="fw-bold small text-uppercase text-muted">Quick Shortcuts</span>
                                 </div>
-                                <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
-                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                                        <i class="bi bi-credit-card"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="fw-medium">Subscription payment received</div>
-                                        <div class="text-muted small">Designers United • ₹499.00 • 5 hours ago</div>
-                                    </div>
-                                </div>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                                        <i class="bi bi-megaphone"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="fw-medium">System maintenance scheduled</div>
-                                        <div class="text-muted small">Internal Alert • March 20, 02:00 AM UTC</div>
-                                    </div>
+                                <div class="p-3 d-grid gap-2">
+                                    <a href="/associations" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
+                                        <i class="bi bi-house-gear"></i> Manage Associations
+                                    </a>
+                                    <a href="/subscriptions" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
+                                        <i class="bi bi-shield-check"></i> Platform Plans
+                                    </a>
+                                    <a href="/users?scope=tenant" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
+                                        <i class="bi bi-people-fill"></i> Global Users
+                                    </a>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-4">
-                        <div class="border h-100" style="background: #f8f8f8;">
-                            <div class="vscode-page-header border-bottom py-2 px-3">
-                                <span class="fw-bold small text-uppercase text-muted">Quick Shortcuts</span>
-                            </div>
-                            <div class="p-3 d-grid gap-2">
-                                <a href="/associations" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                                    <i class="bi bi-house-gear"></i> Manage Associations
-                                </a>
-                                <a href="/subscriptions" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                                    <i class="bi bi-shield-check"></i> Platform Plans
-                                </a>
-                                <a href="/users?scope=tenant" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                                    <i class="bi bi-people-fill"></i> Global Users
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                }
             </div>
         }
     </Authorized>
@@ -185,12 +215,30 @@
 </style>
 
 @code {
+    private CorporateDashboardMetrics? dashboardData;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
     protected override async Task OnInitializedAsync()
     {
-        var token = await TokenService.GetToken();
-        if (string.IsNullOrEmpty(token))
-        {
-            Navigation.NavigateTo("/login");
+        await LoadDashboardMetrics();
+    }
+
+    private async Task LoadDashboardMetrics()
+    {
+        try {
+            _isLoading = true;
+            _errorMessage = null;
+            dashboardData = await Api.GetAsync<CorporateDashboardMetrics>("dashboard/metrics");
+            
+            if (dashboardData == null) {
+                _errorMessage = "The system was unable to retrieve platform metrics at this time.";
+            }
+        } catch (Exception ex) {
+            _errorMessage = "Unable to connect to the management server. Please check your connection.";
+            Console.WriteLine($"Error loading dashboard: {ex.Message}");
+        } finally {
+            _isLoading = false;
         }
     }
 }

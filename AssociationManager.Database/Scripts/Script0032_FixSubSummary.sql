@@ -1,5 +1,5 @@
 -- Update sp_Subscriptions_GetByAssociationId to include AssociationName
-CREATE OR ALTER PROCEDURE sp_Subscriptions_GetByAssociationId
+CREATE OR ALTER PROCEDURE corp.sp_Subscriptions_GetByAssociationId
     @AssociationId INT
 AS
 BEGIN

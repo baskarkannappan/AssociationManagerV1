@@ -21,7 +21,7 @@ public class SubscriptionController : ControllerBase
     }
 
     [HttpGet("plans")]
-    [Authorize(Policy = "RequireResident")]
+    [Authorize(Policy = "RequireCorporate")]
     public async Task<IActionResult> GetPlans()
     {
         var plans = await _subscriptionService.GetPlansAsync();
@@ -29,7 +29,7 @@ public class SubscriptionController : ControllerBase
     }
 
     [HttpGet("{associationId}")]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireCorporate")]
     public async Task<IActionResult> GetSubscription(int associationId)
     {
         var subscription = await _subscriptionService.GetSubscriptionAsync(associationId);
@@ -38,7 +38,7 @@ public class SubscriptionController : ControllerBase
     }
 
     [HttpPost("subscribe")]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireManagement")]
     public async Task<IActionResult> Subscribe([FromBody] SubscriptionRequest request)
     {
         var result = await _subscriptionService.SubscribeAsync(request.AssociationId, request.PlanId);
@@ -47,7 +47,7 @@ public class SubscriptionController : ControllerBase
     }
 
     [HttpGet("{associationId}/next-bill")]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireCorporate")]
     public async Task<IActionResult> GetNextBill(int associationId)
     {
         var amount = await _subscriptionService.CalculateNextBillAsync(associationId);
@@ -55,7 +55,7 @@ public class SubscriptionController : ControllerBase
     }
 
     [HttpGet("summary")]
-    [Authorize(Policy = "RequireSystemAdmin")]
+    [Authorize(Policy = "RequireCorporate")]
     public async Task<IActionResult> GetSummary()
     {
         var summary = await _subscriptionService.GetAllSubscriptionsAsync();
@@ -63,7 +63,7 @@ public class SubscriptionController : ControllerBase
     }
 
     [HttpPost("plans")]
-    [Authorize(Policy = "RequireSystemAdmin")]
+    [Authorize(Policy = "RequirePlanManagement")]
     public async Task<IActionResult> SavePlan([FromBody] SubscriptionPlan plan)
     {
         var result = await _subscriptionService.SavePlanAsync(plan);

@@ -3,7 +3,19 @@
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <RedirectToLogin />
+                    @if (context.User.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="alert alert-danger m-5 text-center shadow-sm">
+                            <i class="bi bi-exclamation-triangle-fill fs-1 mb-3 d-block"></i>
+                            <h4>Unauthorized Access</h4>
+                            <p>You do not have the required permissions to access this page.</p>
+                            <a href="/" class="btn btn-outline-danger mt-3">Return to Dashboard</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <RedirectToLogin />
+                    }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />

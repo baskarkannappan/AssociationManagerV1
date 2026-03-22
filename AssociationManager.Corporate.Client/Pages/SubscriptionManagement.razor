@@ -1,5 +1,5 @@
 @page "/subscriptions"
-@attribute [Authorize(Roles = AppRole.SystemAdmin)]
+@attribute [Authorize(Roles = $"{AppRole.PlatformAdmin},{AppRole.SubscriptionManager},{AppRole.CorporateAuditor}")]
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Corporate.Client.Services
@@ -59,9 +59,13 @@
                 </GridColumn>
 
                 <GridColumn TItem="AssociationSubscription" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                    <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowChangePlanModal(context)">
-                        <i class="bi bi-pencil-square"></i>
-                    </button>
+                    <AuthorizeView Roles="PlatformAdmin,SubscriptionManager" Context="innerAuth">
+                        <Authorized>
+                            <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowChangePlanModal(context)">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
                 </GridColumn>
             </Grid>
         </div>
@@ -70,9 +74,11 @@
     {
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="small text-muted">Manage the global subscription plans available to associations.</div>
-            <button class="btn btn-sm btn-vscode" @onclick="ShowCreatePlanModal">
-                <i class="bi bi-plus me-1"></i> New Plan
-            </button>
+            <AuthorizeView Roles="@($"{AppRole.PlatformAdmin},{AppRole.SubscriptionManager}")">
+                <button class="btn btn-sm btn-vscode" @onclick="ShowCreatePlanModal">
+                    <i class="bi bi-plus me-1"></i> New Plan
+                </button>
+            </AuthorizeView>
         </div>
         <div class="border bg-white p-2">
             <Grid @ref="planGrid" TItem="SubscriptionPlan"
@@ -100,9 +106,13 @@
                 </GridColumn>
 
                 <GridColumn TItem="SubscriptionPlan" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                    <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowEditPlanModal(context)">
-                        <i class="bi bi-pencil-square"></i>
-                    </button>
+                    <AuthorizeView Roles="PlatformAdmin,SubscriptionManager" Context="planAuth">
+                        <Authorized>
+                            <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowEditPlanModal(context)">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
                 </GridColumn>
             </Grid>
         </div>

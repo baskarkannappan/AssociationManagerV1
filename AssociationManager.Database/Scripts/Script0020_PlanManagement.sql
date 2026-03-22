@@ -4,7 +4,7 @@
 */
 
 GO
-CREATE OR ALTER PROCEDURE sp_SubscriptionPlans_Upsert
+CREATE OR ALTER PROCEDURE corp.sp_SubscriptionPlans_Upsert
     @PlanId INT = NULL,
     @Name NVARCHAR(100),
     @BasePrice DECIMAL(18, 2),

@@ -1,5 +1,5 @@
 @page "/associations"
-@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@attribute [Authorize(Roles = $"{AppRole.PlatformAdmin},{AppRole.CorporateManager},{AppRole.SubscriptionManager},{AppRole.CorporateAuditor}")]
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Corporate.Client.Services
 @using AssociationManager.Shared.Models
@@ -14,10 +14,12 @@
                 <i class="bi bi-diagram-3-fill text-muted" style="font-size: 14px;"></i>
                 <span class="fw-medium">Associations</span>
             </div>
-            <button class="btn-vscode" @onclick="() => _showCreateForm = !_showCreateForm">
-                <i class="bi @(_showCreateForm ? "bi-dash" : "bi-plus")"></i>
-                @(_showCreateForm ? "Discard" : "New Association")
-            </button>
+            <AuthorizeView Roles="@AppRole.PlatformAdmin">
+                <button class="btn-vscode" @onclick="() => _showCreateForm = !_showCreateForm">
+                    <i class="bi @(_showCreateForm ? "bi-dash" : "bi-plus")"></i>
+                    @(_showCreateForm ? "Discard" : "New Association")
+                </button>
+            </AuthorizeView>
         </div>
 
         <div class="p-3">
@@ -81,9 +83,20 @@
                         </GridColumn>
 
                         <GridColumn TItem="Association" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                            <button @onclick="() => DeleteAssociation(context.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            <AuthorizeView Roles="PlatformAdmin,CorporateManager,SubscriptionManager" Context="innerAuth">
+                                <Authorized>
+                                    <a href="/subscriptions" class="btn btn-link btn-sm text-accent p-0 me-2" title="Manage Platform Tariff">
+                                        <i class="bi bi-credit-card-2-front"></i>
+                                    </a>
+                                </Authorized>
+                            </AuthorizeView>
+                            <AuthorizeView Roles="PlatformAdmin,CorporateManager" Context="innerDeleteAuth">
+                                <Authorized>
+                                    <button @onclick="() => DeleteAssociation(context.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </Authorized>
+                            </AuthorizeView>
                         </GridColumn>
 
                     </Grid>
@@ -130,7 +143,7 @@
     {
         try 
         {
-            associations = await ApiService.GetAsync<List<Association>>("associations/my-tenants");
+            associations = await ApiService.GetAsync<List<Association>>("associations");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {

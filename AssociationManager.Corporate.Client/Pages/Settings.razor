@@ -1,5 +1,5 @@
 @page "/settings"
-@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@attribute [Authorize(Roles = $"{AppRole.SystemAdmin},{AppRole.PlatformAdmin},{AppRole.CorporateManager},{AppRole.CorporateAuditor}")]
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Corporate.Client.Services

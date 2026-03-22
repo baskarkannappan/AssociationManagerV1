@@ -54,15 +54,40 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             foreach (var kvp in keyValuePairs)
             {
                 var key = kvp.Key;
-                var value = kvp.Value.ToString()!;
+                var value = kvp.Value;
 
-                // Map standard JWT claim names to ClaimTypes URIs for Blazor's Authorize attribute compatibility
-                if (key == "role") claims.Add(new Claim(ClaimTypes.Role, value));
-                else if (key == "unique_name" || key == "name") claims.Add(new Claim(ClaimTypes.Name, value));
-                else if (key == "email") claims.Add(new Claim(ClaimTypes.Email, value));
-                else if (key == "sub") claims.Add(new Claim(ClaimTypes.NameIdentifier, value));
-                else claims.Add(new Claim(key, value));
+                var isRoleKey = key.Equals("role", StringComparison.OrdinalIgnoreCase) || key.Equals(ClaimTypes.Role, StringComparison.OrdinalIgnoreCase) || key.Equals("Role", StringComparison.OrdinalIgnoreCase);
+                if (isRoleKey && value is JsonElement roleElement && roleElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var role in roleElement.EnumerateArray())
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
+                    }
+                }
+                else if (isRoleKey)
+                {
+                    var roleStr = value.ToString()!;
+                    if (roleStr.Contains(','))
+                    {
+                        foreach (var r in roleStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                        {
+                            claims.Add(new Claim(ClaimTypes.Role, r));
+                        }
+                    }
+                    else
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, roleStr));
+                    }
+                }
+                else if (key == "unique_name" || key == "name") claims.Add(new Claim(ClaimTypes.Name, value.ToString()!));
+                else if (key == "email") claims.Add(new Claim(ClaimTypes.Email, value.ToString()!));
+                else if (key == "sub") claims.Add(new Claim(ClaimTypes.NameIdentifier, value.ToString()!));
+                else claims.Add(new Claim(key, value.ToString()!));
             }
+        }
+        foreach (var claim in claims)
+        {
+            Console.WriteLine($"Parsed Claim: {claim.Type} - {claim.Value}");
         }
         return claims;
     }

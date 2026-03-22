@@ -14,6 +14,5 @@ public class User
     public DateTime? LastLoginDate { get; set; }
     public bool IsActive { get; set; } = true;
     public string Role { get; set; } = "User";
-    public string? MetadataJson { get; set; }
     public int? AssociationId { get; set; }
 }

@@ -116,18 +116,22 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IAuthorizationHandler, RoleLevelHandler>();
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("RequireResident", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelResident)));
-    options.AddPolicy("RequireUserManager", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelUserManager)));
-    options.AddPolicy("RequireAssetManager", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelAssetManager)));
-    options.AddPolicy("RequireFinanceManager", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelFinanceManager)));
-    options.AddPolicy("RequireAssociationAdmin", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
-    options.AddPolicy("RequireSystemAdmin", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelSystemAdmin)));
+    // Strict Corporate Policies
+    options.AddPolicy("RequireCorporate", policy => 
+        policy.RequireRole(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.CorporateManager, 
+                           AppRole.SubscriptionManager, AppRole.GlobalUserManager, AppRole.CorporateAuditor));
+
+    options.AddPolicy("RequireManagement", policy => 
+        policy.RequireRole(AppRole.PlatformAdmin, AppRole.CorporateManager));
+
+    options.AddPolicy("RequirePlanManagement", policy => 
+        policy.RequireRole(AppRole.PlatformAdmin, AppRole.SubscriptionManager));
+
+    options.AddPolicy("RequireUserManagement", policy => 
+        policy.RequireRole(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager));
+
+    options.AddPolicy("RequirePlatformAdmin", policy => 
+        policy.RequireRole(AppRole.PlatformAdmin));
 });
 
 var app = builder.Build();
