@@ -6,6 +6,6 @@ namespace AssociationManager.Services.Interfaces;
 
 public interface IAuditService
 {
-    Task LogAsync(string action, string? entity = null, int? entityId = null);
+    Task LogAsync(string action, string? entity = null, int? entityId = null, int? associationId = null);
     Task<IEnumerable<AuditLog>> GetLogsAsync();
 }

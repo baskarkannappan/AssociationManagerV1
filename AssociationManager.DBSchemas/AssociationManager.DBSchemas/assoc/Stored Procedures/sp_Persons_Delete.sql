@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Persons_Delete @Id INT, @TenantId INT, @AssociationId INT AS 
+BEGIN UPDATE assoc.Persons SET IsActive = 0 WHERE PersonId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END

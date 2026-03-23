@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Payments_Create @TenantId INT, @AssociationId INT, @UserId INT = NULL, @Amount DECIMAL(18, 2), @Currency NVARCHAR(10), @Status NVARCHAR(50), @CreatedDate DATETIME, @GatewayReference NVARCHAR(255) = NULL AS 
+BEGIN INSERT INTO assoc.Payments (TenantId, AssociationId, UserId, Amount, Currency, Status, CreatedDate, GatewayReference) OUTPUT INSERTED.PaymentId VALUES (@TenantId, @AssociationId, @UserId, @Amount, @Currency, @Status, @CreatedDate, @GatewayReference); END

@@ -10,17 +10,21 @@ namespace AssociationManager.Data.Repositories;
 public class UserRepository : IUserRepository
 {
     private readonly DbConnectionFactory _dbConnectionFactory;
+    private readonly string _schema;
+    private readonly string _mappingIdColumn;
 
-    public UserRepository(DbConnectionFactory dbConnectionFactory)
+    public UserRepository(DbConnectionFactory dbConnectionFactory, string schema = "corp")
     {
         _dbConnectionFactory = dbConnectionFactory;
+        _schema = schema;
+        _mappingIdColumn = schema == "corp" ? "TenantId" : "AssociationId";
     }
 
     public async Task<User?> GetByIdAsync(int id)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<User>(
-            "corp.sp_Users_GetById", 
+            $"{_schema}.sp_Users_GetById", 
             new { Id = id },
             commandType: CommandType.StoredProcedure);
     }
@@ -29,12 +33,21 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<User>(
-            "corp.sp_Users_GetByGoogleId", 
+            $"{_schema}.sp_Users_GetByGoogleId", 
             new { GoogleId = googleId },
             commandType: CommandType.StoredProcedure);
     }
 
     public async Task<User?> GetByEmailAsync(string email)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<User>(
+            $"{_schema}.sp_Users_GetByEmail", 
+            new { Email = email },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<User?> GetByEmailGlobalAsync(string email)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<User>(
@@ -46,9 +59,15 @@ public class UserRepository : IUserRepository
     public async Task<IEnumerable<User>> GetByTenantIdAsync(int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        var spName = _schema == "corp" ? "corp.sp_Users_GetByTenantId" : "assoc.sp_Users_GetByAssociationId";
+        var paramName = _mappingIdColumn;
+        
+        var dynamicParams = new DynamicParameters();
+        dynamicParams.Add(paramName, tenantId);
+
         return await connection.QueryAsync<User>(
-            "corp.sp_Users_GetByTenantId", 
-            new { TenantId = tenantId },
+            spName, 
+            dynamicParams,
             commandType: CommandType.StoredProcedure);
     }
 
@@ -56,7 +75,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
-            "corp.sp_Users_Create", 
+            $"{_schema}.sp_Users_Create", 
             new 
             { 
                 user.TenantId, 
@@ -76,7 +95,7 @@ public class UserRepository : IUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "corp.sp_Users_Update", 
+            $"{_schema}.sp_Users_Update", 
             new 
             { 
                 user.UserId,
@@ -92,42 +111,67 @@ public class UserRepository : IUserRepository
     public async Task<bool> IsUserInTenantAsync(int userId, int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        var dynamicParams = new DynamicParameters();
+        dynamicParams.Add("UserId", userId);
+        dynamicParams.Add(_mappingIdColumn, tenantId);
+
         return await connection.ExecuteScalarAsync<int>(
-            "corp.sp_UserAssociations_CheckExists", 
-            new { UserId = userId, TenantId = tenantId },
+            $"{_schema}.sp_UserAssociations_CheckExists", 
+            dynamicParams,
             commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<bool> AddUserToTenantAsync(int userId, int tenantId, string role)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        var dynamicParams = new DynamicParameters();
+        dynamicParams.Add("UserId", userId);
+        dynamicParams.Add(_mappingIdColumn, tenantId);
+        dynamicParams.Add("Role", role);
+
         return await connection.ExecuteAsync(
-            "corp.sp_UserAssociations_Upsert", 
-            new { UserId = userId, TenantId = tenantId, Role = role },
+            $"{_schema}.sp_UserAssociations_Upsert", 
+            dynamicParams,
             commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<string?> GetRoleInTenantAsync(int userId, int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        var dynamicParams = new DynamicParameters();
+        dynamicParams.Add("UserId", userId);
+        dynamicParams.Add(_mappingIdColumn, tenantId);
+
         return await connection.QueryFirstOrDefaultAsync<string>(
-            "corp.sp_UserAssociations_GetRole", 
-            new { UserId = userId, TenantId = tenantId },
+            $"{_schema}.sp_UserAssociations_GetRole", 
+            dynamicParams,
             commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> RemoveUserFromTenantAsync(int userId, int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        var dynamicParams = new DynamicParameters();
+        dynamicParams.Add("UserId", userId);
+        dynamicParams.Add(_mappingIdColumn, tenantId);
+
         return await connection.ExecuteAsync(
-            "corp.sp_UserAssociations_Delete", 
-            new { UserId = userId, TenantId = tenantId },
+            $"{_schema}.sp_UserAssociations_Delete", 
+            dynamicParams,
             commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<bool> IsUserAuthorisedForAssociationAsync(int userId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        if (_schema == "assoc")
+        {
+            return await connection.ExecuteScalarAsync<int>(
+                "assoc.sp_UserAssociations_IsAuthorised",
+                new { UserId = userId, AssociationId = associationId },
+                commandType: CommandType.StoredProcedure) > 0;
+        }
+
         const string sql = @"
             SELECT COUNT(1) FROM (
                 -- 1. High-level Admins see everything in their tenant
@@ -154,6 +198,15 @@ public class UserRepository : IUserRepository
     public async Task<IEnumerable<User>> GetByAssociationIdAsync(int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        
+        if (_schema == "assoc")
+        {
+            return await connection.QueryAsync<User>(
+                "assoc.sp_Users_GetByAssociationId",
+                new { AssociationId = associationId },
+                commandType: CommandType.StoredProcedure);
+        }
+
         const string sql = @"
             SELECT DISTINCT u.*
             FROM corp.Users u
@@ -172,12 +225,13 @@ public class UserRepository : IUserRepository
     public async Task<IEnumerable<User>> GetAllAsync()
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<User>("SELECT * FROM corp.Users ORDER BY Name");
+        return await connection.QueryAsync<User>($"SELECT * FROM {_schema}.Users ORDER BY Name");
     }
+
     public async Task<bool> DeleteUserGlobalAsync(int userId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        await connection.ExecuteAsync("DELETE FROM corp.UserAssociations WHERE UserId = @UserId", new { UserId = userId });
-        return await connection.ExecuteAsync("DELETE FROM corp.Users WHERE UserId = @UserId", new { UserId = userId }) > 0;
+        await connection.ExecuteAsync($"DELETE FROM {_schema}.UserAssociations WHERE UserId = @UserId", new { UserId = userId });
+        return await connection.ExecuteAsync($"DELETE FROM {_schema}.Users WHERE UserId = @UserId", new { UserId = userId }) > 0;
     }
 }

@@ -1,0 +1,3 @@
+﻿-- AUDIT LOGS
+CREATE   PROCEDURE corp.sp_AuditLogs_Create @TenantId INT, @AssociationId INT, @UserId INT = NULL, @Action NVARCHAR(100), @Entity NVARCHAR(100), @EntityId INT = NULL, @IpAddress NVARCHAR(50) = NULL, @Timestamp DATETIME AS 
+BEGIN INSERT INTO corp.AuditLogs (TenantId, AssociationId, UserId, Action, Entity, EntityId, IpAddress, Timestamp) OUTPUT INSERTED.AuditLogId VALUES (@TenantId, @AssociationId, @UserId, @Action, @Entity, @EntityId, @IpAddress, @Timestamp); END

@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE corp.sp_Associations_Create @TenantId INT, @Name NVARCHAR(255), @Description NVARCHAR(MAX), @CreatedDate DATETIME, @CreatedBy NVARCHAR(255) AS 
+BEGIN INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy) OUTPUT INSERTED.AssociationId VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy); END

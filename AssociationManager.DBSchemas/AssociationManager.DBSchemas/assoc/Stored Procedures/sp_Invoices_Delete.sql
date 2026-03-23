@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Invoices_Delete @Id INT, @TenantId INT, @AssociationId INT AS 
+BEGIN DELETE FROM assoc.Invoices WHERE InvoiceId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END

@@ -1,0 +1,1 @@
+﻿CREATE   PROCEDURE assoc.sp_Users_GetByEmail @Email NVARCHAR(255) AS BEGIN SELECT * FROM assoc.Users WHERE Email = @Email; END;

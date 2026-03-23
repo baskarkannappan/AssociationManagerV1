@@ -56,10 +56,20 @@ public static class AppRole
         PlatformAdmin, SystemAdmin, GlobalUserManager, CorporateManager, SubscriptionManager, CorporateAuditor
     };
 
+    public static readonly string[] AssociationRolesArray = {
+        AssociationAdmin, AssetManager, UserManager, FinanceManager, Resident
+    };
+
     public static bool IsCorporateRole(string? role) => role switch
     {
         PlatformAdmin or SystemAdmin or GlobalUserManager or
         CorporateManager or SubscriptionManager or CorporateAuditor => true,
+        _ => false
+    };
+
+    public static bool IsAssociationRole(string? role) => role switch
+    {
+        AssociationAdmin or AssetManager or UserManager or FinanceManager or Resident => true,
         _ => false
     };
 

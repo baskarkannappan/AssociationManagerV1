@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_TariffGroups_Update @TariffGroupId INT, @Name NVARCHAR(100), @Description NVARCHAR(MAX) = NULL AS 
+BEGIN UPDATE assoc.TariffGroups SET Name = @Name, Description = @Description WHERE TariffGroupId = @TariffGroupId; END

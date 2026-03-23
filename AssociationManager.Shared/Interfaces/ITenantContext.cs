@@ -5,4 +5,6 @@ public interface ITenantContext
     int TenantId { get; }
     int AssociationId { get; }
     int UserId { get; }
+    bool IsPlatformAdmin { get; }
+    bool IsSystemAdmin { get; }
 }

@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_TariffLayers_Update @TariffLayerId INT, @Name NVARCHAR(100), @BaseRate DECIMAL(18, 2), @Frequency INT, @CalculationType INT, @AccountingCategory NVARCHAR(100) = NULL AS 
+BEGIN UPDATE assoc.TariffLayers SET Name = @Name, BaseRate = @BaseRate, Frequency = @Frequency, CalculationType = @CalculationType, AccountingCategory = @AccountingCategory WHERE TariffLayerId = @TariffLayerId; END

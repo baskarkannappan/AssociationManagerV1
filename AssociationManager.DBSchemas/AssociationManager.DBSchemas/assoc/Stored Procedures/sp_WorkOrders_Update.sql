@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_WorkOrders_Update @WorkOrderId INT, @Title NVARCHAR(200), @Description NVARCHAR(MAX) = NULL, @Priority NVARCHAR(50), @Status NVARCHAR(50) AS 
+BEGIN UPDATE assoc.WorkOrders SET Title = @Title, Description = @Description, Priority = @Priority, Status = @Status WHERE WorkOrderId = @WorkOrderId; END

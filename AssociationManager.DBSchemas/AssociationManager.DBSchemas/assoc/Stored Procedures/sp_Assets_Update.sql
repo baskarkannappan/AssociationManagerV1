@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Assets_Update @AssetId INT, @TenantId INT, @AssociationId INT, @ParentId INT = NULL, @Name NVARCHAR(255), @Description NVARCHAR(MAX), @AssetType INT, @MetadataJson NVARCHAR(MAX), @IsActive BIT AS 
+BEGIN UPDATE assoc.Assets SET ParentId = @ParentId, Name = @Name, Description = @Description, AssetType = @AssetType, MetadataJson = @MetadataJson, IsActive = @IsActive WHERE AssetId = @AssetId AND TenantId = @TenantId AND AssociationId = @AssociationId; END

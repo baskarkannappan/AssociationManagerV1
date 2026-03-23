@@ -12,11 +12,13 @@ public class AssociationRepository : IAssociationRepository
 {
     private readonly DbConnectionFactory _dbConnectionFactory;
     private readonly ITenantContext _tenantContext;
+    private readonly string _schema;
 
-    public AssociationRepository(DbConnectionFactory dbConnectionFactory, ITenantContext tenantContext)
+    public AssociationRepository(DbConnectionFactory dbConnectionFactory, ITenantContext tenantContext, string schema = "corp")
     {
         _dbConnectionFactory = dbConnectionFactory;
         _tenantContext = tenantContext;
+        _schema = schema;
     }
 
     public async Task<Association?> GetByIdAsync(int id, int tenantId)
@@ -82,7 +84,7 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Association>(
-            "corp.sp_Associations_GetByUserId", 
+            $"{_schema}.sp_Associations_GetByUserId", 
             new { UserId = userId },
             commandType: CommandType.StoredProcedure);
     }

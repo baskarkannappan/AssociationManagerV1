@@ -5,6 +5,8 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthProvider
+@using AssociationManager.Shared.Enums
 
 <div class="vh-100 d-flex align-items-center justify-content-center bg-login">
     <div class="login-mesh"></div>
@@ -43,7 +45,7 @@
             </div>
         </div>
 
-        <div class="mt-5 border-top border-white border-opacity-5 pt-4">
+        <div class="mt-5 border-top border-dark border-opacity-5 pt-4">
             <div class="d-flex justify-content-center gap-3 small">
                 <a href="#" class="text-secondary text-decoration-none hover-white">Terms</a>
                 <span class="text-muted opacity-25">•</span>
@@ -56,18 +58,24 @@
 </div>
 
 <style>
-    .bg-login { background: #020617; overflow: hidden; position: relative; }
+    .bg-login { background: #f8fafc; overflow: hidden; position: relative; }
     .login-mesh {
         position: absolute; inset: 0;
         background-image: 
-            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
-        opacity: 0.6;
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+        opacity: 0.8;
+    }
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 1);
+        padding: 40px;
     }
     .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
     @@keyframes scaleIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-    .hover-white:hover { color: white !important; }
-    .btn-skeleton { width: 200px; height: 44px; border-radius: 22px; background: rgba(255,255,255,0.05); }
+    .hover-white:hover { color: var(--vscode-accent) !important; }
+    .btn-skeleton { width: 200px; height: 44px; border-radius: 22px; background: rgba(0,0,0,0.05); }
 </style>
 
 @code {
@@ -80,7 +88,7 @@
         var result = await AuthService.LoginWithGoogle(idToken);
         if (result?.Success == true)
         {
-            Navigation.NavigateTo("/");
+            await RedirectAfterLogin();
         }
         else
         {
@@ -89,10 +97,64 @@
         }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            await RedirectAfterLogin();
+            return;
+        }
+
         // Show troubleshooting message if the Google button hasn't replaced the skeleton after 4 seconds
         _ = ShowTroubleshootingAfterDelay();
+    }
+
+    private async Task RedirectAfterLogin()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        var allRoleClaims = user.FindAll(System.Security.Claims.ClaimTypes.Role)
+            .Select(c => c.Value).ToList()
+            .Concat(user.FindAll("Role").Select(c => c.Value))
+            .Concat(user.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value))
+            .ToList();
+
+        var individualRoles = allRoleClaims
+            .SelectMany(r => r.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .ToList();
+
+        bool isSystemAdmin = individualRoles.Any(r => r == AppRole.SystemAdmin || r == AppRole.PlatformAdmin);
+        bool hasAssociationRole = individualRoles.Any(AppRole.IsAssociationRole);
+        
+        if (isSystemAdmin || hasAssociationRole)
+        {
+            var assocIdClaim = user.FindFirst("AssociationId")?.Value;
+            if (string.IsNullOrEmpty(assocIdClaim) || assocIdClaim == "0")
+            {
+                Navigation.NavigateTo("/context-selection");
+            }
+            else
+            {
+                Navigation.NavigateTo("/");
+            }
+        }
+        else
+        {
+            // If they have corporate roles but no association roles, they should use the Corporate portal
+            if (individualRoles.Any(AppRole.IsCorporateRole))
+            {
+                _errorMessage = "Access Denied: This portal is for Association/Resident tasks. Please use the Corporate Portal for administrative overhead.";
+            }
+            else
+            {
+                // Truly pending or no access at all
+                Navigation.NavigateTo("/");
+            }
+            
+            StateHasChanged();
+        }
     }
 
     private async Task ShowTroubleshootingAfterDelay()

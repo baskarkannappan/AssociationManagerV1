@@ -44,7 +44,7 @@
             </div>
         </div>
 
-        <div class="mt-5 border-top border-white border-opacity-5 pt-4">
+        <div class="mt-5 border-top border-dark border-opacity-5 pt-4">
             <div class="d-flex justify-content-center gap-3 small">
                 <a href="#" class="text-secondary text-decoration-none hover-white">Terms</a>
                 <span class="text-muted opacity-25">•</span>
@@ -57,18 +57,24 @@
 </div>
 
 <style>
-    .bg-login { background: #020617; overflow: hidden; position: relative; }
+    .bg-login { background: #f8fafc; overflow: hidden; position: relative; }
     .login-mesh {
         position: absolute; inset: 0;
         background-image: 
-            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
-        opacity: 0.6;
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+        opacity: 0.8;
+    }
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 1);
+        padding: 40px;
     }
     .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
     @@keyframes scaleIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-    .hover-white:hover { color: white !important; }
-    .btn-skeleton { width: 200px; height: 44px; border-radius: 22px; background: rgba(255,255,255,0.05); }
+    .hover-white:hover { color: var(--vscode-accent) !important; }
+    .btn-skeleton { width: 200px; height: 44px; border-radius: 22px; background: rgba(0,0,0,0.05); }
 </style>
 
 @code {

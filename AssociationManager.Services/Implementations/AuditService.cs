@@ -25,7 +25,7 @@ public class AuditService : IAuditService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task LogAsync(string action, string? entity = null, int? entityId = null)
+    public async Task LogAsync(string action, string? entity = null, int? entityId = null, int? associationId = null)
     {
         var tenantId = _tenantContext.TenantId;
         if (tenantId == 0) return;
@@ -35,6 +35,7 @@ public class AuditService : IAuditService
         var log = new AuditLog
         {
             TenantId = tenantId,
+            AssociationId = associationId ?? _tenantContext.AssociationId,
             UserId = userId != 0 ? userId : null,
             Action = action,
             Entity = entity,

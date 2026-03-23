@@ -1,0 +1,1 @@
+﻿CREATE   PROCEDURE assoc.sp_UserAssociations_GetRole @UserId INT, @AssociationId INT AS BEGIN SELECT Role FROM assoc.UserAssociations WHERE UserId = @UserId AND AssociationId = @AssociationId; END;

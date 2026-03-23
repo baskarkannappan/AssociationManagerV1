@@ -38,11 +38,6 @@ body {
     padding: 0;
 }
 
-/* Force dark theme only when explicitly requested */
-.premium-dark-mode {
-    background: #020617 !important;
-    color: #f8fafc !important;
-}
 
 /* Base Layout Overrides */
 .page {
@@ -150,7 +145,7 @@ h1, h2, h3, h4, h5 {
 
 /* Glass Panels */
 .glass-panel {
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(255, 255, 255, 0.7);
     backdrop-filter: var(--glass-blur);
     border: 1px solid var(--border-subtle);
     border-radius: 20px;

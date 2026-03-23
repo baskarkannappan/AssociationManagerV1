@@ -56,14 +56,30 @@ public class AuthService : IAuthService
             var user = await _userRepository.GetByGoogleIdAsync(payload.Subject);
             if (user == null)
             {
-                // Strict Login: Platform Admins must configure the user's email and role beforehand.
+                // 1. Try local schema (assoc or corp)
                 user = await _userRepository.GetByEmailAsync(payload.Email);
+                
+                if (user == null)
+                {
+                    // 2. Try global schema (corp) as fallback for Admins
+                    var globalUser = await _userRepository.GetByEmailGlobalAsync(payload.Email);
+                    if (globalUser != null && (globalUser.Role == AppRole.SystemAdmin || globalUser.Role == AppRole.PlatformAdmin))
+                    {
+                        // Provision this global admin into the local (assoc) schema
+                        globalUser.UserId = 0; // Ensure new ID
+                        globalUser.GoogleId = payload.Subject;
+                        globalUser.CreatedDate = DateTime.UtcNow;
+                        var newId = await _userRepository.CreateAsync(globalUser);
+                        user = await _userRepository.GetByIdAsync(newId);
+                    }
+                }
+
                 if (user == null)
                 {
                     return new AuthResponse { Success = false, Message = "Access Denied: Your email is not configured in the system. Please contact your administrator." };
                 }
 
-                // Link their newly authenticated GoogleId to their pre-configured account
+                // Link their newly authenticated GoogleId to their record
                 user.GoogleId = payload.Subject;
             }
 
@@ -87,8 +103,9 @@ public class AuthService : IAuthService
 
             await _userRepository.UpdateAsync(user);
 
-            // Get the role for the current tenant
-            var role = await _userRepository.GetRoleInTenantAsync(user.UserId, user.TenantId);
+            // Get the role for the current tenant or association
+            var roleId = user.AssociationId > 0 ? user.AssociationId.Value : user.TenantId;
+            var role = await _userRepository.GetRoleInTenantAsync(user.UserId, roleId);
             
             if (AppRole.IsCorporateRole(user.Role) && !string.IsNullOrEmpty(role) && user.Role != role)
             {
@@ -113,11 +130,14 @@ public class AuthService : IAuthService
         var principal = GetPrincipalFromExpiredToken(token);
         if (principal == null) return new AuthResponse { Success = false, Message = "Invalid access token" };
 
+        var email = principal.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return new AuthResponse { Success = false, Message = "Invalid email in token" };
+
+        var savedRefreshToken = await _cache.GetStringAsync($"refreshToken:{email}");
+        if (savedRefreshToken != refreshToken) return new AuthResponse { Success = false, Message = "Invalid refresh token" };
+
         var userIdStr = principal.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
         if (!int.TryParse(userIdStr, out int userId)) return new AuthResponse { Success = false, Message = "Invalid user in token" };
-
-        var savedRefreshToken = await _cache.GetStringAsync($"refreshToken:{userId}");
-        if (savedRefreshToken != refreshToken) return new AuthResponse { Success = false, Message = "Invalid refresh token" };
 
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return new AuthResponse { Success = false, Message = "User not found" };
@@ -131,7 +151,7 @@ public class AuthService : IAuthService
         var refreshToken = GenerateRefreshToken();
 
         // Store refresh token in Redis with expiry
-        await _cache.SetStringAsync($"refreshToken:{user.UserId}", refreshToken, new DistributedCacheEntryOptions
+        await _cache.SetStringAsync($"refreshToken:{user.Email}", refreshToken, new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(_jwtSettings.RefreshExpiryInDays)
         });
@@ -228,8 +248,9 @@ public class AuthService : IAuthService
         user.TenantId = tenantId;
         user.AssociationId = associationId;
         
-        // Refresh the role for this specific tenant
-        var role = await _userRepository.GetRoleInTenantAsync(userId, tenantId);
+        // Refresh the role for this specific tenant or association
+        var roleId = associationId > 0 ? associationId : tenantId;
+        var role = await _userRepository.GetRoleInTenantAsync(userId, roleId);
         
         if (AppRole.IsCorporateRole(user.Role) && !string.IsNullOrEmpty(role) && user.Role != role)
         {

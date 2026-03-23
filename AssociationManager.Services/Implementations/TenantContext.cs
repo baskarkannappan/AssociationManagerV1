@@ -13,33 +13,59 @@ public class TenantContext : ITenantContext
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public int TenantId
+    public int TenantId 
     {
         get
         {
-            var claim = _httpContextAccessor.HttpContext?.User?.Claims
-                .FirstOrDefault(c => c.Type == "TenantId")?.Value;
-            return int.TryParse(claim, out int tenantId) ? tenantId : 0;
+            var claim = GetClaim("TenantId", "tenant_id", "tid");
+            return int.TryParse(claim, out int id) ? id : 0;
         }
     }
 
-    public int AssociationId
+    public int AssociationId 
     {
         get
         {
-            var claim = _httpContextAccessor.HttpContext?.User?.Claims
-                .FirstOrDefault(c => c.Type == "AssociationId")?.Value;
-            return int.TryParse(claim, out int associationId) ? associationId : 0;
+            var claim = GetClaim("AssociationId", "association_id", "aid");
+            return int.TryParse(claim, out int id) ? id : 0;
         }
     }
 
-    public int UserId
+    public int UserId 
     {
         get
         {
-            var claim = _httpContextAccessor.HttpContext?.User?.Claims
-                .FirstOrDefault(c => c.Type == "UserId")?.Value;
-            return int.TryParse(claim, out int userId) ? userId : 0;
+            var claim = GetClaim("UserId", "user_id", "uid", "id", "sub");
+            return int.TryParse(claim, out int id) ? id : 0;
         }
+    }
+
+    public bool IsPlatformAdmin => IsInRole("PlatformAdmin");
+    public bool IsSystemAdmin => IsInRole("SystemAdmin");
+
+    private string? GetClaim(params string[] types)
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        if (user == null) return null;
+        
+        foreach (var type in types)
+        {
+            var claim = user.FindFirst(type)?.Value;
+            if (!string.IsNullOrEmpty(claim)) return claim;
+        }
+        return null;
+    }
+
+    private bool IsInRole(string role)
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        if (user == null) return false;
+
+        // Check standard IsInRole AND manual claim search for "role"
+        if (user.IsInRole(role)) return true;
+        
+        return user.Claims.Any(c => 
+            (c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role) 
+            && c.Value.Equals(role, System.StringComparison.OrdinalIgnoreCase));
     }
 }

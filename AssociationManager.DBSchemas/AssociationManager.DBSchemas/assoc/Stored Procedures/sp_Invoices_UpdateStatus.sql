@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Invoices_UpdateStatus @Id INT, @Status NVARCHAR(50), @TenantId INT, @AssociationId INT AS 
+BEGIN UPDATE assoc.Invoices SET Status = @Status WHERE InvoiceId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END

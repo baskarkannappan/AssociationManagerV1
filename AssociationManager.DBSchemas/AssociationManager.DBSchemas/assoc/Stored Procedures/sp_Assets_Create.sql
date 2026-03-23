@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Assets_Create @ParentId INT = NULL, @TenantId INT, @AssociationId INT, @Name NVARCHAR(255), @Description NVARCHAR(MAX), @AssetType INT, @MetadataJson NVARCHAR(MAX), @CreatedDate DATETIME, @CreatedBy NVARCHAR(255), @IsActive BIT AS 
+BEGIN INSERT INTO assoc.Assets (ParentId, TenantId, AssociationId, Name, Description, AssetType, MetadataJson, CreatedDate, CreatedBy, IsActive) OUTPUT INSERTED.AssetId VALUES (@ParentId, @TenantId, @AssociationId, @Name, @Description, @AssetType, @MetadataJson, @CreatedDate, @CreatedBy, @IsActive); END

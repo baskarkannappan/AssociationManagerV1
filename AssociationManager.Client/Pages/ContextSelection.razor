@@ -1,0 +1,174 @@
+@page "/context-selection"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.DTOs
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Navigation
+@inject ToastService Toast
+
+<div class="vh-100 d-flex align-items-center justify-content-center bg-login">
+    <div class="login-mesh"></div>
+    
+    <div class="glass-panel shadow-lg animate-scale-in" style="max-width: 600px; width: 95%; position: relative; z-index: 10;">
+        <div class="text-center mb-4">
+            <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-4 mb-3" 
+                 style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);">
+                <i class="bi bi-building-check text-primary fs-3"></i>
+            </div>
+            <h2 class="fw-bold mb-1">Select Association</h2>
+            <p class="text-secondary small">Choose the association context you wish to manage</p>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <p class="text-muted small">Retrieving authorized associations...</p>
+            </div>
+        }
+        else if (_associations == null || !_associations.Any())
+        {
+            <div class="alert alert-warning border-0 rounded-4 p-4 text-center">
+                <i class="bi bi-exclamation-circle fs-2 d-block mb-2"></i>
+                <div class="fw-bold">No Associations Found</div>
+                <p class="small mb-0">You haven't been assigned to any associations yet. Please contact your system administrator for access.</p>
+                <button class="btn btn-vscode-secondary mt-3" @onclick="Logout">
+                    <i class="bi bi-box-arrow-left me-2"></i>Logout
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="association-list custom-scrollbar pe-2" style="max-height: 400px; overflow-y: auto;">
+                <div class="list-group list-group-flush gap-2">
+                    @foreach (var assoc in _associations)
+                    {
+                        <div class="association-item p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer @(assoc.AssociationId == _currentAssocId ? "active-border" : "")" 
+                             @onclick="() => SelectAssociation(assoc)">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="assoc-avatar rounded-3 d-flex align-items-center justify-content-center">
+                                    <i class="bi bi-house-door"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">@assoc.Name</div>
+                                    <div class="text-muted text-truncate small" style="max-width: 250px;">@assoc.Description</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                @if (assoc.AssociationId == _currentAssocId)
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Current</span>
+                                }
+                                <i class="bi bi-chevron-right text-muted opacity-50"></i>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-3 border-top text-center">
+                <button class="btn btn-link link-secondary text-decoration-none small p-0" @onclick="Logout">
+                    <i class="bi bi-box-arrow-left me-1"></i> Sign out
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .bg-login { background: #f8fafc; overflow: hidden; position: relative; }
+    .login-mesh {
+        position: absolute; inset: 0;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+        opacity: 0.8;
+    }
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 1);
+        padding: 40px;
+    }
+    .association-item {
+        background: #ffffff;
+        border: 1px solid #e2e8f0 !important;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .association-item:hover {
+        background: #f1f5f9;
+        border-color: var(--vscode-accent) !important;
+        transform: translateY(-2px);
+    }
+    .active-border {
+        border-color: var(--vscode-accent) !important;
+        background: rgba(0, 122, 204, 0.05);
+    }
+    .assoc-avatar {
+        width: 44px;
+        height: 44px;
+        background: rgba(0, 122, 204, 0.1);
+        color: var(--vscode-accent);
+        font-size: 1.2rem;
+    }
+    .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+    @@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+</style>
+
+@code {
+    private List<Association>? _associations;
+    private bool _isLoading = true;
+    private int _currentAssocId;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        var claim = authState.User.FindFirst("AssociationId")?.Value;
+        int.TryParse(claim, out _currentAssocId);
+
+        await LoadAssociations();
+    }
+
+    private async Task LoadAssociations()
+    {
+        try {
+            _isLoading = true;
+            _associations = await Api.GetAsync<List<Association>>("api/associations/my-tenants");
+        } finally {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectAssociation(Association assoc)
+    {
+        if (assoc.AssociationId == _currentAssocId)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        var result = await Auth.SwitchTenant(assoc.TenantId, assoc.AssociationId);
+        if (result?.Success == true)
+        {
+            Toast.Notify(new(ToastType.Success, $"Switched to {assoc.Name}"));
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            Toast.Notify(new(ToastType.Danger, "Failed to switch context."));
+        }
+    }
+
+    private async Task Logout()
+    {
+        await Auth.Logout();
+        Navigation.NavigateTo("/login");
+    }
+}

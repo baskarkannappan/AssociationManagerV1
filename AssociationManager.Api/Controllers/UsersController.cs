@@ -78,9 +78,20 @@ public class UsersController : ControllerBase
 
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
-            return NotFound(ApiResponse.FailureResponse("User with this email does not exist. They must sign in to the application once first."));
+        {
+            // Provision new user in assoc.Users
+            user = new User
+            {
+                Email = request.Email,
+                Name = request.Email.Split('@')[0], // Default name
+                CreatedDate = DateTime.UtcNow,
+                IsActive = true,
+                Role = "User" // Base role in user table
+            };
+            user.UserId = await _userRepository.CreateAsync(user);
+        }
 
-        // Check if already in tenant
+        // Check if already in association mapping
         var currentRole = await _userRepository.GetRoleInTenantAsync(user.UserId, _tenantContext.TenantId);
         if (currentRole != null)
             return BadRequest(ApiResponse.FailureResponse("User is already a member of this association."));

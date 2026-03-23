@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Persons_Update @PersonId INT, @TenantId INT, @AssociationId INT, @FirstName NVARCHAR(100), @LastName NVARCHAR(100), @Email NVARCHAR(255), @Phone NVARCHAR(50), @PhotoUrl NVARCHAR(MAX), @IsActive BIT AS 
+BEGIN UPDATE assoc.Persons SET FirstName = @FirstName, LastName = @LastName, Email = @Email, Phone = @Phone, PhotoUrl = @PhotoUrl, IsActive = @IsActive WHERE PersonId = @PersonId AND TenantId = @TenantId AND AssociationId = @AssociationId; END

@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Occupancy_Create @AssetId INT, @PersonId INT, @TenantId INT, @AssociationId INT, @OccupancyType INT, @StartDate DATETIME, @EndDate DATETIME = NULL, @IsPrimaryContact BIT AS 
+BEGIN INSERT INTO assoc.Occupancy (AssetId, PersonId, TenantId, AssociationId, OccupancyType, StartDate, EndDate, IsPrimaryContact) OUTPUT INSERTED.OccupancyId VALUES (@AssetId, @PersonId, @TenantId, @AssociationId, @OccupancyType, @StartDate, @EndDate, @IsPrimaryContact); END

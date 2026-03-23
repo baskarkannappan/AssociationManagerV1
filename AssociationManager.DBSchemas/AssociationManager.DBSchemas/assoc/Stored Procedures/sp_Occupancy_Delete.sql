@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Occupancy_Delete @Id INT, @TenantId INT, @AssociationId INT AS 
+BEGIN DELETE FROM assoc.Occupancy WHERE OccupancyId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END

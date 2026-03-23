@@ -1,11 +1,11 @@
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Services.Interfaces;
-using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Interfaces;
+using AssociationManager.Shared.Models;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Services.Implementations;
@@ -13,91 +13,80 @@ namespace AssociationManager.Services.Implementations;
 public class AssociationService : IAssociationService
 {
     private readonly IAssociationRepository _associationRepository;
-    private readonly ISubscriptionService _subscriptionService;
+    private readonly IAssocUserRepository _assocUserRepository;
     private readonly ITenantContext _tenantContext;
     private readonly IDistributedCache _cache;
+    private readonly ILogger<AssociationService> _logger;
 
     public AssociationService(
         IAssociationRepository associationRepository,
-        ISubscriptionService subscriptionService,
+        IAssocUserRepository assocUserRepository,
         ITenantContext tenantContext,
-        IDistributedCache cache)
+        IDistributedCache cache,
+        ILogger<AssociationService> logger)
     {
         _associationRepository = associationRepository;
-        _subscriptionService = subscriptionService;
+        _assocUserRepository = assocUserRepository;
         _tenantContext = tenantContext;
         _cache = cache;
+        _logger = logger;
     }
 
-    private int CurrentTenantId => _tenantContext.TenantId != 0 ? _tenantContext.TenantId : throw new UnauthorizedException("Tenant ID not found in context.");
+    private int CurrentTenantId => _tenantContext.TenantId;
 
     public async Task<Association?> GetByIdAsync(int id)
     {
-        string cacheKey = $"association:{CurrentTenantId}:{id}";
-        var cachedData = await _cache.GetStringAsync(cacheKey);
-
-        if (!string.IsNullOrEmpty(cachedData))
-        {
-            return JsonSerializer.Deserialize<Association>(cachedData);
-        }
-
-        var association = await _associationRepository.GetByIdAsync(id, CurrentTenantId);
-        if (association != null)
-        {
-            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(association), new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
-            });
-        }
-
-        return association;
-    }
-
-    public async Task<IEnumerable<Association>> GetAllByTenantAsync()
-    {
-        string cacheKey = $"associations:{CurrentTenantId}";
-        var cachedData = await _cache.GetStringAsync(cacheKey);
-
-        if (!string.IsNullOrEmpty(cachedData))
-        {
-            return JsonSerializer.Deserialize<IEnumerable<Association>>(cachedData) ?? new List<Association>();
-        }
-
-        var associations = await _associationRepository.GetAllByTenantIdAsync(CurrentTenantId);
-        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(associations), new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
-        });
-
-        return associations;
+        return await _associationRepository.GetByIdAsync(id, CurrentTenantId);
     }
 
     public async Task<IEnumerable<Association>> GetAllGlobalAsync()
     {
-        string cacheKey = $"associations:global";
-        var cachedData = await _cache.GetStringAsync(cacheKey);
+        return await _associationRepository.GetAllAsync();
+    }
 
-        if (!string.IsNullOrEmpty(cachedData))
-        {
-            return JsonSerializer.Deserialize<IEnumerable<Association>>(cachedData) ?? new List<Association>();
-        }
+    public async Task<IEnumerable<Association>> GetAllByTenantAsync()
+    {
+        return await _associationRepository.GetAllByTenantIdAsync(CurrentTenantId);
+    }
 
-        var associations = await _associationRepository.GetAllAsync();
-        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(associations), new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
-        });
-
-        return associations;
+    public async Task<IEnumerable<Association>> GetByUserIdAsync(int userId)
+    {
+        return await _associationRepository.GetByUserIdAsync(userId);
     }
 
     public async Task<int> CreateAsync(Association association)
     {
         association.TenantId = CurrentTenantId;
-        int id = await _associationRepository.CreateAsync(association);
+        association.CreatedDate = DateTime.UtcNow;
         
-        // Auto-subscribe to Starter Plan (ID: 1)
-        await _subscriptionService.SubscribeAsync(id, 1);
+        var id = await _associationRepository.CreateAsync(association);
+
+        // Logic for provisioning Association Admin
+        if (!string.IsNullOrEmpty(association.AdminEmail))
+        {
+            var adminEmail = association.AdminEmail.Trim();
+            var user = await _assocUserRepository.GetByEmailAsync(adminEmail);
+            int userId;
+            if (user == null)
+            {
+                // Create user if they don't exist in assoc schema
+                userId = await _assocUserRepository.CreateAsync(new User
+                {
+                    Email = adminEmail,
+                    Name = adminEmail.Split('@')[0], // Default name from email
+                    Role = "AssociationAdmin", // Provision as AssociationAdmin
+                    CreatedDate = DateTime.UtcNow,
+                    IsActive = true
+                });
+            }
+            else
+            {
+                userId = user.UserId;
+            }
+
+            // Map user to association as AssociationAdmin
+            await _assocUserRepository.AddUserToTenantAsync(userId, id, "AssociationAdmin");
+        }
         
         await InvalidateCache();
         return id;
@@ -116,6 +105,9 @@ public class AssociationService : IAssociationService
 
     public async Task<bool> DeleteAsync(int id)
     {
+        // First delete mappings in assoc schema to avoid FK constraint issues
+        await _assocUserRepository.DeleteByAssociationIdAsync(id);
+        
         bool success = await _associationRepository.DeleteAsync(id, CurrentTenantId);
         if (success)
         {
@@ -133,14 +125,4 @@ public class AssociationService : IAssociationService
             await _cache.RemoveAsync($"association:{CurrentTenantId}:{id.Value}");
         }
     }
-
-    public async Task<IEnumerable<Association>> GetByUserIdAsync(int userId)
-    {
-        return await _associationRepository.GetByUserIdAsync(userId);
-    }
-}
-
-public class UnauthorizedException : Exception
-{
-    public UnauthorizedException(string message) : base(message) { }
 }

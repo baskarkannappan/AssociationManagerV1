@@ -9,6 +9,7 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(int id);
     Task<User?> GetByGoogleIdAsync(string googleId);
     Task<User?> GetByEmailAsync(string email);
+    Task<User?> GetByEmailGlobalAsync(string email);
     Task<IEnumerable<User>> GetByTenantIdAsync(int tenantId);
     Task<int> CreateAsync(User user);
     Task<bool> UpdateAsync(User user);

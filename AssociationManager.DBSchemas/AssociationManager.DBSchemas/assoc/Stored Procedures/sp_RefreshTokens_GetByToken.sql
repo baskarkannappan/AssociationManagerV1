@@ -1,0 +1,3 @@
+﻿-- REFRESH TOKENS PROCEDURES FOR ASSOC
+CREATE   PROCEDURE assoc.sp_RefreshTokens_GetByToken @Token NVARCHAR(MAX) AS 
+BEGIN SELECT * FROM assoc.RefreshTokens WHERE Token = @Token; END

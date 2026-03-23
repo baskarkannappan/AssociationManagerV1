@@ -68,7 +68,7 @@ public class AssociationsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] Association association)
     {
         var id = await _associationService.CreateAsync(association);
-        await _auditService.LogAsync("Create Association", "Association", id);
+        await _auditService.LogAsync("Create Association", "Association", id, id);
         return CreatedAtAction(nameof(GetById), new { id }, ApiResponse<int>.SuccessResponse(id, "Association created successfully."));
     }
 

@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_AssetTariffs_Upsert @AssetId INT, @TariffLayerId INT, @CustomAmount DECIMAL(18, 2) = NULL, @IsActive BIT AS 
+BEGIN IF EXISTS (SELECT 1 FROM assoc.AssetTariffs WHERE AssetId = @AssetId AND TariffLayerId = @TariffLayerId) UPDATE assoc.AssetTariffs SET CustomAmount = @CustomAmount, IsActive = @IsActive WHERE AssetId = @AssetId AND TariffLayerId = @TariffLayerId ELSE INSERT INTO assoc.AssetTariffs (AssetId, TariffLayerId, CustomAmount, IsActive) VALUES (@AssetId, @TariffLayerId, @CustomAmount, @IsActive); END

@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE corp.sp_Tenants_Create @Name NVARCHAR(255), @CreatedDate DATETIME, @IsActive BIT AS 
+BEGIN INSERT INTO corp.Tenants (Name, CreatedDate, IsActive) OUTPUT INSERTED.TenantId VALUES (@Name, @CreatedDate, @IsActive); END

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>

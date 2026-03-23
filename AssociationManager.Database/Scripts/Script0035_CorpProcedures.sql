@@ -19,7 +19,7 @@ GO
 CREATE OR ALTER PROCEDURE corp.sp_Associations_GetAllByTenantId @TenantId INT AS 
 BEGIN SELECT * FROM corp.Associations WHERE TenantId = @TenantId; END
 GO
-CREATE OR ALTER PROCEDURE corp.sp_Associations_Create @TenantId INT, @Name NVARCHAR(255), @Description NVARCHAR(MAX), @CreatedDate DATETIME, @CreatedBy NVARCHAR(255) AS 
+CREATE OR ALTER PROCEDURE corp.sp_Associations_Create @TenantId INT, @Name NVARCHAR(255), @Description NVARCHAR(MAX), @CreatedDate DATETIME, @CreatedBy INT AS 
 BEGIN INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy) OUTPUT INSERTED.AssociationId VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy); END
 GO
 CREATE OR ALTER PROCEDURE corp.sp_Associations_Update @AssociationId INT, @TenantId INT, @Name NVARCHAR(255), @Description NVARCHAR(MAX) AS 
@@ -122,12 +122,12 @@ GO
 CREATE OR ALTER PROCEDURE corp.sp_RefreshTokens_GetByToken @Token NVARCHAR(MAX) AS 
 BEGIN SELECT * FROM corp.RefreshTokens WHERE Token = @Token; END
 GO
-CREATE OR ALTER PROCEDURE corp.sp_RefreshTokens_Upsert @UserId INT, @Token NVARCHAR(MAX), @Expires DATETIME, @CreatedDate DATETIME, @CreatedByIp NVARCHAR(50) AS 
+CREATE OR ALTER PROCEDURE corp.sp_RefreshTokens_Upsert @UserId INT, @Token NVARCHAR(MAX), @ExpiryDate DATETIME, @CreatedDate DATETIME AS 
 BEGIN
     IF EXISTS (SELECT 1 FROM corp.RefreshTokens WHERE UserId = @UserId)
-        UPDATE corp.RefreshTokens SET Token = @Token, Expires = @Expires, CreatedByIp = @CreatedByIp WHERE UserId = @UserId
+        UPDATE corp.RefreshTokens SET Token = @Token, ExpiryDate = @ExpiryDate WHERE UserId = @UserId
     ELSE
-        INSERT INTO corp.RefreshTokens (UserId, Token, Expires, CreatedDate, CreatedByIp) VALUES (@UserId, @Token, @Expires, @CreatedDate, @CreatedByIp);
+        INSERT INTO corp.RefreshTokens (UserId, Token, ExpiryDate, CreatedDate) VALUES (@UserId, @Token, @ExpiryDate, @CreatedDate);
 END
 GO
 CREATE OR ALTER PROCEDURE corp.sp_RefreshTokens_Delete @UserId INT AS 

@@ -11,8 +11,8 @@
     --vscode-accent: #007acc;
     --vscode-hover: #e8e8e8;
     --vscode-tab-bg: #ececec;
-    --vscode-top-header-bg: #1e1e3f;
-    --vscode-top-header-text: #cccccc;
+    --vscode-top-header-bg: #ffffff;
+    --vscode-top-header-text: #333333;
     --vscode-font-size: 13px;
     --vscode-font-size-sm: 11px;
     --transition-base: none; /* Instant transitions for that crisp IDE feel */
@@ -291,15 +291,15 @@ body {
     justify-content: space-between;
     padding: 0 15px;
     font-size: 13px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    z-index: 1000;
+    border-bottom: 1px solid #eeeeee;
+    z-index: 1001;
 }
 
 .mobile-menu-btn {
     display: none;
     background: transparent;
     border: none;
-    color: white;
+    color: #333333;
     font-size: 20px;
     cursor: pointer;
     margin-right: 10px;
@@ -328,8 +328,8 @@ body {
 
 .vscode-top-header .logout-btn {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.2);
-    color: var(--vscode-top-header-text);
+    border: 1px solid #dddddd;
+    color: #333333;
     padding: 3px 10px;
     font-size: 11px;
     cursor: pointer;
@@ -341,7 +341,7 @@ body {
 }
 
 .vscode-top-header .logout-btn:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.05);
 }
 
 .vscode-top-header .login-link {

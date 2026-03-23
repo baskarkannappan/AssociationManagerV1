@@ -1,0 +1,1 @@
+﻿CREATE   PROCEDURE assoc.sp_Users_GetByById @Id INT AS BEGIN SELECT * FROM assoc.Users WHERE UserId = @Id; END;

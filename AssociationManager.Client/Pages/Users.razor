@@ -87,7 +87,7 @@
                         <select class="form-select form-select-sm" style="width: 180px;" 
                                 value="@context.Role" 
                                 @onchange="(e) => HandleRoleChange(context.UserId, e.Value?.ToString())">
-                            @foreach (var role in AppRole.All)
+                            @foreach (var role in AppRole.AssociationRolesArray)
                             {
                                 <option value="@role">@role</option>
                             }
@@ -112,7 +112,7 @@
         <div class="compact-card p-4 bg-light-subtle opacity-75">
             <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Role Capabilities</h6>
             <div class="row g-3">
-                @foreach (var role in AppRole.All)
+                @foreach (var role in AppRole.AssociationRolesArray)
                 {
                     <div class="col-md-4">
                         <div class="fw-bold small mb-1 text-primary">@role</div>
@@ -148,7 +148,7 @@
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-muted">Initial Role</label>
                         <select class="form-select" @bind="_newMemberRole">
-                            @foreach (var role in AppRole.All)
+                            @foreach (var role in AppRole.AssociationRolesArray)
                             {
                                 <option value="@role">@role</option>
                             }

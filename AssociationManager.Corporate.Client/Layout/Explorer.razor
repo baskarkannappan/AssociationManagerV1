@@ -11,7 +11,7 @@
                 Corporate Level
             </div>
             <NavLink href="" Match="NavLinkMatch.All" class="vscode-tree-item text-decoration-none">
-                <i class="bi bi-house-door text-primary"></i>
+                <i class="bi bi-grid-1x2 text-secondary"></i>
                 <span>Overview</span>
             </NavLink>
             
@@ -24,14 +24,14 @@
             
             <AuthorizeView Roles="PlatformAdmin,SubscriptionManager,CorporateAuditor">
                 <NavLink href="subscriptions" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-shield-check text-primary"></i>
+                    <i class="bi bi-shield-check text-success"></i>
                     <span>Platform Subscription</span>
                 </NavLink>
             </AuthorizeView>
-
+ 
             <AuthorizeView Roles="PlatformAdmin,SystemAdmin,GlobalUserManager">
                 <NavLink href="users?scope=tenant" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-people-fill text-info"></i>
+                    <i class="bi bi-person-lines-fill text-danger"></i>
                     <span>Global Users</span>
                 </NavLink>
             </AuthorizeView>

@@ -11,4 +11,5 @@ public class Association
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public int? CreatedBy { get; set; }
     public string? PlanName { get; set; }
+    public string? AdminEmail { get; set; }
 }

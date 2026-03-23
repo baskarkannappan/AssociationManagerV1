@@ -166,7 +166,7 @@
                             </div>
                         </div>
                         <div class="col-lg-4">
-                            <div class="border h-100" style="background: #f8f8f8;">
+                            <div class="border h-100 bg-white">
                                 <div class="vscode-page-header border-bottom py-2 px-3">
                                     <span class="fw-bold small text-uppercase text-muted">Quick Shortcuts</span>
                                 </div>
@@ -200,11 +200,11 @@
     .activity-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
     
     .shortcut-item { 
-        display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; 
-        background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); 
-        color: var(--text-secondary); text-decoration: none; transition: var(--transition-smooth);
+        display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 4px; 
+        background: #ffffff; border: 1px solid #e2e8f0; 
+        color: var(--vscode-text-muted); text-decoration: none; transition: all 0.2s ease;
     }
-    .shortcut-item:hover { background: rgba(255,255,255,0.05); color: white; transform: translateX(5px); }
+    .shortcut-item:hover { background: #f8fafc; color: var(--vscode-accent); border-color: var(--vscode-accent); transform: translateX(4px); }
     
     .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; position: relative; }
     .pulse-dot::after { 

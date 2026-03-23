@@ -1,0 +1,2 @@
+﻿CREATE   PROCEDURE assoc.sp_Broadcasts_Delete @Id INT, @TenantId INT, @AssociationId INT AS 
+BEGIN DELETE FROM assoc.Broadcasts WHERE BroadcastId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END

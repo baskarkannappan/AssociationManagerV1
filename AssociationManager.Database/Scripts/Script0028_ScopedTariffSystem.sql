@@ -1,13 +1,31 @@
 -- Add AssociationId to TariffGroups and TariffLayers
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TariffGroups') AND name = 'AssociationId')
+DECLARE @TableName NVARCHAR(128) = 'TariffGroups';
+DECLARE @SchemaName NVARCHAR(128) = CASE 
+    WHEN OBJECT_ID('dbo.TariffGroups') IS NOT NULL THEN 'dbo'
+    WHEN OBJECT_ID('assoc.TariffGroups') IS NOT NULL THEN 'assoc'
+    ELSE NULL END;
+
+IF @SchemaName IS NOT NULL
 BEGIN
-    ALTER TABLE TariffGroups ADD AssociationId INT NULL;
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(@SchemaName + '.TariffGroups') AND name = 'AssociationId')
+    BEGIN
+        EXEC('ALTER TABLE ' + @SchemaName + '.TariffGroups ADD AssociationId INT NULL');
+    END
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TariffLayers') AND name = 'AssociationId')
+DECLARE @TableName NVARCHAR(128) = 'TariffLayers';
+DECLARE @SchemaName NVARCHAR(128) = CASE 
+    WHEN OBJECT_ID('dbo.TariffLayers') IS NOT NULL THEN 'dbo'
+    WHEN OBJECT_ID('assoc.TariffLayers') IS NOT NULL THEN 'assoc'
+    ELSE NULL END;
+
+IF @SchemaName IS NOT NULL
 BEGIN
-    ALTER TABLE TariffLayers ADD AssociationId INT NULL;
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(@SchemaName + '.TariffLayers') AND name = 'AssociationId')
+    BEGIN
+        EXEC('ALTER TABLE ' + @SchemaName + '.TariffLayers ADD AssociationId INT NULL');
+    END
 END
 GO
 

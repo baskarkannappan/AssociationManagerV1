@@ -28,13 +28,17 @@
                 <div class="compact-card mb-3 border-top-0">
                     <div class="fw-bold mb-2 small text-uppercase text-muted">Initialize New Association</div>
                     <div class="row g-2 compact-form">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label>Name</label>
                             <input @bind="newAssociation.Name" class="form-control" placeholder="Legal Name" />
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-4">
+                            <label>Admin Email</label>
+                            <input @bind="newAssociation.AdminEmail" class="form-control" placeholder="admin@example.com" type="email" />
+                        </div>
+                        <div class="col-md-2">
                             <label>Description</label>
-                            <input @bind="newAssociation.Description" class="form-control" placeholder="Optional details..." />
+                            <input @bind="newAssociation.Description" class="form-control" placeholder="Optional..." />
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button @onclick="CreateAssociation" class="btn-vscode w-100 justify-content-center">
@@ -113,9 +117,9 @@
 </AuthorizeView>
 
 <style>
-    .btn-icon-slate { width: 32px; height: 32px; border: none; background: transparent; color: #94a3b8; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-    .btn-icon-slate:hover { background: #f1f5f9; color: #475569; }
-    .btn-icon-slate.hover-danger:hover { background: #fee2e2; color: #ef4444; }
+    .btn-icon-slate { width: 32px; height: 32px; border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; color: #64748b; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-icon-slate:hover { background: #f8fafc; color: var(--vscode-accent); border-color: var(--vscode-accent); }
+    .btn-icon-slate.hover-danger:hover { background: #fee2e2; color: #ef4444; border-color: #fecaca; }
     .bg-slate-50 { background-color: #f8fafc; }
 </style>
 
@@ -157,7 +161,16 @@
 
     private async Task CreateAssociation()
     {
-        if (string.IsNullOrWhiteSpace(newAssociation.Name)) return;
+        if (string.IsNullOrWhiteSpace(newAssociation.Name))
+        {
+            _toastService.Notify(new(ToastType.Warning, "Association name is required."));
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(newAssociation.AdminEmail))
+        {
+            _toastService.Notify(new(ToastType.Warning, "Admin email is required."));
+            return;
+        }
         var success = await ApiService.PostAsync("associations", newAssociation);
         if (success)
         {
