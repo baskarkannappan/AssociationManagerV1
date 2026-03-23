@@ -107,13 +107,26 @@ public class AuthService : IAuthService
             var roleId = user.AssociationId > 0 ? user.AssociationId.Value : user.TenantId;
             var role = await _userRepository.GetRoleInTenantAsync(user.UserId, roleId);
             
-            if (AppRole.IsCorporateRole(user.Role) && !string.IsNullOrEmpty(role) && user.Role != role)
+            // Final role resolution
+            if (user.AssociationId > 0)
             {
-                user.Role = $"{user.Role}, {role}";
-            }
-            else if (!AppRole.IsCorporateRole(user.Role))
-            {
+                // In association context, role is determined by mapping, defaulting to Resident
                 user.Role = role ?? AppRole.Resident;
+            }
+            else
+            {
+                // In corporate/tenant context, keep corporate roles if assigned, or use mapping
+                if (AppRole.IsCorporateRole(user.Role))
+                {
+                    if (!string.IsNullOrEmpty(role) && user.Role != role)
+                    {
+                        user.Role = $"{user.Role}, {role}";
+                    }
+                }
+                else
+                {
+                    user.Role = role ?? AppRole.Resident;
+                }
             }
 
             return await GenerateAuthResponse(user);
@@ -252,13 +265,26 @@ public class AuthService : IAuthService
         var roleId = associationId > 0 ? associationId : tenantId;
         var role = await _userRepository.GetRoleInTenantAsync(userId, roleId);
         
-        if (AppRole.IsCorporateRole(user.Role) && !string.IsNullOrEmpty(role) && user.Role != role)
+        // Final role resolution
+        if (associationId > 0)
         {
-            user.Role = $"{user.Role}, {role}";
-        }
-        else if (!AppRole.IsCorporateRole(user.Role))
-        {
+            // In association context, role is determined by mapping, defaulting to Resident
             user.Role = role ?? AppRole.Resident;
+        }
+        else
+        {
+            // In corporate/tenant context, keep corporate roles if assigned, or use mapping
+            if (AppRole.IsCorporateRole(user.Role))
+            {
+                if (!string.IsNullOrEmpty(role) && user.Role != role)
+                {
+                    user.Role = $"{user.Role}, {role}";
+                }
+            }
+            else
+            {
+                user.Role = role ?? AppRole.Resident;
+            }
         }
 
         await _userRepository.UpdateAsync(user);
