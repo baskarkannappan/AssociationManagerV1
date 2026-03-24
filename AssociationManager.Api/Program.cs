@@ -4,6 +4,7 @@ using AssociationManager.Auth.Services;
 using AssociationManager.Data;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Data.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using AssociationManager.Realtime.Hubs;
 using AssociationManager.Services.Implementations;
 using AssociationManager.Services.Interfaces;
@@ -86,6 +87,7 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSetting
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -103,7 +105,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnAuthenticationFailed = context =>
             {
                 var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogError("Authentication failed: {Message}", context.Exception.Message);
+                logger.LogError("Association API Authentication failed: {Message}. Token info: {TokenHeader}", 
+                    context.Exception.Message, 
+                    context.Request.Headers.Authorization.ToString());
                 return Task.CompletedTask;
             },
             OnTokenValidated = context =>

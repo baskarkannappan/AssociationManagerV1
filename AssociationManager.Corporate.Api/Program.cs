@@ -4,6 +4,9 @@ using AssociationManager.Auth.Services;
 using AssociationManager.Data;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Data.Repositories;
+using AssociationManager.Shared.Models;
+using AssociationManager.Corporate.Api.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using AssociationManager.Realtime.Hubs;
 using AssociationManager.Services.Implementations;
 using AssociationManager.Services.Interfaces;
@@ -86,6 +89,7 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSetting
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -97,6 +101,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key ?? throw new InvalidOperationException("JWT Key is missing"))),
             RoleClaimType = "role",
             NameClaimType = "name"
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogError("Corporate API Authentication failed: {Message}. Token info: {TokenHeader}", 
+                    context.Exception.Message, 
+                    context.Request.Headers.Authorization.ToString());
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogInformation("Corporate API Token validated for {User}", context.Principal?.Identity?.Name);
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -120,24 +141,26 @@ builder.Services.AddCors(options =>
 
 // Authorization Policies
 builder.Services.AddScoped<IAuthorizationHandler, RoleLevelHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, RoleHandler>();
 builder.Services.AddAuthorization(options =>
 {
     // Strict Corporate Policies
     options.AddPolicy("RequireCorporate", policy => 
-        policy.RequireRole(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.CorporateManager, 
-                           AppRole.SubscriptionManager, AppRole.GlobalUserManager, AppRole.CorporateAuditor));
+        policy.Requirements.Add(new RoleRequirement(
+            AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.CorporateManager, 
+            AppRole.SubscriptionManager, AppRole.GlobalUserManager, AppRole.CorporateAuditor)));
 
     options.AddPolicy("RequireManagement", policy => 
-        policy.RequireRole(AppRole.PlatformAdmin, AppRole.CorporateManager));
+        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin, AppRole.CorporateManager)));
 
     options.AddPolicy("RequirePlanManagement", policy => 
-        policy.RequireRole(AppRole.PlatformAdmin, AppRole.SubscriptionManager));
+        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin, AppRole.SubscriptionManager)));
 
     options.AddPolicy("RequireUserManagement", policy => 
-        policy.RequireRole(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager));
+        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager)));
 
     options.AddPolicy("RequirePlatformAdmin", policy => 
-        policy.RequireRole(AppRole.PlatformAdmin));
+        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin)));
 });
 
 var app = builder.Build();
