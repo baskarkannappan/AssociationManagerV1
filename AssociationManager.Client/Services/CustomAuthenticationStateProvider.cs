@@ -26,12 +26,12 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             return new AuthenticationState(_anonymous);
         }
 
-        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt", ClaimTypes.Name, ClaimTypes.Role)));
+        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt", "name", "role")));
     }
 
     public void NotifyUserAuthentication(string token)
     {
-        var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt", ClaimTypes.Name, ClaimTypes.Role));
+        var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt", "name", "role"));
         var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
         NotifyAuthenticationStateChanged(authState);
     }
@@ -63,7 +63,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                     {
                         foreach (var item in element.EnumerateArray())
                         {
-                            claims.Add(new Claim(ClaimTypes.Role, item.GetString() ?? ""));
+                            claims.Add(new Claim("role", item.GetString() ?? ""));
                         }
                     }
                     else
@@ -78,11 +78,11 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                         }
                         else
                         {
-                            claims.Add(new Claim(ClaimTypes.Role, roleStr));
+                            claims.Add(new Claim("role", roleStr));
                         }
                     }
                 }
-                else if (key == "unique_name" || key == "name") claims.Add(new Claim(ClaimTypes.Name, value));
+                else if (key == "unique_name" || key == "name") claims.Add(new Claim("name", value));
                 else if (key == "email") claims.Add(new Claim(ClaimTypes.Email, value));
                 else if (key == "sub") claims.Add(new Claim(ClaimTypes.NameIdentifier, value));
                 else claims.Add(new Claim(key, value));

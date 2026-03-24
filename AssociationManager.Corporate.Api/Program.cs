@@ -15,6 +15,9 @@ using AssociationManager.Corporate.Api.Authorization;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
