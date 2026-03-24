@@ -228,15 +228,11 @@
 
     private void ShowRoleCapabilities(string role)
     {
-        var capabilities = AppRole.GetCapabilities(role);
-        var message = string.Join("<br/>", capabilities.Select(c => $"• {c}"));
-        
         _toastService.Notify(new(
             ToastType.Info,
             iconName: IconName.ShieldCheck,
-            title: $"Current Role: {role}",
-            helpText: $"{DateTime.Now:T}",
-            message: message));
+            title: "Access Granted",
+            message: $"You have signed in with {role} privileges."));
     }
 
     private async Task HandleTenantChange(ChangeEventArgs e)
