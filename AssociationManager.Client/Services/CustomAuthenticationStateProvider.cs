@@ -9,13 +9,11 @@ namespace AssociationManager.Client.Services;
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
     private readonly TokenService _tokenService;
-    private readonly HttpClient _httpClient;
     private readonly ClaimsPrincipal _anonymous = new(new ClaimsIdentity());
 
-    public CustomAuthenticationStateProvider(TokenService tokenService, HttpClient httpClient)
+    public CustomAuthenticationStateProvider(TokenService tokenService)
     {
         _tokenService = tokenService;
-        _httpClient = httpClient;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
