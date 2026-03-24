@@ -186,13 +186,13 @@ public class AuthService : IAuthService
 
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Email),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("sub", user.Email),
+            new Claim("email", user.Email),
+            new Claim("jti", Guid.NewGuid().ToString()),
             new Claim("UserId", user.UserId.ToString()),
             new Claim("TenantId", user.TenantId.ToString()),
             new Claim("AssociationId", (user.AssociationId?.ToString() ?? "0")),
-            new Claim(ClaimTypes.Name, user.Name),
+            new Claim("name", user.Name),
             new Claim("DeviceId", "Web") // Simplified for now
         };
 

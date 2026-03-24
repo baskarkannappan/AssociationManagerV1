@@ -11,9 +11,9 @@ public class AuthService
     private readonly TokenService _tokenService;
     private readonly CustomAuthenticationStateProvider _authStateProvider;
 
-    public AuthService(HttpClient httpClient, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider)
+    public AuthService(IHttpClientFactory httpClientFactory, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider)
     {
-        _httpClient = httpClient;
+        _httpClient = httpClientFactory.CreateClient("AuthClient");
         _tokenService = tokenService;
         _authStateProvider = authStateProvider;
     }
@@ -53,6 +53,26 @@ public class AuthService
             }
             return response;
         }
-        return new AuthResponse { Success = false, Message = "Tenant switch failed" };
+    public async Task<AuthResponse?> RefreshToken()
+    {
+        var token = await _tokenService.GetToken();
+        var refreshToken = await _tokenService.GetRefreshToken();
+        
+        if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(refreshToken)) return null;
+
+        var result = await _httpClient.PostAsJsonAsync("api/auth/refresh", new { Token = token, RefreshToken = refreshToken });
+        if (result.IsSuccessStatusCode)
+        {
+            var response = await result.Content.ReadFromJsonAsync<AuthResponse>();
+            if (response?.Success == true)
+            {
+                await _tokenService.SetTokens(response.Token!, response.RefreshToken!);
+                _authStateProvider.NotifyUserAuthentication(response.Token!);
+                return response;
+            }
+        }
+        
+        await Logout();
+        return null;
     }
 }

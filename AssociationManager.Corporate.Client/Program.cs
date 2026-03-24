@@ -33,6 +33,11 @@ builder.Services.AddTransient<AuthHeaderHandler>();
 var gatewayUrl = builder.Configuration["GatewayUrl"] ?? "https://localhost:7000/";
 var baseApiUrl = gatewayUrl.EndsWith("/") ? $"{gatewayUrl}api/corporate/" : $"{gatewayUrl}/api/corporate/";
 
+builder.Services.AddHttpClient("AuthClient", client => 
+{
+    client.BaseAddress = new Uri(gatewayUrl);
+});
+
 builder.Services.AddHttpClient("GatewayClient", client => 
     {
         client.BaseAddress = new Uri(baseApiUrl);
