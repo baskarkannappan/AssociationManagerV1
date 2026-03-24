@@ -8,20 +8,26 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleLevelRequirement requirement)
     {
-        var roleClaim = context.User.FindFirst(ClaimTypes.Role)?.Value 
-                     ?? context.User.FindFirst("Role")?.Value 
-                     ?? context.User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value;
+        var roleClaims = context.User.FindAll(ClaimTypes.Role).Select(c => c.Value)
+            .Concat(context.User.FindAll("role").Select(c => c.Value))
+            .Concat(context.User.FindAll("Role").Select(c => c.Value))
+            .Concat(context.User.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value))
+            .ToList();
 
-        if (string.IsNullOrEmpty(roleClaim))
+        if (roleClaims.Any())
         {
-            return Task.CompletedTask;
-        }
+            var individualRoles = roleClaims
+                .SelectMany(r => r.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .ToList();
 
-        var userLevel = AppRole.GetLevel(roleClaim);
-
-        if (userLevel >= requirement.RequiredLevel)
-        {
-            context.Succeed(requirement);
+            if (individualRoles.Any())
+            {
+                var maxLevel = individualRoles.Max(r => AppRole.GetLevel(r));
+                if (maxLevel >= requirement.RequiredLevel)
+                {
+                    context.Succeed(requirement);
+                }
+            }
         }
 
         return Task.CompletedTask;

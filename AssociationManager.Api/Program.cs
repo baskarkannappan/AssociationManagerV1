@@ -91,7 +91,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtSettings.Issuer ?? throw new InvalidOperationException("JWT Issuer is missing"),
             ValidAudience = jwtSettings.Audience ?? throw new InvalidOperationException("JWT Audience is missing"),
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key ?? throw new InvalidOperationException("JWT Key is missing")))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key ?? throw new InvalidOperationException("JWT Key is missing"))),
+            RoleClaimType = "role",
+            NameClaimType = "name"
         };
         options.Events = new JwtBearerEvents
         {
