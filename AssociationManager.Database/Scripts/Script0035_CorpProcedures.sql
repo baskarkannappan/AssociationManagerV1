@@ -53,7 +53,23 @@ CREATE OR ALTER PROCEDURE corp.sp_Users_GetByEmail @Email NVARCHAR(255) AS
 BEGIN SELECT * FROM corp.Users WHERE Email = @Email; END
 GO
 CREATE OR ALTER PROCEDURE corp.sp_Users_GetByTenantId @TenantId INT AS 
-BEGIN SELECT u.*, ua.Role FROM corp.Users u JOIN corp.UserAssociations ua ON u.UserId = ua.UserId WHERE ua.TenantId = @TenantId; END
+BEGIN 
+    -- 1. Global corporate users
+    SELECT u.*, ua.Role 
+    FROM corp.Users u 
+    JOIN corp.UserAssociations ua ON u.UserId = ua.UserId 
+    WHERE ua.TenantId = @TenantId
+    
+    UNION
+
+    -- 2. Residents from associations within the tenant
+    SELECT DISTINCT u.*, 'Resident' as Role
+    FROM corp.Users u
+    INNER JOIN assoc.Persons p ON u.Email = p.Email
+    INNER JOIN assoc.Occupancy o ON p.PersonId = o.PersonId
+    INNER JOIN corp.Associations a ON o.AssociationId = a.AssociationId
+    WHERE a.TenantId = @TenantId;
+END
 GO
 CREATE OR ALTER PROCEDURE corp.sp_Users_Create @TenantId INT, @GoogleId NVARCHAR(255) = NULL, @Email NVARCHAR(255), @Name NVARCHAR(255), @PictureUrl NVARCHAR(MAX), @Role NVARCHAR(50), @CreatedDate DATETIME, @LastLoginDate DATETIME = NULL, @IsActive BIT AS 
 BEGIN INSERT INTO corp.Users (TenantId, GoogleId, Email, Name, PictureUrl, Role, CreatedDate, LastLoginDate, IsActive) OUTPUT INSERTED.UserId VALUES (@TenantId, @GoogleId, @Email, @Name, @PictureUrl, @Role, @CreatedDate, @LastLoginDate, @IsActive); END

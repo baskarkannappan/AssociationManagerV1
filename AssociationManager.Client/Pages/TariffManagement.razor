@@ -22,7 +22,7 @@
     <div class="col-md-3 border-end bg-light d-flex flex-column" style="height: 100%;">
         <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-white">
             <span class="small fw-bold text-uppercase text-muted">Billing Groups</span>
-            <button class="btn btn-sm btn-link p-0 text-primary" @onclick="ShowCreateGroupForm">
+            <button class="btn btn-sm btn-link p-0 text-vscode" @onclick="ShowCreateGroupForm">
                 <i class="bi bi-plus-circle"></i>
             </button>
         </div>
@@ -120,7 +120,7 @@
                                 <div class="p-3 border rounded bg-light">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="small fw-bold">Assigned Assets</span>
-                                        <button class="btn btn-xs btn-primary">Assign Assets</button>
+                                        <button class="btn btn-sm btn-vscode">Assign Assets</button>
                                     </div>
                                     <small class="text-muted">UI for mass assignment coming soon.</small>
                                 </div>
@@ -223,11 +223,8 @@
 <style>
     .hover-bg-slate:hover { background: #f8fafc; }
     .cursor-pointer { cursor: pointer; }
-    .btn-vscode { background: #007acc; color: white; border: none; padding: 4px 12px; font-size: 12px; transition: opacity 0.2s; }
-    .btn-vscode:hover { opacity: 0.9; color: white; }
     .compact-form label { font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px; }
     .compact-form .form-control, .compact-form .form-select { border-radius: 2px; border: 1px solid #e2e8f0; font-size: 13px; }
-    .btn-xs { padding: 2px 8px; font-size: 10px; border-radius: 2px; }
 </style>
 
 @code {

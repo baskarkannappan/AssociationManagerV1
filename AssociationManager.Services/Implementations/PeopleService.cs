@@ -13,6 +13,7 @@ public class PeopleService : IPeopleService
     private readonly IOccupancyRepository _occupancyRepository;
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IPetRepository _petRepository;
+    private readonly IAssocUserRepository _assocUserRepository;
     private readonly ITenantContext _tenantContext;
 
     public PeopleService(
@@ -20,12 +21,14 @@ public class PeopleService : IPeopleService
         IOccupancyRepository occupancyRepository,
         IVehicleRepository vehicleRepository,
         IPetRepository petRepository,
+        IAssocUserRepository assocUserRepository,
         ITenantContext tenantContext)
     {
         _personRepository = personRepository;
         _occupancyRepository = occupancyRepository;
         _vehicleRepository = vehicleRepository;
         _petRepository = petRepository;
+        _assocUserRepository = assocUserRepository;
         _tenantContext = tenantContext;
     }
 
@@ -54,7 +57,37 @@ public class PeopleService : IPeopleService
     {
         occupancy.TenantId = CurrentTenantId;
         occupancy.AssociationId = CurrentAssociationId;
-        return await _occupancyRepository.CreateAsync(occupancy);
+        
+        var id = await _occupancyRepository.CreateAsync(occupancy);
+
+        // Provision user as Resident if email exists
+        var person = await _personRepository.GetByIdAsync(occupancy.PersonId, CurrentTenantId, CurrentAssociationId);
+        if (person != null && !string.IsNullOrEmpty(person.Email))
+        {
+            var user = await _assocUserRepository.GetByEmailAsync(person.Email);
+            int userId;
+            if (user == null)
+            {
+                // Create user in assoc schema
+                userId = await _assocUserRepository.CreateAsync(new User
+                {
+                    Email = person.Email,
+                    Name = $"{person.FirstName} {person.LastName}",
+                    Role = "User", // Base role
+                    CreatedDate = System.DateTime.UtcNow,
+                    IsActive = true
+                });
+            }
+            else
+            {
+                userId = user.UserId;
+            }
+
+            // Map user to the association as Resident
+            await _assocUserRepository.AddUserToTenantAsync(userId, CurrentAssociationId, "Resident");
+        }
+
+        return id;
     }
     public async Task<bool> RemoveOccupantAsync(int occupancyId, int? associationId = null) => await _occupancyRepository.DeleteAsync(occupancyId, CurrentTenantId, associationId ?? CurrentAssociationId);
 

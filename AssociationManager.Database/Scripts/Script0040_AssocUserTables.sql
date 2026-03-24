@@ -61,10 +61,20 @@ BEGIN SELECT * FROM assoc.Users WHERE Email = @Email; END
 GO
 CREATE OR ALTER PROCEDURE assoc.sp_Users_GetByAssociationId @AssociationId INT AS 
 BEGIN 
+    -- 1. Explicitly mapped users
     SELECT u.*, ua.Role 
     FROM assoc.Users u 
     JOIN assoc.UserAssociations ua ON u.UserId = ua.UserId 
-    WHERE ua.AssociationId = @AssociationId; 
+    WHERE ua.AssociationId = @AssociationId
+    
+    UNION
+
+    -- 2. Persons mapped as occupants (Residents)
+    SELECT DISTINCT u.*, 'Resident' as Role
+    FROM assoc.Users u
+    INNER JOIN assoc.Persons p ON u.Email = p.Email
+    INNER JOIN assoc.Occupancy o ON p.PersonId = o.PersonId
+    WHERE o.AssociationId = @AssociationId;
 END
 GO
 CREATE OR ALTER PROCEDURE assoc.sp_Users_Create @TenantId INT = NULL, @GoogleId NVARCHAR(255) = NULL, @Email NVARCHAR(255), @Name NVARCHAR(255), @PictureUrl NVARCHAR(MAX) = NULL, @Role NVARCHAR(50) = 'User', @CreatedDate DATETIME, @LastLoginDate DATETIME = NULL, @IsActive BIT = 1 AS 
@@ -97,7 +107,17 @@ BEGIN
 END
 GO
 CREATE OR ALTER PROCEDURE assoc.sp_UserAssociations_GetRole @UserId INT, @AssociationId INT AS 
-BEGIN SELECT Role FROM assoc.UserAssociations WHERE UserId = @UserId AND AssociationId = @AssociationId; END
+BEGIN 
+    IF EXISTS (SELECT 1 FROM assoc.UserAssociations WHERE UserId = @UserId AND AssociationId = @AssociationId)
+        SELECT Role FROM assoc.UserAssociations WHERE UserId = @UserId AND AssociationId = @AssociationId;
+    ELSE IF EXISTS (
+        SELECT 1 FROM assoc.Occupancy o 
+        INNER JOIN assoc.Persons p ON o.PersonId = p.PersonId
+        INNER JOIN assoc.Users u ON p.Email = u.Email
+        WHERE u.UserId = @UserId AND o.AssociationId = @AssociationId
+    )
+        SELECT 'Resident' as Role;
+END
 GO
 CREATE OR ALTER PROCEDURE assoc.sp_UserAssociations_Delete @UserId INT, @AssociationId INT AS 
 BEGIN DELETE FROM assoc.UserAssociations WHERE UserId = @UserId AND AssociationId = @AssociationId; END
@@ -110,8 +130,16 @@ BEGIN
     END
     ELSE
     BEGIN
-        SELECT COUNT(1) FROM assoc.UserAssociations 
-        WHERE UserId = @UserId AND AssociationId = @AssociationId; 
+        SELECT COUNT(1) FROM (
+            -- Direct mapping
+            SELECT AssociationId FROM assoc.UserAssociations WHERE UserId = @UserId AND AssociationId = @AssociationId
+            UNION
+            -- Implicit mapping via occupancy
+            SELECT o.AssociationId FROM assoc.Occupancy o 
+            INNER JOIN assoc.Persons p ON o.PersonId = p.PersonId
+            INNER JOIN assoc.Users u ON p.Email = u.Email
+            WHERE u.UserId = @UserId AND o.AssociationId = @AssociationId
+        ) AS AuthCheck;
     END
 END
 GO

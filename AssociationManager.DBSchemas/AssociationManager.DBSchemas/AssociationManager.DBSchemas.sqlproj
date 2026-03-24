@@ -127,16 +127,24 @@
     <Build Include="corp\Stored Procedures\sp_UserAssociations_GetRole.sql" />
     <Build Include="corp\Stored Procedures\sp_UserAssociations_Upsert.sql" />
     <Build Include="corp\Stored Procedures\sp_UserAssociations_CheckExists.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_Update.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_Create.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_GetByTenantId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_Update.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="corp\Stored Procedures\sp_Users_Create.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="corp\Stored Procedures\sp_Users_GetByTenantId.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="corp\Stored Procedures\sp_Users_GetByEmail.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_GetByGoogleId.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_GetById.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_GetByUserId.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_Delete.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_Update.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_Create.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="corp\Stored Procedures\sp_Associations_GetAllByTenantId.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_Occupancy_GetByUserId.sql" />
@@ -189,7 +197,9 @@
     <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetByAssetId.sql" />
     <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetAll.sql" />
-    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Upsert.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_RefreshTokens_GetByToken.sql" />
     <Build Include="assoc\Stored Procedures\sp_Associations_GetByUserId.sql">
@@ -202,12 +212,18 @@
     <Build Include="assoc\Stored Procedures\sp_UserAssociations_GetRole.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_Upsert.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_UserAssociations_CheckExists.sql" />
     <Build Include="assoc\Stored Procedures\sp_Users_GetAll.sql" />
     <Build Include="assoc\Stored Procedures\sp_Users_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Users_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Users_GetByAssociationId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_Create.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Users_GetByAssociationId.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_Users_GetByEmail.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>

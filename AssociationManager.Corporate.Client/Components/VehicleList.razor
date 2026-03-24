@@ -9,7 +9,7 @@
         <AuthorizeView Context="vehicleAuthContext">
             @if (AuthService.HasLevel(vehicleAuthContext.User, AppRole.LevelResident))
             {
-                <button class="btn btn-sm btn-outline-primary" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+                <button class="btn btn-sm btn-vscode" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
             }
         </AuthorizeView>
     </div>
@@ -25,8 +25,8 @@
                 <div class="col-12 mt-1"><input @bind="_newVehicle.ParkingSlot" class="form-control" placeholder="Parking Slot (Optional)" /></div>
             </div>
             <div class="mt-2 text-end">
-                <button class="btn btn-sm btn-link py-0 text-muted text-decoration-none" style="font-size: 11px;" @onclick='() => _showAddForm = false'>Cancel</button>
-                <button class="btn btn-sm btn-primary py-0 px-2" style="font-size: 11px;" @onclick="SaveVehicle">Add Vehicle</button>
+                <button class="btn btn-sm btn-vscode-secondary" @onclick='() => _showAddForm = false'>Cancel</button>
+                <button class="btn btn-sm btn-vscode px-3" @onclick="SaveVehicle">Add Vehicle</button>
             </div>
         </div>
     }
@@ -56,7 +56,7 @@
                 <AuthorizeView Context="vehicleAuthContext">
                     @if (AuthService.HasLevel(vehicleAuthContext.User, AppRole.LevelResident))
                     {
-                        <button class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="() => OnDelete.InvokeAsync(context.VehicleId)">
+                        <button class="btn btn-sm btn-vscode-danger ms-2" @onclick="() => OnDelete.InvokeAsync(context.VehicleId)">
                             <i class="bi bi-trash"></i>
                         </button>
                     }

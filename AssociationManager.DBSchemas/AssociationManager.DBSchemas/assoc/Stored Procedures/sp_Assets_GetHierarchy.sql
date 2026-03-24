@@ -1,2 +1,7 @@
-﻿CREATE   PROCEDURE assoc.sp_Assets_GetHierarchy @TenantId INT, @AssociationId INT AS 
-BEGIN SELECT * FROM assoc.Assets WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND IsActive = 1 ORDER BY ParentId, AssetType; END
+CREATE   PROCEDURE assoc.sp_Assets_GetHierarchy @TenantId INT, @AssociationId INT AS 
+BEGIN 
+    SELECT * FROM assoc.Assets 
+    WHERE AssociationId = @AssociationId AND IsActive = 1 
+    ORDER BY ParentId, AssetType; 
+END
+GO

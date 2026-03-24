@@ -39,34 +39,75 @@ body {
 }
 
 /* FLAT BUTTONS (VS CODE STYLE) */
-.btn-vscode {
-    background: var(--vscode-accent);
-    color: white;
-    border: none;
-    border-radius: 2px;
+.btn {
+    border-radius: 2px !important;
+    font-size: 13px;
     padding: 4px 12px;
-    font-size: 12px;
-    cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    border: 1px solid transparent;
+    transition: all 0.1s ease;
 }
 
-.btn-vscode:hover {
-    background: #0062a3;
+.btn-sm {
+    padding: 2px 8px;
+    font-size: 11px;
 }
 
-.btn-vscode-secondary {
-    background: #e1e1e1;
-    color: #333;
-    border: 1px solid #c5c5c5;
-    border-radius: 2px;
-    padding: 4px 12px;
-    font-size: 12px;
+.btn-vscode, .btn-primary {
+    background: var(--vscode-accent) !important;
+    color: white !important;
+    border-color: var(--vscode-accent) !important;
 }
 
-.btn-vscode-secondary:hover {
-    background: #d5d5d5;
+.btn-vscode:hover, .btn-primary:hover {
+    background: #0062a3 !important;
+    border-color: #0062a3 !important;
+}
+
+.btn-vscode-secondary, .btn-secondary, .btn-vscode-outline {
+    background: #ffffff !important;
+    color: #333333 !important;
+    border-color: #cccccc !important;
+}
+
+.btn-vscode-secondary:hover, .btn-secondary:hover, .btn-vscode-outline:hover {
+    background: #f0f0f0 !important;
+    border-color: #aaaaaa !important;
+}
+
+.btn-vscode-danger, .btn-danger {
+    background: #d32f2f !important;
+    color: white !important;
+    border-color: #d32f2f !important;
+}
+
+.btn-vscode-danger:hover, .btn-danger:hover {
+    background: #b71c1c !important;
+    border-color: #b71c1c !important;
+}
+
+.btn-vscode-success, .btn-success {
+    background: #388e3c !important;
+    color: white !important;
+    border-color: #388e3c !important;
+}
+
+.btn-vscode-success:hover, .btn-success:hover {
+    background: #2e7d32 !important;
+    border-color: #2e7d32 !important;
+}
+
+.btn-vscode-warning, .btn-warning {
+    background: #f57c00 !important;
+    color: white !important;
+    border-color: #f57c00 !important;
+}
+
+.btn-vscode-warning:hover, .btn-warning:hover {
+    background: #ef6c00 !important;
+    border-color: #ef6c00 !important;
 }
 
 .vscode-shell {

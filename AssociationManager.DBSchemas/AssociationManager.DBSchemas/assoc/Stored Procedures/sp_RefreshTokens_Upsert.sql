@@ -1,6 +1,4 @@
-﻿
--- REFRESH TOKENS PROC FIX
-CREATE   PROCEDURE assoc.sp_RefreshTokens_Upsert @UserId INT, @Token NVARCHAR(MAX), @ExpiryDate DATETIME, @CreatedDate DATETIME AS 
+﻿CREATE   PROCEDURE assoc.sp_RefreshTokens_Upsert @UserId INT, @Token NVARCHAR(MAX), @ExpiryDate DATETIME, @CreatedDate DATETIME AS 
 BEGIN
     IF EXISTS (SELECT 1 FROM assoc.RefreshTokens WHERE UserId = @UserId)
         UPDATE assoc.RefreshTokens SET Token = @Token, ExpiryDate = @ExpiryDate WHERE UserId = @UserId

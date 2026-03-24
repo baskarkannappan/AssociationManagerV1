@@ -84,8 +84,8 @@
         </div>
     </BodyTemplate>
     <FooterTemplate>
-        <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none py-1" @onclick="OnCloseAsync">Cancel</button>
-        <button type="button" class="btn btn-sm btn-primary px-3 py-1" style="font-size: 12px;" @onclick="HandleSubmit" disabled="@(string.IsNullOrWhiteSpace(_request.BaseName))">
+        <button type="button" class="btn btn-sm btn-vscode-secondary px-3 py-1" @onclick="OnCloseAsync">Cancel</button>
+        <button type="button" class="btn btn-sm btn-vscode px-3 py-1" @onclick="HandleSubmit" disabled="@(string.IsNullOrWhiteSpace(_request.BaseName))">
             <i class="bi bi-rocket-takeoff me-1"></i> Generate Assets
         </button>
     </FooterTemplate>

@@ -4,6 +4,7 @@ using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
@@ -27,8 +28,16 @@ public class AssetsController : ControllerBase
     [HttpGet("hierarchy")]
     public async Task<IActionResult> GetHierarchy()
     {
-        // If the user is a Resident, only show their owned/occupied assets
-        int? filterUserId = AppRole.GetLevel(User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value) <= AppRole.LevelResident ? _tenantContext.UserId : null;
+        // Check all role claims to find the highest privilege level
+        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role)
+                        .Select(c => c.Value)
+                        .Concat(User.FindAll("role").Select(c => c.Value))
+                        .Distinct();
+
+        int maxLevel = roles.Any() ? roles.Max(r => r != null ? AppRole.GetLevel(r) : 0) : AppRole.LevelResident;
+
+        // If the user is only a Resident (or lower), only show their owned/occupied assets
+        int? filterUserId = maxLevel <= AppRole.LevelResident ? _tenantContext.UserId : null;
         
         var hierarchy = await _assetService.GetHierarchyAsync(filterUserId);
         return Ok(ApiResponse<IEnumerable<Asset>>.SuccessResponse(hierarchy));

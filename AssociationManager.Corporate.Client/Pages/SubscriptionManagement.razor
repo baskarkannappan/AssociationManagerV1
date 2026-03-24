@@ -61,7 +61,7 @@
                 <GridColumn TItem="AssociationSubscription" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
                     <AuthorizeView Roles="PlatformAdmin,SubscriptionManager" Context="innerAuth">
                         <Authorized>
-                            <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowChangePlanModal(context)">
+                            <button class="btn btn-sm btn-vscode" @onclick="() => ShowChangePlanModal(context)">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
                         </Authorized>
@@ -108,7 +108,7 @@
                 <GridColumn TItem="SubscriptionPlan" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
                     <AuthorizeView Roles="PlatformAdmin,SubscriptionManager" Context="planAuth">
                         <Authorized>
-                            <button class="btn btn-xs btn-outline-primary border-0" @onclick="() => ShowEditPlanModal(context)">
+                            <button class="btn btn-sm btn-vscode" @onclick="() => ShowEditPlanModal(context)">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
                         </Authorized>
@@ -138,7 +138,7 @@
                     </select>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button class="btn btn-sm btn-secondary" @onclick="() => _showModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showModal = false">Cancel</button>
                     <button class="btn btn-sm btn-vscode px-3" @onclick="UpdateSubscription">Update Plan</button>
                 </div>
             </div>
@@ -176,7 +176,7 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button class="btn btn-sm btn-secondary" @onclick="() => _showPlanModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showPlanModal = false">Cancel</button>
                     <button class="btn btn-sm btn-vscode px-3" @onclick="SavePlan">Save Plan</button>
                 </div>
             </div>
@@ -185,11 +185,9 @@
 }
 
 <style>
-    .btn-xs { padding: 1px 5px; font-size: 11px; }
     .bg-success-subtle { background-color: #f0fdf4 !important; }
     .bg-warning-subtle { background-color: #fffbeb !important; }
     .badge { font-weight: 500; font-size: 10px; text-transform: uppercase; }
-    .btn-vscode { background: #007acc; color: white; border: none; padding: 4px 12px; font-size: 12px; }
     .small-pills .nav-link { padding: 4px 12px; font-size: 11px; border-radius: 4px; border: 1px solid transparent; margin-left: 5px; color: #64748b; cursor: pointer; }
     .small-pills .nav-link.active { background: #007acc; color: white; border-color: #007acc; }
     .bg-info-subtle { background-color: #f0f9ff !important; }
