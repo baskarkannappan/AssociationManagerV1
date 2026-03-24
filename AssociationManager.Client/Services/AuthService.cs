@@ -1,6 +1,7 @@
 using AssociationManager.Shared.DTOs;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Client.Services;
@@ -42,6 +43,12 @@ public class AuthService
 
     public async Task<AuthResponse?> SwitchTenant(int tenantId, int associationId)
     {
+        var token = await _tokenService.GetToken();
+        if (!string.IsNullOrEmpty(token))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
         var result = await _httpClient.PostAsJsonAsync("api/auth/switch-tenant", new SwitchTenantRequest { TenantId = tenantId, AssociationId = associationId });
         if (result.IsSuccessStatusCode)
         {
