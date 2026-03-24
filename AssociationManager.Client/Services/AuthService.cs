@@ -53,6 +53,9 @@ public class AuthService
             }
             return response;
         }
+        return new AuthResponse { Success = false, Message = "Tenant switch failed" };
+    }
+
     public async Task<AuthResponse?> RefreshToken()
     {
         var token = await _tokenService.GetToken();
