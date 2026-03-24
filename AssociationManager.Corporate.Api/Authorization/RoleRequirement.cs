@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using System.Collections.Generic;
 
-namespace AssociationManager.Shared.Models;
+namespace AssociationManager.Corporate.Api.Authorization;
 
 public class RoleRequirement : IAuthorizationRequirement
 {

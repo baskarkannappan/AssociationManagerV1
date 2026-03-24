@@ -4,7 +4,6 @@ using AssociationManager.Auth.Services;
 using AssociationManager.Data;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Data.Repositories;
-using AssociationManager.Shared.Models;
 using AssociationManager.Corporate.Api.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using AssociationManager.Realtime.Hubs;

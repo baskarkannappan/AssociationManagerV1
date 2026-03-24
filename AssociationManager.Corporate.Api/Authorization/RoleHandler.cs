@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Linq;
-using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 
 namespace AssociationManager.Corporate.Api.Authorization;
