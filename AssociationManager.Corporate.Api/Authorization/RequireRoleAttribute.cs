@@ -24,7 +24,7 @@ public class RequireRoleAttribute : Attribute, IAuthorizationFilter
             return;
         }
 
-        var userRole = user.Claims.FirstOrDefault(c => c.Type == "Role" || c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
+        var userRole = user.Claims.FirstOrDefault(c => c.Type == "role" || c.Type == "Role" || c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
         
         if (string.IsNullOrEmpty(userRole) || !_roles.Contains(userRole))
         {

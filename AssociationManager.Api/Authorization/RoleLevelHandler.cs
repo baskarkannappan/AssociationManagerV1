@@ -9,6 +9,7 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleLevelRequirement requirement)
     {
         var roleClaims = context.User.FindAll(ClaimTypes.Role).Select(c => c.Value)
+            .Concat(context.User.FindAll("role").Select(c => c.Value))
             .Concat(context.User.FindAll("Role").Select(c => c.Value))
             .Concat(context.User.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value))
             .ToList();
