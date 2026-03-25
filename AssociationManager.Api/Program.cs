@@ -9,7 +9,6 @@ using AssociationManager.Realtime.Hubs;
 using AssociationManager.Services.Implementations;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Interfaces;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using AssociationManager.Api.Authorization;
@@ -56,6 +55,7 @@ builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
 builder.Services.AddScoped<ITariffRepository, TariffRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<IGovernanceRepository, GovernanceRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -71,6 +71,7 @@ builder.Services.AddScoped<IOperationsService, OperationsService>();
 builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IGovernanceService, GovernanceService>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
@@ -138,21 +139,21 @@ builder.Services.AddCors(options =>
 });
 
 // Authorization Policies
-builder.Services.AddScoped<IAuthorizationHandler, RoleLevelHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireResident", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelResident)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident)));
     options.AddPolicy("RequireUserManager", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelUserManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager)));
     options.AddPolicy("RequireAssetManager", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelAssetManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager)));
     options.AddPolicy("RequireFinanceManager", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelFinanceManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager)));
     options.AddPolicy("RequireAssociationAdmin", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
     options.AddPolicy("RequireSystemAdmin", policy => 
-        policy.Requirements.Add(new RoleLevelRequirement(AppRole.LevelSystemAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin)));
 });
 
 var app = builder.Build();

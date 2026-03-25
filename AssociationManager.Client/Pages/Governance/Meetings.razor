@@ -1,0 +1,195 @@
+@page "/governance/meetings"
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject GovernanceService GovernanceService
+@inject ToastService _toastService
+@inject IAppAuthorizationService AuthService
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">📋 Meetings & Minutes</h2>
+            <p class="text-muted">Schedule and document association general and committee meetings.</p>
+        </div>
+        @if (_isAdmin)
+        {
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <i class="bi bi-calendar-plus me-2"></i> Schedule Meeting
+            </button>
+        }
+    </div>
+
+    @if (_meetings == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading meetings...</p>
+        </div>
+    }
+    else if (!_meetings.Any())
+    {
+        <div class="text-center py-5 bg-white rounded shadow-sm border">
+            <i class="bi bi-calendar-event fs-1 text-muted opacity-25"></i>
+            <p class="mt-3 text-muted">No meetings found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var meeting in _meetings.OrderByDescending(m => m.MeetingDate))
+            {
+                <div class="col-12">
+                    <Card Class="shadow-sm border-0 border-start border-4 border-primary">
+                        <CardBody Class="p-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center gap-3 mb-2">
+                                        <div class="bg-primary bg-opacity-10 text-primary p-2 rounded">
+                                            <div class="fw-bold fs-5">@meeting.MeetingDate.Day</div>
+                                            <div class="small">@meeting.MeetingDate.ToString("MMM")</div>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-bold mb-0">@meeting.Title</h5>
+                                            <p class="text-muted small mb-0">@meeting.MeetingDate.ToShortTimeString() • @meeting.MeetingDate.ToLongDateString()</p>
+                                        </div>
+                                    </div>
+                                    <p class="text-secondary small mb-3">@meeting.Description</p>
+                                </div>
+                                <div class="col-md-4 text-md-end">
+                                    <h6 class="fw-bold small mb-2 text-primary">Minutes</h6>
+                                    @if (meeting.Minutes.Any())
+                                    {
+                                        @foreach (var min in meeting.Minutes)
+                                        {
+                                            <div class="mb-1">
+                                                <i class="bi bi-file-earmark-text me-1"></i>
+                                                <span class="small">@min.Notes</span>
+                                                @if (!string.IsNullOrEmpty(min.DocumentUrl))
+                                                {
+                                                    <a href="@min.DocumentUrl" target="_blank" class="ms-2 small text-decoration-none">View doc</a>
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="small text-muted mb-2">No minutes recorded yet.</p>
+                                    }
+                                    @if (_isAdmin)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary mt-2" @onclick="() => ShowMinutesModal(meeting.MeetingId)">
+                                            Add Minutes
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Schedule Modal -->
+<Modal @ref="_meetingModal" Title="Schedule Meeting" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <EditForm Model="_newMeeting" OnValidSubmit="SaveMeeting">
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Title</label>
+                <InputText @bind-Value="_newMeeting.Title" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Date & Time</label>
+                <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="_newMeeting.MeetingDate" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Description</label>
+                <InputTextArea @bind-Value="_newMeeting.Description" class="form-control" rows="3" />
+            </div>
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-light" @onclick="() => _meetingModal.HideAsync()">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4">Schedule</button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+<!-- Minutes Modal -->
+<Modal @ref="_minutesModal" Title="Add Meeting Minutes" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <EditForm Model="_newMinutes" OnValidSubmit="SaveMinutes">
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Notes</label>
+                <InputTextArea @bind-Value="_newMinutes.Notes" class="form-control" rows="5" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Document URL (Optional)</label>
+                <InputText @bind-Value="_newMinutes.DocumentUrl" class="form-control" placeholder="https://..." />
+            </div>
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-light" @onclick="() => _minutesModal.HideAsync()">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4">Save Minutes</button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<Meeting>? _meetings;
+    private Meeting _newMeeting = new() { MeetingDate = DateTime.Now.AddDays(7) };
+    private MeetingMinutes _newMinutes = new();
+    private Modal _meetingModal = default!;
+    private Modal _minutesModal = default!;
+    private bool _isAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _isAdmin = AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
+        await LoadMeetings();
+    }
+
+    private async Task LoadMeetings()
+    {
+        _meetings = await GovernanceService.GetMeetingsAsync();
+    }
+
+    private async Task ShowCreateModal()
+    {
+        _newMeeting = new Meeting { MeetingDate = DateTime.Now.AddDays(7) };
+        await _meetingModal.ShowAsync();
+    }
+
+    private async Task SaveMeeting()
+    {
+        var success = await GovernanceService.CreateMeetingAsync(_newMeeting);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Meeting scheduled."));
+            await _meetingModal.HideAsync();
+            await LoadMeetings();
+        }
+    }
+
+    private async Task ShowMinutesModal(int meetingId)
+    {
+        _newMinutes = new MeetingMinutes { MeetingId = meetingId };
+        await _minutesModal.ShowAsync();
+    }
+
+    private async Task SaveMinutes()
+    {
+        var success = await GovernanceService.AddMinutesAsync(_newMinutes);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Minutes recorded."));
+            await _minutesModal.HideAsync();
+            await LoadMeetings();
+        }
+    }
+}

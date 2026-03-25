@@ -1,0 +1,262 @@
+@page "/governance/byelaws"
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject GovernanceService GovernanceService
+@inject ToastService _toastService
+@inject IAppAuthorizationService AuthService
+@inject IJSRuntime JSRuntime
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">📜 Bye-laws Management</h2>
+            <p class="text-muted">Maintain and view the association's rules and regulations.</p>
+        </div>
+        @if (_isAdmin)
+        {
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <i class="bi bi-plus-lg me-2"></i> New Bye-law
+            </button>
+        }
+    </div>
+
+    @if (_laws == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading bye-laws...</p>
+        </div>
+    }
+    else if (!_laws.Any())
+    {
+        <div class="alert alert-info border-0 shadow-sm d-flex align-items-center gap-3">
+            <i class="bi bi-info-circle-fill fs-4"></i>
+            <div>No bye-laws have been added yet.</div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var law in _laws.OrderByDescending(l => l.EffectiveDate))
+            {
+                <div class="col-md-6 col-lg-4">
+                    <Card Class="shadow-sm border-0 h-100 position-relative overflow-hidden">
+                        @if (law.IsActive)
+                        {
+                            <div class="position-absolute top-0 end-0 bg-success text-white px-3 py-1 small fw-bold" style="border-bottom-left-radius: 12px;">ACTIVE</div>
+                        }
+                        <CardBody Class="p-4 d-flex flex-column">
+                            <h5 class="fw-bold mb-2">@law.Title</h5>
+                            <div class="d-flex align-items-center gap-2 mb-3 small text-muted">
+                                <span class="badge bg-light text-dark border">v@law.Version</span>
+                                <span>•</span>
+                                <span>Eff: @law.EffectiveDate.ToShortDateString()</span>
+                            </div>
+                            <p class="text-secondary small flex-grow-1">@law.Description</p>
+                            @if (_isAdmin)
+                            {
+                                <div class="mt-3 border-top pt-3 d-flex gap-2">
+                                    <button class="btn btn-link btn-sm text-decoration-none p-0" @onclick="() => EditLaw(law)">
+                                        <i class="bi bi-pencil me-1"></i> Edit
+                                    </button>
+                                    @if (law.DocumentContent != null && law.DocumentContent.Length > 0)
+                                    {
+                                        <button class="btn btn-link btn-sm text-decoration-none p-0 text-success" @onclick="() => DownloadFile(law)">
+                                            <i class="bi bi-download me-1"></i> Download
+                                        </button>
+                                    }
+                                    <button class="btn btn-link btn-sm text-decoration-none p-0 text-danger" @onclick="() => DeleteLaw(law)">
+                                        <i class="bi bi-trash me-1"></i> Delete
+                                    </button>
+                                </div>
+                            }
+                            else if (law.DocumentContent != null && law.DocumentContent.Length > 0)
+                            {
+                                <div class="mt-3 border-top pt-3">
+                                    <button class="btn btn-sm btn-outline-success w-100" @onclick="() => DownloadFile(law)">
+                                        <i class="bi bi-download me-2"></i> Download Document
+                                    </button>
+                                </div>
+                            }
+                        </CardBody>
+                    </Card>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create/Edit Modal -->
+<Modal @ref="_lawModal" Title="@(_currentLaw.ByeLawId == 0 ? "New Bye-law" : "Edit Bye-law")" IsVerticallyCentered="true" Size="ModalSize.Large">
+    <BodyTemplate>
+        <EditForm Model="_currentLaw" OnValidSubmit="SaveLaw">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label small fw-bold">Title</label>
+                    <InputText @bind-Value="_currentLaw.Title" class="form-control" placeholder="e.g. Maintenance Rules 2024" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Version</label>
+                    <InputText @bind-Value="_currentLaw.Version" class="form-control" placeholder="1.0" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold">Effective Date</label>
+                    <InputDate @bind-Value="_currentLaw.EffectiveDate" class="form-control" required />
+                </div>
+                <div class="col-md-6 d-flex align-items-end mb-2">
+                    <div class="form-check form-switch pt-2">
+                        <InputCheckbox @bind-Value="_currentLaw.IsActive" class="form-check-input" id="isActiveSwitch" />
+                        <label class="form-check-label small fw-bold" for="isActiveSwitch">Active Version</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-bold">Description / Rules Summary</label>
+                    <InputTextArea @bind-Value="_currentLaw.Description" class="form-control" rows="3" placeholder="Detail the key rules..." />
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-bold">Document Attachment (MAX 3MB)</label>
+                    <div class="input-group">
+                        <InputFile OnChange="HandleFileSelected" class="form-control" accept=".txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf" />
+                        @if (!string.IsNullOrEmpty(_currentLaw.FileName))
+                        {
+                            <span class="input-group-text bg-success-subtle border-success-subtle small py-1">
+                                <i class="bi bi-check-circle-fill text-success me-1"></i> @_currentLaw.FileName
+                            </span>
+                        }
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 10px;">Supported formats: TXT, Word, Excel, PPT, PDF</div>
+                </div>
+            </div>
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-light" @onclick="() => _lawModal.HideAsync()">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4">Save Bye-law</button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<ByeLaw>? _laws;
+    private ByeLaw _currentLaw = new() { EffectiveDate = DateTime.Today, IsActive = true };
+    private Modal _lawModal = default!;
+    private bool _isAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _isAdmin = AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
+        await LoadLaws();
+    }
+
+    private async Task LoadLaws()
+    {
+        _laws = await GovernanceService.GetByeLawsAsync(false); // Load all including history
+    }
+
+    private async Task ShowCreateModal()
+    {
+        _currentLaw = new ByeLaw { EffectiveDate = DateTime.Today, IsActive = true, Version = "1.0" };
+        await _lawModal.ShowAsync();
+    }
+
+    private async Task EditLaw(ByeLaw law)
+    {
+        _currentLaw = new ByeLaw 
+        { 
+            ByeLawId = law.ByeLawId,
+            AssociationId = law.AssociationId,
+            Title = law.Title,
+            Description = law.Description,
+            EffectiveDate = law.EffectiveDate,
+            Version = law.Version,
+            IsActive = law.IsActive
+        };
+        await _lawModal.ShowAsync();
+    }
+
+    private async Task SaveLaw()
+    {
+        bool success;
+        if (_currentLaw.ByeLawId == 0)
+            success = await GovernanceService.CreateByeLawAsync(_currentLaw);
+        else
+            success = await GovernanceService.UpdateByeLawAsync(_currentLaw);
+
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Bye-law saved."));
+            await _lawModal.HideAsync();
+            await LoadLaws();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to save bye-law."));
+        }
+    }
+
+    private async Task DeleteLaw(ByeLaw law)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{law.Title}'?"))
+        {
+            var success = await GovernanceService.DeleteByeLawAsync(law.ByeLawId);
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Bye-law deleted."));
+                await LoadLaws();
+            }
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            if (file.Size > 3 * 1024 * 1024) // 3 MB
+            {
+                _toastService.Notify(new(ToastType.Warning, "File size must be less than 3 MB."));
+                return;
+            }
+
+            var allowedExtensions = new[] { ".txt", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".pdf" };
+            var extension = System.IO.Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                _toastService.Notify(new(ToastType.Warning, "Unsupported file format."));
+                return;
+            }
+
+            using var stream = file.OpenReadStream(3 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            
+            _currentLaw.DocumentContent = ms.ToArray();
+            _currentLaw.FileName = file.Name;
+            _currentLaw.ContentType = file.ContentType;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadFile(ByeLaw law)
+    {
+        if (law.DocumentContent == null) return;
+        
+        var base64 = Convert.ToBase64String(law.DocumentContent);
+        await JSRuntime.InvokeVoidAsync("downloadFileFromBase64", law.FileName ?? "document", law.ContentType ?? "application/octet-stream", base64);
+    }
+}
+
+<script>
+    window.downloadFileFromBase64 = (filename, contentType, base64) => {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = `data:${contentType};base64,${base64}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>

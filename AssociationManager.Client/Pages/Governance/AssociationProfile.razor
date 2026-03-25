@@ -1,0 +1,175 @@
+@page "/governance/profile"
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject GovernanceService GovernanceService
+@inject ToastService _toastService
+@inject IAppAuthorizationService AuthService
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <h2 class="fw-bold">🏛️ Association Profile</h2>
+            <p class="text-muted">Core identity and registration details of the association.</p>
+        </div>
+    </div>
+
+    @if (_profileModel == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading profile...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <!-- Summary Card -->
+            <div class="col-lg-4">
+                <Card Class="shadow-sm border-0 h-100">
+                    <CardBody Class="text-center p-4">
+                        <div class="position-relative d-inline-block mb-3">
+                            <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center overflow-hidden" 
+                                 style="width: 100px; height: 100px; border: 2px solid var(--vscode-accent);">
+                                @if (_profileModel.Logo != null && _profileModel.Logo.Length > 0)
+                                {
+                                    <img src="data:image/png;base64,@Convert.ToBase64String(_profileModel.Logo)" style="width: 100%; height: 100%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-building fs-1 text-primary"></i>
+                                }
+                            </div>
+                            @if (_isAdmin)
+                            {
+                                <label for="logoUpload" class="btn btn-sm btn-light position-absolute bottom-0 end-0 rounded-circle shadow-sm" style="cursor: pointer;">
+                                    <i class="bi bi-camera-fill"></i>
+                                    <InputFile id="logoUpload" OnChange="HandleLogoUpload" style="display: none;" accept="image/*" />
+                                </label>
+                            }
+                        </div>
+                        <h4 class="fw-bold">@(_profileModel.AssociationId > 0 ? "Registered Association" : "New Setup")</h4>
+                        <p class="text-secondary small">ID: @_profileModel.AssociationId</p>
+                        <div class="mt-4 text-start">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-envelope text-primary"></i>
+                                <span class="small">@(_profileModel.ContactEmail ?? "Not provided")</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-telephone text-primary"></i>
+                                <span class="small">@(_profileModel.ContactPhone ?? "Not provided")</span>
+                            </div>
+                        </div>
+                    </CardBody>
+                </Card>
+            </div>
+
+            <!-- Details Form -->
+            <div class="col-lg-8">
+                <Card Class="shadow-sm border-0">
+                    <CardHeader Class="bg-white border-bottom py-3">
+                        <h5 class="mb-0 fw-bold">Registration & Contact Details</h5>
+                    </CardHeader>
+                    <CardBody Class="p-4">
+                        <EditForm Model="_profileModel" OnValidSubmit="HandleSubmit">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Registration Number</label>
+                                    <InputText @bind-Value="_profileModel.RegistrationNumber" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Registration Date</label>
+                                    <InputDate @bind-Value="_profileModel.RegistrationDate" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Address</label>
+                                    <InputTextArea @bind-Value="_profileModel.Address" class="form-control" rows="2" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">City</label>
+                                    <InputText @bind-Value="_profileModel.City" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">State</label>
+                                    <InputText @bind-Value="_profileModel.State" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Pincode</label>
+                                    <InputText @bind-Value="_profileModel.Pincode" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Contact Email</label>
+                                    <InputText @bind-Value="_profileModel.ContactEmail" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Contact Phone</label>
+                                    <InputText @bind-Value="_profileModel.ContactPhone" class="form-control" disabled="@(!_isAdmin)" />
+                                </div>
+                            </div>
+
+                            @if (_isAdmin)
+                            {
+                                <div class="mt-4 border-top pt-3 d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary px-4 py-2" disabled="@_isSaving">
+                                        @if (_isSaving)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        }
+                                        <i class="bi bi-save me-2"></i> Save Profile
+                                    </button>
+                                </div>
+                            }
+                        </EditForm>
+                    </CardBody>
+                </Card>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private AssociationManager.Shared.Models.AssociationProfile? _profileModel;
+    private bool _isAdmin;
+    private bool _isSaving;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _isAdmin = AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
+        _profileModel = await GovernanceService.GetProfileAsync();
+    }
+
+    private async Task HandleSubmit()
+    {
+        _isSaving = true;
+        var success = await GovernanceService.UpdateProfileAsync(_profileModel!);
+        if (success)
+            _toastService.Notify(new(ToastType.Success, "Association profile updated successfully."));
+        else
+            _toastService.Notify(new(ToastType.Danger, "Failed to update profile."));
+        _isSaving = false;
+    }
+
+    private async Task HandleLogoUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            if (file.Size > 512 * 1024) // 0.5 MB
+            {
+                _toastService.Notify(new(ToastType.Warning, "Logo size must be less than 0.5 MB."));
+                return;
+            }
+
+            using var stream = file.OpenReadStream(512 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            _profileModel!.Logo = ms.ToArray();
+            StateHasChanged();
+        }
+    }
+}

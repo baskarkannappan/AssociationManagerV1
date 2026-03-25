@@ -1,0 +1,177 @@
+@page "/governance/committee"
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject GovernanceService GovernanceService
+@inject ApiService ApiService
+@inject ToastService _toastService
+@inject IAppAuthorizationService AuthService
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">👥 Committee / Leadership</h2>
+            <p class="text-muted">Manage the association's governing committee and office bearers.</p>
+        </div>
+        @if (_isAdmin)
+        {
+            <button class="btn btn-primary" @onclick="ShowAssignModal">
+                <i class="bi bi-person-plus me-2"></i> Assign Role
+            </button>
+        }
+    </div>
+
+    @if (_members == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading committee members...</p>
+        </div>
+    }
+    else
+    {
+        <Tabs EnableFadeEffect="true">
+            <Tab Title="Current Committee" IsActive="true">
+                <Content>
+                    <div class="row g-4 mt-2">
+                        @foreach (var member in _members.Where(m => m.IsActive))
+                        {
+                            <div class="col-md-6 col-lg-3">
+                                <Card Class="shadow-sm border-0 text-center p-3 h-100">
+                                    <CardBody>
+                                        <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                            <i class="bi bi-person-fill fs-2 text-secondary"></i>
+                                        </div>
+                                        <h5 class="fw-bold mb-1">@member.MemberName</h5>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary mb-3">@member.RoleName</span>
+                                        <p class="small text-muted mb-0">Since: @member.StartDate.ToShortDateString()</p>
+                                        @if (_isAdmin)
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger mt-3 w-100" @onclick="() => DeactivateMember(member)">
+                                                End Tenure
+                                            </button>
+                                        }
+                                    </CardBody>
+                                </Card>
+                            </div>
+                        }
+                    </div>
+                </Content>
+            </Tab>
+            <Tab Title="Past Members">
+                <Content>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-hover align-middle border-0 shadow-sm">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Member Name</th>
+                                    <th>Role</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var member in _members.Where(m => !m.IsActive))
+                                {
+                                    <tr>
+                                        <td>@member.MemberName</td>
+                                        <td><span class="badge bg-light text-dark border">@member.RoleName</span></td>
+                                        <td>@member.StartDate.ToShortDateString()</td>
+                                        <td>@(member.EndDate?.ToShortDateString() ?? "-")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </Content>
+            </Tab>
+        </Tabs>
+    }
+</div>
+
+<!-- Assign Role Modal -->
+<Modal @ref="_assignModal" Title="Assign Committee Role" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <EditForm Model="_newMember" OnValidSubmit="SaveAssignment">
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Member Name</label>
+                <InputText @bind-Value="_newMember.MemberName" class="form-control" placeholder="Enter full name" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Role</label>
+                <InputSelect @bind-Value="_newMember.RoleId" class="form-select" required>
+                    <option value="0">-- Choose Role --</option>
+                    @foreach (var role in _roles)
+                    {
+                        <option value="@role.RoleId">@role.RoleName</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Start Date</label>
+                <InputDate @bind-Value="_newMember.StartDate" class="form-control" required />
+            </div>
+            <div class="mb-3 form-check">
+                <InputCheckbox @bind-Value="_newMember.IsActive" class="form-check-input" id="isActiveCheck" />
+                <label class="form-check-label small fw-bold" for="isActiveCheck">Member is currently active</label>
+            </div>
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-light" @onclick="() => _assignModal.HideAsync()">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4">Assign Member</button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<CommitteeMember>? _members;
+    private List<CommitteeRole> _roles = new();
+    private CommitteeMember _newMember = new() { StartDate = DateTime.Today, IsActive = true };
+    private Modal _assignModal = default!;
+    private bool _isAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _isAdmin = AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _members = (await GovernanceService.GetCommitteeMembersAsync(false)).ToList();
+        _roles = await GovernanceService.GetCommitteeRolesAsync();
+    }
+
+    private async Task ShowAssignModal()
+    {
+        _newMember = new CommitteeMember { StartDate = DateTime.Today, IsActive = true };
+        await _assignModal.ShowAsync();
+    }
+
+    private async Task SaveAssignment()
+    {
+        var success = await GovernanceService.AddCommitteeMemberAsync(_newMember);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Member assigned to committee."));
+            await _assignModal.HideAsync();
+            await LoadData();
+        }
+    }
+
+    private async Task DeactivateMember(CommitteeMember member)
+    {
+        member.IsActive = false;
+        member.EndDate = DateTime.Today;
+        var success = await GovernanceService.UpdateCommitteeMemberAsync(member);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Member tenure ended."));
+            await LoadData();
+        }
+    }
+}

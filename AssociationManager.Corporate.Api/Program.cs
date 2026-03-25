@@ -4,16 +4,13 @@ using AssociationManager.Auth.Services;
 using AssociationManager.Data;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Data.Repositories;
-using AssociationManager.Corporate.Api.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using AssociationManager.Realtime.Hubs;
 using AssociationManager.Services.Implementations;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Interfaces;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using AssociationManager.Corporate.Api.Authorization;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
@@ -139,27 +136,27 @@ builder.Services.AddCors(options =>
 });
 
 // Authorization Policies
-builder.Services.AddScoped<IAuthorizationHandler, RoleLevelHandler>();
-builder.Services.AddScoped<IAuthorizationHandler, RoleHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleHandler>();
 builder.Services.AddAuthorization(options =>
 {
     // Strict Corporate Policies
     options.AddPolicy("RequireCorporate", policy => 
-        policy.Requirements.Add(new RoleRequirement(
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(
             AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.CorporateManager, 
             AppRole.SubscriptionManager, AppRole.GlobalUserManager, AppRole.CorporateAuditor)));
 
     options.AddPolicy("RequireManagement", policy => 
-        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin, AppRole.CorporateManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.CorporateManager)));
 
     options.AddPolicy("RequirePlanManagement", policy => 
-        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin, AppRole.SubscriptionManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.SubscriptionManager)));
 
     options.AddPolicy("RequireUserManagement", policy => 
-        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager)));
 
     options.AddPolicy("RequirePlatformAdmin", policy => 
-        policy.Requirements.Add(new RoleRequirement(AppRole.PlatformAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin)));
 });
 
 var app = builder.Build();

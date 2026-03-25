@@ -4,7 +4,7 @@
 @using AssociationManager.Client.Services
 @using AssociationManager.Client.Components
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@attribute [Authorize(Policy = "RequireResident")]
 @inject ApiService Api
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider

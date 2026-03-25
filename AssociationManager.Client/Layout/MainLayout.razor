@@ -143,6 +143,7 @@
     private int _currentAssociationId;
     private string? _currentRole;
     private bool _isMobileMenuOpen;
+    private bool _isLoadingTenants;
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,68 +162,88 @@
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
+        var authState = await task;
         await InvokeAsync(async () => {
-            await LoadTenants();
+            await LoadTenants(authState);
             StateHasChanged();
         });
     }
 
-    private async Task LoadTenants()
+    private async Task LoadTenants(AuthenticationState? authState = null)
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity?.IsAuthenticated == true)
+        if (_isLoadingTenants) return;
+        _isLoadingTenants = true;
+
+        try 
         {
-            var tenantClaim = user.FindFirst("TenantId")?.Value;
-            if (int.TryParse(tenantClaim, out int tid))
+            if (authState == null)
             {
-                _currentTenantId = tid;
-            }
-
-            var assocClaim = user.FindFirst("AssociationId")?.Value;
-            if (int.TryParse(assocClaim, out int aid))
-            {
-                _currentAssociationId = aid;
-            }
-
-            var roleClaim = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
-                        ?? user.FindFirst("Role")?.Value 
-                        ?? user.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value;
-            
-            if (_currentRole != roleClaim && roleClaim != null)
-            {
-                _currentRole = roleClaim;
-                ShowRoleCapabilities(roleClaim);
+                authState = await AuthStateProvider.GetAuthenticationStateAsync();
             }
             
-            try 
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
             {
+                // Case-insensitive claim lookup
+                var tenantClaim = user.FindFirst(c => c.Type.Equals("TenantId", StringComparison.OrdinalIgnoreCase))?.Value;
+                if (int.TryParse(tenantClaim, out int tid))
+                {
+                    _currentTenantId = tid;
+                }
+
+                var assocClaim = user.FindFirst(c => c.Type.Equals("AssociationId", StringComparison.OrdinalIgnoreCase))?.Value;
+                if (int.TryParse(assocClaim, out int aid))
+                {
+                    _currentAssociationId = aid;
+                }
+
+                var roleClaim = user.FindFirst("role")?.Value 
+                            ?? user.FindFirst("Role")?.Value 
+                            ?? user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
+                            ?? user.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value;
+                
+                if (_currentRole != roleClaim && roleClaim != null)
+                {
+                    _currentRole = roleClaim;
+                    ShowRoleCapabilities(roleClaim);
+                }
+                
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");
                 
-                // Auto-select first association if none selected
+                // Auto-select first association if none selected AND we aren't currently switching
                 if (_currentAssociationId == 0 && _userTenants != null && _userTenants.Any())
                 {
                     var firstAssoc = _userTenants.First();
-                    _currentAssociationId = firstAssoc.AssociationId;
                     
                     // Trigger automatic switch to set session context
                     var response = await AuthService.SwitchTenant(firstAssoc.TenantId, firstAssoc.AssociationId);
                     if (response?.Success == true)
                     {
+                        // Update local State immediately to stop loop
+                        _currentAssociationId = firstAssoc.AssociationId;
+                        _currentTenantId = firstAssoc.TenantId;
+                        
+                        // Force load once to refresh all components with new context
                         Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
                     }
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Error loading tenants: {ex.Message}");
-                _userTenants = Enumerable.Empty<Association>();
+                _userTenants = null;
+                _currentRole = null;
+                _currentAssociationId = 0;
+                _currentTenantId = 0;
             }
         }
-        else
+        catch (Exception ex)
         {
-            _userTenants = null;
-            _currentRole = null;
+            Console.WriteLine($"Error loading tenants: {ex.Message}");
+            _userTenants = Enumerable.Empty<Association>();
+        }
+        finally
+        {
+            _isLoadingTenants = false;
         }
     }
 

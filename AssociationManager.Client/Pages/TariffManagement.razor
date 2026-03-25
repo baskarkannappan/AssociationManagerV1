@@ -1,5 +1,5 @@
 @page "/tariffs"
-@attribute [Authorize(Roles = $"{AppRole.FinanceManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
+@attribute [Authorize(Policy = "RequireFinanceManager")]
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Client.Services

@@ -1,5 +1,4 @@
--- BROADCASTS
-CREATE   PROCEDURE assoc.sp_Broadcasts_GetById @Id INT, @TenantId INT, @AssociationId INT AS 
+﻿CREATE   PROCEDURE assoc.sp_Broadcasts_GetById @Id INT, @TenantId INT, @AssociationId INT AS 
 BEGIN
     SELECT b.*, u.Name as AuthorName, a.Name as AssetName
     FROM assoc.Broadcasts b 

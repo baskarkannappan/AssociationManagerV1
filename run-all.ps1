@@ -19,6 +19,13 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+Write-Host "--- Starting Database Migrations ---" -ForegroundColor Cyan
+dotnet run --project AssociationManager.Database\AssociationManager.Database.csproj
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Database migration failed! Please check the logs." -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+
 Write-Host "--- Starting Services ---" -ForegroundColor Cyan
 
 # 1. API

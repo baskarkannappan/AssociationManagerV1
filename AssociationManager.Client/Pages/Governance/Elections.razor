@@ -1,0 +1,269 @@
+@page "/governance/elections"
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject GovernanceService GovernanceService
+@inject ApiService ApiService
+@inject ToastService _toastService
+@inject IAppAuthorizationService AuthService
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">🗳️ Elections & Voting</h2>
+            <p class="text-muted">Participate in association governance through transparent voting.</p>
+        </div>
+        @if (_isAdmin)
+        {
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <i class="bi bi-plus-circle me-2"></i> Create Election
+            </button>
+        }
+    </div>
+
+    @if (_elections == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading elections...</p>
+        </div>
+    }
+    else if (!_elections.Any())
+    {
+        <div class="alert alert-light border shadow-sm p-5 text-center">
+            <i class="bi bi-inbox fs-1 text-muted opacity-25"></i>
+            <p class="mt-3 mb-0">No active or past elections found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var election in _elections.OrderByDescending(e => e.EndDate))
+            {
+                var isPast = election.EndDate < DateTime.Now;
+                var isActive = election.IsActive && !isPast && election.StartDate <= DateTime.Now;
+
+                <div class="col-md-6">
+                    <Card Class="shadow-sm border-0 h-100">
+                        <CardBody Class="p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="fw-bold mb-0">@election.Title</h5>
+                                @if (isActive)
+                                {
+                                    <span class="badge bg-success">OPEN</span>
+                                }
+                                else if (isPast)
+                                {
+                                    <span class="badge bg-secondary">CLOSED</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-info">UPCOMING</span>
+                                }
+                            </div>
+                            <div class="small text-muted mb-3">
+                                <i class="bi bi-calendar-range me-2"></i>
+                                @election.StartDate.ToShortDateString() - @election.EndDate.ToShortDateString()
+                            </div>
+
+                            @if (isPast)
+                            {
+                                <button class="btn btn-outline-primary btn-sm w-100" @onclick="() => ViewResults(election.ElectionId)">
+                                    <i class="bi bi-bar-chart me-2"></i> View Results
+                                </button>
+                            }
+                            else if (isActive)
+                            {
+                                <button class="btn btn-primary btn-sm w-100" @onclick="() => ShowVoteModal(election)">
+                                    <i class="bi bi-check2-square me-2"></i> Cast Your Vote
+                                </button>
+                            }
+                        </CardBody>
+                    </Card>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Create Election Modal -->
+<Modal @ref="_createModal" Title="Create New Election" IsVerticallyCentered="true">
+    <BodyTemplate>
+        <EditForm Model="_newElection" OnValidSubmit="SaveElection">
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Election Title</label>
+                <InputText @bind-Value="_newElection.Title" class="form-control" placeholder="e.g. Managing Committee 2024" required />
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label small fw-bold">Start Date</label>
+                    <InputDate @bind-Value="_newElection.StartDate" class="form-control" required />
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-bold">End Date</label>
+                    <InputDate @bind-Value="_newElection.EndDate" class="form-control" required />
+                </div>
+            </div>
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-light" @onclick="() => _createModal.HideAsync()">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4">Create</button>
+            </div>
+        </EditForm>
+    </BodyTemplate>
+</Modal>
+
+<!-- Vote Modal -->
+<Modal @ref="_voteModal" Title="Cast Your Vote" IsVerticallyCentered="true">
+    <BodyTemplate>
+        @if (_selectedElection != null)
+        {
+            <div class="mb-4 text-center">
+                <h6 class="text-muted small">Election</h6>
+                <p class="fw-bold">@_selectedElection.Title</p>
+            </div>
+            @if (_hasVoted)
+            {
+                <div class="alert alert-success border-0 text-center">
+                    <i class="bi bi-check-circle-fill me-2"></i> You have already cast your vote!
+                </div>
+            }
+            else
+            {
+                <div class="list-group list-group-flush border rounded overflow-hidden">
+                    @foreach (var candidate in _selectedElection.Candidates)
+                    {
+                        <button class="list-group-item list-group-item-action @(vote.CandidateId == candidate.CandidateId ? "active" : "") d-flex align-items-center gap-3 p-3"
+                                @onclick="() => vote.CandidateId = candidate.CandidateId">
+                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-person text-dark"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">@candidate.MemberName</div>
+                                <div class="small opacity-75">ID: @candidate.MemberId</div>
+                            </div>
+                            @if (vote.CandidateId == candidate.CandidateId)
+                            {
+                                <i class="bi bi-check-circle-fill fs-4"></i>
+                            }
+                        </button>
+                    }
+                </div>
+                <div class="mt-4 d-grid">
+                    <button class="btn btn-primary py-2" disabled="@(vote.CandidateId == 0)" @onclick="SubmitVote">
+                        Submit Final Vote
+                    </button>
+                </div>
+            }
+        }
+    </BodyTemplate>
+</Modal>
+
+<!-- Results Modal -->
+<Modal @ref="_resultsModal" Title="Election Results" IsVerticallyCentered="true">
+    <BodyTemplate>
+        @if (_results != null)
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Candidate</th>
+                            <th class="text-end">Votes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var res in _results.OrderByDescending(r => r.VoteCount))
+                        {
+                            <tr>
+                                <td>@res.CandidateName</td>
+                                <td class="text-end fw-bold fs-5">@res.VoteCount</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </BodyTemplate>
+</Modal>
+
+@code {
+    private List<Election>? _elections;
+    private Election _newElection = new() { StartDate = DateTime.Today, EndDate = DateTime.Today.AddDays(7) };
+    private Election? _selectedElection;
+    private Vote vote = new();
+    private List<ElectionResult>? _results;
+    private bool _hasVoted;
+    private Modal _createModal = default!;
+    private Modal _voteModal = default!;
+    private Modal _resultsModal = default!;
+    private bool _isAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _isAdmin = AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
+        await LoadElections();
+    }
+
+    private async Task LoadElections()
+    {
+        _elections = await GovernanceService.GetElectionsAsync(false);
+    }
+
+    private async Task ShowCreateModal()
+    {
+        _newElection = new Election { StartDate = DateTime.Today, EndDate = DateTime.Today.AddDays(7) };
+        await _createModal.ShowAsync();
+    }
+
+    private async Task SaveElection()
+    {
+        var success = await GovernanceService.CreateElectionAsync(_newElection);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Election created."));
+            await _createModal.HideAsync();
+            await LoadElections();
+        }
+    }
+
+    private async Task ShowVoteModal(Election election)
+    {
+        _selectedElection = election;
+        vote = new Vote { ElectionId = election.ElectionId };
+        
+        // Check if user has voted
+        var authState = await AuthStateTask;
+        var userIdStr = authState.User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+        if (int.TryParse(userIdStr, out int userId))
+        {
+            _hasVoted = await GovernanceService.HasUserVotedAsync(election.ElectionId, userId);
+        }
+        
+        await _voteModal.ShowAsync();
+    }
+
+    private async Task SubmitVote()
+    {
+        var success = await GovernanceService.CastVoteAsync(vote);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Your vote has been recorded."));
+            await _voteModal.HideAsync();
+            await LoadElections();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to cast vote."));
+        }
+    }
+
+    private async Task ViewResults(int electionId)
+    {
+        _results = await GovernanceService.GetResultsAsync(electionId);
+        await _resultsModal.ShowAsync();
+    }
+}

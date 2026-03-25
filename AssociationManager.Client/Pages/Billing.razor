@@ -2,7 +2,7 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Client.Services
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = $"{AppRole.FinanceManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin},{AppRole.Resident}")]
+@attribute [Authorize(Policy = "RequireResident")]
 @inject ApiService Api
 @inject ToastService _toastService
 @inject NavigationManager Navigation

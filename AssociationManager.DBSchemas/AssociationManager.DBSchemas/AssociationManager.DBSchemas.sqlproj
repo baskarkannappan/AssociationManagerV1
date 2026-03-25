@@ -247,5 +247,14 @@
     <Build Include="assoc\Stored Procedures\sp_Persons_GetById.sql" />
     <Build Include="Security\corp.sql" />
     <Build Include="Security\assoc.sql" />
+    <Build Include="assoc\Tables\Votes.sql" />
+    <Build Include="assoc\Tables\Meetings.sql" />
+    <Build Include="assoc\Tables\MeetingMinutes.sql" />
+    <Build Include="assoc\Tables\Elections.sql" />
+    <Build Include="assoc\Tables\CommitteeRoles.sql" />
+    <Build Include="assoc\Tables\CommitteeMembers.sql" />
+    <Build Include="assoc\Tables\Candidates.sql" />
+    <Build Include="assoc\Tables\ByeLaws.sql" />
+    <Build Include="assoc\Tables\AssociationProfile.sql" />
   </ItemGroup>
 </Project>

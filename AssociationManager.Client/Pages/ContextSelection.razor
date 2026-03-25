@@ -130,7 +130,7 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateTask;
-        var claim = authState.User.FindFirst("AssociationId")?.Value;
+        var claim = authState.User.FindFirst(c => c.Type.Equals("AssociationId", StringComparison.OrdinalIgnoreCase))?.Value;
         int.TryParse(claim, out _currentAssocId);
 
         await LoadAssociations();

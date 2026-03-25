@@ -1,5 +1,5 @@
 @page "/people"
-@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin},{AppRole.UserManager}")]
+@attribute [Authorize(Policy = "RequireResident")]
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Client.Services

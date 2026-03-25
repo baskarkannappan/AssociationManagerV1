@@ -1,6 +1,5 @@
 @page "/assets"
-@attribute [Authorize(Roles = $"{AppRole.Resident},{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")]
-@using AssociationManager.Client.Services
+@attribute [Authorize(Policy = "RequireResident")]
 @using AssociationManager.Client.Components
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums

@@ -9,5 +9,7 @@ public enum AssetType
     Villa = 5,
     CommonArea = 6,
     Amenity = 7,
-    SecurityGate = 8
+    SecurityGate = 8,
+    Block = 9,
+    Tower = 10
 }

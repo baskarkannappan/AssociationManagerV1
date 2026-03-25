@@ -3,7 +3,7 @@
 @using AssociationManager.Shared.Enums
 @using AssociationManager.Client.Services
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = $"{AppRole.AssociationAdmin},{AppRole.SystemAdmin},{AppRole.UserManager}")]
+@attribute [Authorize(Policy = "RequireUserManager")]
 @inject ApiService Api
 @inject ToastService _toastService
 @inject NavigationManager Navigation
