@@ -119,7 +119,7 @@ public class TariffRepository : ITariffRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
             "assoc.sp_AssetTariffs_Upsert", 
-            new { assetTariff.AssetId, assetTariff.TariffLayerId, assetTariff.CustomAmount, assetTariff.IsActive },
+            new { assetTariff.AssetId, assetTariff.TariffLayerId, assetTariff.CustomAmount, assetTariff.IsActive, assetTariff.IsRecurring },
             commandType: CommandType.StoredProcedure) > 0;
     }
 

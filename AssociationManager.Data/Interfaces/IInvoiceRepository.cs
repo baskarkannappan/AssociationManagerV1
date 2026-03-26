@@ -12,4 +12,8 @@ public interface IInvoiceRepository
     Task<int> CreateAsync(Invoice invoice);
     Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId);
     Task<bool> DeleteAsync(int id, int tenantId, int? associationId);
+    
+    // Line Items
+    Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId);
+    Task<int> CreateLineItemAsync(InvoiceLineItem lineItem);
 }

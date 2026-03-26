@@ -12,8 +12,11 @@ public class Invoice
     public string? Description { get; set; }
     public decimal Amount { get; set; }
     public DateTime DueDate { get; set; }
+    public int? BillingBatchId { get; set; }
     public string Status { get; set; } = "Unpaid";
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+    public List<InvoiceLineItem> LineItems { get; set; } = new();
 
     // Navigation helper (not mapped by Dapper automatically)
     public string? AssetName { get; set; }

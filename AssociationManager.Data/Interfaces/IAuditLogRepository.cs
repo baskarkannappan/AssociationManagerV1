@@ -8,4 +8,5 @@ public interface IAuditLogRepository
 {
     Task<int> CreateAsync(AuditLog log);
     Task<IEnumerable<AuditLog>> GetByTenantIdAsync(int tenantId, int associationId);
+    Task<IEnumerable<AuditLog>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
 }

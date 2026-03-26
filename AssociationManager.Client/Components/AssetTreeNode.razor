@@ -2,34 +2,38 @@
 @using AssociationManager.Shared.Enums
 
 <div class="asset-tree-node">
-    <div class="vscode-tree-item @(IsSelected ? "active" : "")" @onclick="HandleToggleExpansion">
-        @if (Asset.Children.Any())
-        {
-            <i class="bi @(IsExpanded ? "bi-chevron-down" : "bi-chevron-right")" style="font-size: 10px; margin-right: 4px; opacity: 0.6;"></i>
-        }
-        else
-        {
-            <span style="width: 14px; display: inline-block;"></span>
-        }
+    <div class="vscode-tree-item @(IsSelected ? "active" : "")" 
+         style="padding-left: @(GetPadding())px;"
+         @onclick="HandleToggleExpansion">
         
-        <i class="bi @GetIconClass() @GetIconColorClass() me-2" style="font-size: 14px;"></i>
-        
-        <span class="text-truncate flex-grow-1">
-            @Asset.Name
+        <div class="expand-icon-container">
             @if (Asset.Children.Any())
             {
-                <span class="tree-count">@Asset.Children.Count</span>
+                <i class="bi @(IsExpanded ? "bi-chevron-down" : "bi-chevron-right")"></i>
             }
+        </div>
+        
+        <i class="bi @GetIconClass() @GetIconColorClass() asset-icon"></i>
+        
+        <span class="asset-name">
+            @Asset.Name
         </span>
-        <span class="tree-badge">@Asset.AssetType</span>
+
+        @if (Asset.Children.Any())
+        {
+            <span class="tree-count">@Asset.Children.Count</span>
+        }
+        
+        <span class="tree-type-badge">@Asset.AssetType</span>
     </div>
 
     @if (IsExpanded && Asset.Children.Any())
     {
-        <div class="asset-children ms-3">
+        <div class="asset-children-group">
             @foreach (var child in Asset.Children)
             {
                 <AssetTreeNode Asset="child" 
+                               Level="@(Level + 1)"
                                OnSelected="OnSelected" 
                                SelectedAsset="SelectedAsset"
                                ExpandedIds="ExpandedIds"
@@ -40,17 +44,73 @@
 </div>
 
 <style>
-    .asset-children { 
-        border-left: 1px solid #e1e1e1;
-        margin-left: 20px !important;
-    }
     .vscode-tree-item {
-        padding: 4px 8px;
-        min-height: 24px;
+        display: flex;
+        align-items: center;
+        padding: 2px 8px;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+        font-size: 13px;
+        color: #334155;
+        border-radius: 4px;
+        margin: 1px 4px;
+        transition: background-color 0.1s;
+    }
+    .vscode-tree-item:hover {
+        background-color: #e2e8f0;
+    }
+    .vscode-tree-item.active {
+        background-color: #cbd5e1;
+        color: #0f172a;
+        font-weight: 500;
+    }
+    .expand-icon-container {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-right: 2px;
+    }
+    .expand-icon-container i {
+        font-size: 10px;
+        opacity: 0.5;
+    }
+    .asset-icon {
+        font-size: 14px;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+    .asset-name {
+        flex-grow: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-right: 8px;
+    }
+    .tree-count {
+        font-size: 10px;
+        background: #94a3b8;
+        color: white;
+        padding: 0 5px;
+        border-radius: 10px;
+        margin-right: 6px;
+        flex-shrink: 0;
+    }
+    .tree-type-badge {
+        font-size: 9px;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        flex-shrink: 0;
+        opacity: 0.7;
     }
 </style>
 
 @code {
+    [Parameter] public int Level { get; set; } = 0;
     [Parameter] public Asset Asset { get; set; } = null!;
     [Parameter] public Asset? SelectedAsset { get; set; }
     [Parameter] public EventCallback<Asset> OnSelected { get; set; }
@@ -60,6 +120,8 @@
 
     private bool IsExpanded => ExpandedIds.Contains(Asset.AssetId);
     private bool IsSelected => SelectedAsset?.AssetId == Asset.AssetId;
+
+    private int GetPadding() => 8 + (Level * 16);
 
     private async Task HandleToggleExpansion()
     {

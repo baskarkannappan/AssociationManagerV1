@@ -96,7 +96,7 @@ public class FinanceController : ControllerBase
     public async Task<IActionResult> CreateInvoice([FromBody] Invoice invoice)
     {
         var id = await _financeService.CreateInvoiceAsync(invoice);
-        await _auditService.LogAsync("Create Invoice", "Invoice", id);
+        await _auditService.LogAsync("Create Invoice", "Invoice", id, assetId: invoice.AssetId);
         return CreatedAtAction(nameof(GetInvoice), new { id }, ApiResponse<int>.SuccessResponse(id, "Invoice created successfully."));
     }
 
@@ -104,9 +104,11 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> UpdateInvoiceStatus(int id, [FromBody] string status)
     {
+        var invoice = await _financeService.GetInvoiceByIdAsync(id);
         var success = await _financeService.UpdateInvoiceStatusAsync(id, status);
         if (!success) return NotFound(ApiResponse.FailureResponse("Invoice not found for status update."));
-        await _auditService.LogAsync("Update Invoice Status", "Invoice", id);
+        
+        await _auditService.LogAsync($"Update Invoice Status to {status}", "Invoice", id, assetId: invoice?.AssetId);
         return Ok(ApiResponse.SuccessResponse("Invoice status updated."));
     }
 
@@ -128,7 +130,7 @@ public class FinanceController : ControllerBase
     public async Task<IActionResult> CreatePayment([FromBody] Payment payment)
     {
         var id = await _financeService.CreatePaymentAsync(payment);
-        await _auditService.LogAsync("Record Payment", "Payment", id);
+        await _auditService.LogAsync("Record Payment", "Payment", id, assetId: payment.AssetId);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Payment recorded successfully."));
     }
 

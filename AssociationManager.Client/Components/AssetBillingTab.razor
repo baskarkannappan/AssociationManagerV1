@@ -67,6 +67,10 @@
             </div>
         </div>
     </div>
+
+    <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,FinanceManager">
+        <BillingAuditTimeline AssetId="AssetId" />
+    </AuthorizeView>
 </div>
 
 <style>

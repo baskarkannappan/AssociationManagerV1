@@ -25,7 +25,7 @@ public class AuditService : IAuditService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task LogAsync(string action, string? entity = null, int? entityId = null, int? associationId = null)
+    public async Task LogAsync(string action, string? entity = null, int? entityId = null, int? associationId = null, int? assetId = null)
     {
         var tenantId = _tenantContext.TenantId;
         if (tenantId == 0) return;
@@ -37,6 +37,7 @@ public class AuditService : IAuditService
             TenantId = tenantId,
             AssociationId = associationId ?? _tenantContext.AssociationId,
             UserId = userId != 0 ? userId : null,
+            AssetId = assetId,
             Action = action,
             Entity = entity,
             EntityId = entityId,
@@ -54,5 +55,12 @@ public class AuditService : IAuditService
         if (tenantId == 0) return new List<AuditLog>();
 
         return await _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
+    }
+
+    public async Task<IEnumerable<AuditLog>> GetAssetLogsAsync(int assetId)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var associationId = _tenantContext.AssociationId;
+        return await _auditLogRepository.GetByAssetIdAsync(assetId, tenantId, associationId);
     }
 }

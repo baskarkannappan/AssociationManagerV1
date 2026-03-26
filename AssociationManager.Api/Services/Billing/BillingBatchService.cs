@@ -1,6 +1,8 @@
 using AssociationManager.Data.Interfaces;
+using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,18 +13,24 @@ public class BillingBatchService
 {
     private readonly IAssetRepository _assetRepository;
     private readonly ITariffRepository _tariffRepository;
-    private readonly IInvoiceRepository _invoiceRepository;
+    private readonly IFinanceService _financeService;
+    private readonly IBillingBatchRepository _billingBatchRepository;
+    private readonly IAuditService _auditService;
     private readonly IEnumerable<IBillingStrategy> _strategies;
 
     public BillingBatchService(
         IAssetRepository assetRepository,
         ITariffRepository tariffRepository,
-        IInvoiceRepository invoiceRepository,
+        IFinanceService financeService,
+        IBillingBatchRepository billingBatchRepository,
+        IAuditService auditService,
         IEnumerable<IBillingStrategy> strategies)
     {
         _assetRepository = assetRepository;
         _tariffRepository = tariffRepository;
-        _invoiceRepository = invoiceRepository;
+        _financeService = financeService;
+        _billingBatchRepository = billingBatchRepository;
+        _auditService = auditService;
         _strategies = strategies;
     }
 
@@ -48,7 +56,7 @@ public class BillingBatchService
         var assignments = (await _tariffRepository.GetActiveTariffsByTenantIdAsync(tenantId)).ToList();
 
         // 3. Fetch existing invoices for this period to avoid duplicates
-        var existingInvoices = (await _invoiceRepository.GetAllAsync(tenantId, request.AssociationId))
+        var existingInvoices = (await _financeService.GetAllInvoicesAsync(request.AssociationId))
             .Where(i => i.CreatedDate.Month == request.Month && i.CreatedDate.Year == request.Year && i.Title.Contains("Monthly Maintenance"))
             .ToList();
 
@@ -64,6 +72,23 @@ public class BillingBatchService
             }
         }
 
+        int? batchId = null;
+        if (!request.DryRun)
+        {
+            var batch = new BillingBatch
+            {
+                TenantId = tenantId,
+                AssociationId = request.AssociationId,
+                Month = request.Month,
+                Year = request.Year,
+                Status = "Committed",
+                TotalAmount = 0,
+                InvoicesGenerated = 0,
+                CreatedDate = DateTime.UtcNow
+            };
+            batchId = await _billingBatchRepository.CreateAsync(batch);
+        }
+
         foreach (var asset in allAssets)
         {
             // Skip if already invoiced for this period
@@ -73,7 +98,7 @@ public class BillingBatchService
             if (!assetAssignments.Any()) continue;
 
             decimal totalAmount = 0;
-            var descriptions = new List<string>();
+            var lineItems = new List<InvoiceLineItem>();
             bool hasZeroAmountCharge = false;
 
             foreach (var aa in assetAssignments)
@@ -85,23 +110,34 @@ public class BillingBatchService
                 if (strategy != null)
                 {
                     var amount = strategy.Calculate(asset, layer, aa);
+                    
+                    var lineItem = new InvoiceLineItem
+                    {
+                        ChargeName = layer.Name,
+                        Amount = amount,
+                        Description = $"{layer.Name} calculation using {layer.CalculationType}",
+                        TariffLayerId = layer.TariffLayerId,
+                        Rate = layer.BaseRate // Point-in-time snapshot
+                    };
+
                     if (amount == 0 && layer.CalculationType == CalculationType.AreaBased)
                     {
                         hasZeroAmountCharge = true;
-                        descriptions.Add($"{layer.Name}: ₹0 (Missing Area Metadata)");
+                        lineItem.Description += " (Missing Area Metadata)";
                     }
                     else
                     {
                         totalAmount += amount;
-                        descriptions.Add($"{layer.Name}: ₹{amount}");
                     }
+                    
+                    lineItems.Add(lineItem);
                 }
             }
 
             // Show in preview even if total is 0 IF it has assignments (to help user debug)
             if (totalAmount > 0 || hasZeroAmountCharge)
             {
-                var invoiceDescription = string.Join(" | ", descriptions);
+                var invoiceDescription = string.Join(" | ", lineItems.Select(l => $"{l.ChargeName}: ₹{l.Amount}"));
                 
                 result.Previews.Add(new InvoicePreviewItem
                 {
@@ -118,7 +154,7 @@ public class BillingBatchService
                         TenantId = tenantId,
                         AssociationId = request.AssociationId,
                         AssetId = asset.AssetId,
-                        AssetName = asset.Name,
+                        BillingBatchId = batchId,
                         Title = $"Monthly Maintenance - {periodName}",
                         Description = invoiceDescription,
                         Amount = totalAmount,
@@ -126,7 +162,40 @@ public class BillingBatchService
                         Status = "Unpaid",
                         CreatedDate = DateTime.UtcNow
                     };
-                    await _invoiceRepository.CreateAsync(invoice);
+                    
+                    // Persist Invoice and Line Items through FinanceService to ensure Ledger integrity
+                    var invoiceId = await _financeService.CreateInvoiceAsync(invoice, lineItems);
+                    
+                    foreach (var line in lineItems)
+                    {
+                        // Introspection Log
+                        await _auditService.LogAsync(
+                            action: $"Billed {line.ChargeName}: ₹{line.Amount} (Rate: ₹{line.Rate}, Logic: {line.Description})",
+                            entity: "Billing",
+                            entityId: invoiceId,
+                            associationId: request.AssociationId,
+                            assetId: asset.AssetId
+                        );
+                    }
+
+                    // Deactivate One-Time Charges
+                    foreach (var aa in assetAssignments)
+                    {
+                        if (!aa.IsRecurring)
+                        {
+                            aa.IsActive = false;
+                            await _tariffRepository.UpsertAssetTariffAsync(aa);
+                            
+                            await _auditService.LogAsync(
+                                action: $"Deactivated One-Time Charge: {aa.TariffLayerId}",
+                                entity: "AssetTariff",
+                                entityId: aa.AssetId,
+                                associationId: request.AssociationId,
+                                assetId: asset.AssetId
+                            );
+                        }
+                    }
+                    
                     result.InvoicesGenerated++;
                 }
 
@@ -136,7 +205,7 @@ public class BillingBatchService
 
         result.Message = request.DryRun 
             ? $"Preview generated for {result.Previews.Count} assets." 
-            : $"Successfully generated {result.InvoicesGenerated} invoices for {periodName}.";
+            : $"Successfully generated {result.InvoicesGenerated} invoices for {periodName} (Batch #{batchId}).";
 
         return result;
     }
@@ -146,8 +215,11 @@ public class BillingBatchService
         foreach (var asset in assets)
         {
             yield return asset;
-            foreach (var child in Flatten(asset.Children))
-                yield return child;
+            if (asset.Children != null)
+            {
+                foreach (var child in Flatten(asset.Children))
+                    yield return child;
+            }
         }
     }
 }

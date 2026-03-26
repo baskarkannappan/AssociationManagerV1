@@ -142,6 +142,10 @@
                                             {
                                                 <span class="badge bg-secondary-subtle text-secondary border d-flex align-items-center gap-2" style="font-size: 11px;">
                                                     @asset.AssetName
+                                                    @if (!asset.IsRecurring)
+                                                    {
+                                                        <span class="ms-1 px-1 rounded-pill bg-warning text-dark" style="font-size: 8px;">ONE-TIME</span>
+                                                    }
                                                     <i class="bi bi-x cursor-pointer" @onclick="() => RemoveAssignment(asset)"></i>
                                                 </span>
                                             }
@@ -177,6 +181,10 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" checked="@_allSelected" @onchange="ToggleSelectAll" id="selectAllAssets">
                                 <label class="form-check-label small fw-semibold" for="selectAllAssets">Select All Billable Assets</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" @bind="_isRecurringForAssignment" id="recurringCharge">
+                                <label class="form-check-label small fw-semibold text-primary" for="recurringCharge">Recurring Charge</label>
                             </div>
                             <span class="small text-muted">@_selectedAssetIds.Count selected</span>
                         </div>
@@ -319,6 +327,7 @@
     private string _assetFilter = "";
     private bool _allSelected = false;
     private bool _isProcessing = false;
+    private bool _isRecurringForAssignment = true;
 
     private TariffGroup? SelectedGroup;
 
@@ -550,6 +559,7 @@
                 AssetId = id,
                 TariffLayerId = _selectedLayerIdForAssignment,
                 IsActive = true,
+                IsRecurring = _isRecurringForAssignment,
                 CreatedDate = DateTime.UtcNow
             }).ToList();
 

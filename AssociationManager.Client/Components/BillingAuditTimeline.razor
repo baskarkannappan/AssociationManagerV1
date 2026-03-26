@@ -1,0 +1,62 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+
+<div class="introspection-container mt-4">
+    <div class="d-flex align-items-center mb-3">
+        <i class="bi bi-journal-text text-primary me-2"></i>
+        <h6 class="mb-0 small fw-bold text-uppercase text-secondary" style="letter-spacing: 0.05em;">Financial Introspection Trail</h6>
+    </div>
+
+    @if (_logs == null)
+    {
+        <div class="text-center py-4 opacity-50"><div class="spinner-border spinner-border-sm"></div></div>
+    }
+    else if (!_logs.Any())
+    {
+        <div class="alert alert-light border small text-muted">
+            <i class="bi bi-info-circle me-1"></i> No introspection data available for this asset.
+        </div>
+    }
+    else
+    {
+        <div class="timeline ps-3 border-start">
+            @foreach (var log in _logs)
+            {
+                <div class="timeline-item position-relative mb-3">
+                    <div class="timeline-marker position-absolute rounded-circle bg-white border border-primary"></div>
+                    <div class="ps-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="small fw-bold @GetActionClass(log.Action)">@log.Entity</span>
+                            <span class="text-muted" style="font-size: 10px;">@log.Timestamp.ToString("MMM dd, HH:mm")</span>
+                        </div>
+                        <p class="mb-0 small text-dark opacity-75 mt-1" style="line-height: 1.4;">@log.Action</p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .timeline { border-left: 2px solid #e9ecef !important; }
+    .timeline-item::before { content: ""; position: absolute; left: -11px; top: 4px; width: 20px; height: 1px; background: #e9ecef; }
+    .timeline-marker { left: -6px; top: 4px; width: 10px; height: 10px; z-index: 1; }
+    .text-billing { color: #0d6efd; font-weight: 600; }
+</style>
+
+@code {
+    [Inject] private ApiService ApiService { get; set; } = default!;
+    [Parameter] public int AssetId { get; set; }
+
+    private List<AuditLog>? _logs;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AssetId > 0)
+        {
+            _logs = await ApiService.GetAsync<List<AuditLog>>($"api/auditlog/asset/{AssetId}");
+        }
+    }
+
+    private string GetActionClass(string action) => action.Contains("Billed") ? "text-billing" : "text-secondary";
+}

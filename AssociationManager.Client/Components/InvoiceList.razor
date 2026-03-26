@@ -75,8 +75,26 @@
                     <div class="p-3 border rounded bg-light">
                         <div class="small text-muted mb-2 fw-bold text-uppercase" style="font-size: 10px;">Calculation Details</div>
                         <div style="font-size: 13px; line-height: 1.6;">
-                            @{
-                                var parts = _selectedInvoice.Description?.Split('|') ?? new string[] { "No details available." };
+                            @if (_selectedInvoice.LineItems != null && _selectedInvoice.LineItems.Any())
+                            {
+                                <div class="row g-0 fw-bold border-bottom pb-1 mb-1 opacity-75" style="font-size: 11px;">
+                                    <div class="col-6">Charge</div>
+                                    <div class="col-3 text-end">Rate</div>
+                                    <div class="col-3 text-end">Amount</div>
+                                </div>
+                                @foreach (var line in _selectedInvoice.LineItems)
+                                {
+                                    <div class="row g-0 border-bottom border-secondary border-opacity-10 py-1">
+                                        <div class="col-6">@line.ChargeName</div>
+                                        <div class="col-3 text-end text-muted small">₹@line.Rate</div>
+                                        <div class="col-3 text-end fw-bold">₹@line.Amount</div>
+                                    </div>
+                                    <div class="text-muted" style="font-size: 10px; margin-top: -2px; margin-bottom: 4px;">@line.Description</div>
+                                }
+                            }
+                            else
+                            {
+                                var parts = _selectedInvoice.Description?.Split('|') ?? new string[] { "No detailed line items available." };
                                 foreach (var part in parts)
                                 {
                                     <div class="d-flex justify-content-between border-bottom border-secondary border-opacity-10 py-1">

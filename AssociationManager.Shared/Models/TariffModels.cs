@@ -32,6 +32,7 @@ public class AssetTariff
     public int TariffLayerId { get; set; }
     public decimal? CustomAmount { get; set; } // Override base rate
     public bool IsActive { get; set; } = true;
+    public bool IsRecurring { get; set; } = true;
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
     // UI Helper

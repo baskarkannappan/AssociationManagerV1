@@ -50,6 +50,7 @@ builder.Services.AddScoped<IOccupancyRepository, OccupancyRepository>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
 builder.Services.AddScoped<IPetRepository, PetRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddScoped<IBillingBatchRepository, BillingBatchRepository>();
 builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
 builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
 builder.Services.AddScoped<ITariffRepository, TariffRepository>();

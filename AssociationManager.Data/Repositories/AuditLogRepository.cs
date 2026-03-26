@@ -32,6 +32,7 @@ public class AuditLogRepository : IAuditLogRepository
                 log.TenantId, 
                 log.AssociationId, 
                 log.UserId, 
+                log.AssetId,
                 log.Action, 
                 log.Entity, 
                 log.EntityId, 
@@ -47,6 +48,15 @@ public class AuditLogRepository : IAuditLogRepository
         return await connection.QueryAsync<AuditLog>(
             "corp.sp_AuditLogs_GetByTenantId", 
             new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<IEnumerable<AuditLog>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<AuditLog>(
+            "assoc.sp_AuditLogs_GetByAssetId", 
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 }

@@ -32,24 +32,49 @@ public class FinanceService : IFinanceService
 
     public async Task<Invoice?> GetInvoiceByIdAsync(int id, int? associationId = null)
     {
-        return await _invoiceRepository.GetByIdAsync(id, CurrentTenantId, associationId ?? CurrentAssociationId);
+        var invoice = await _invoiceRepository.GetByIdAsync(id, CurrentTenantId, associationId ?? CurrentAssociationId);
+        if (invoice != null)
+        {
+            invoice.LineItems = (await _invoiceRepository.GetLineItemsAsync(id)).ToList();
+        }
+        return invoice;
     }
 
     public async Task<IEnumerable<Invoice>> GetAllInvoicesAsync(int? associationId = null)
     {
-        return await _invoiceRepository.GetAllAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
+        var invoices = await _invoiceRepository.GetAllAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
+        foreach (var inv in invoices)
+        {
+            inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
+        }
+        return invoices;
     }
 
     public async Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId, int? associationId = null)
     {
-        return await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, associationId ?? CurrentAssociationId);
+        var invoices = await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, associationId ?? CurrentAssociationId);
+        foreach (var inv in invoices)
+        {
+            inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
+        }
+        return invoices;
     }
 
-    public async Task<int> CreateInvoiceAsync(Invoice invoice)
+    public async Task<int> CreateInvoiceAsync(Invoice invoice, IEnumerable<InvoiceLineItem>? lineItems = null)
     {
         invoice.TenantId = CurrentTenantId;
         invoice.AssociationId = CurrentAssociationId;
         var id = await _invoiceRepository.CreateAsync(invoice);
+
+        // Save Line Items if any
+        if (lineItems != null)
+        {
+            foreach (var item in lineItems)
+            {
+                item.InvoiceId = id;
+                await _invoiceRepository.CreateLineItemAsync(item);
+            }
+        }
 
         // Record Ledger Entry (Debit) via LedgerService
         if (invoice.AssetId.HasValue)

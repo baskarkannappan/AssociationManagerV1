@@ -58,6 +58,7 @@ public class InvoiceRepository : IInvoiceRepository
                 invoice.TenantId, 
                 invoice.AssociationId, 
                 invoice.AssetId, 
+                invoice.BillingBatchId,
                 invoice.Title, 
                 invoice.Description, 
                 invoice.Amount, 
@@ -84,5 +85,31 @@ public class InvoiceRepository : IInvoiceRepository
             "assoc.sp_Invoices_Delete", 
             new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
+    }
+
+    public async Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<InvoiceLineItem>(
+            "assoc.sp_InvoiceLineItems_GetByInvoiceId",
+            new { InvoiceId = invoiceId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<int> CreateLineItemAsync(InvoiceLineItem lineItem)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "assoc.sp_InvoiceLineItems_Create",
+            new
+            {
+                lineItem.InvoiceId,
+                lineItem.ChargeName,
+                lineItem.Amount,
+                lineItem.Description,
+                lineItem.TariffLayerId,
+                lineItem.Rate
+            },
+            commandType: CommandType.StoredProcedure);
     }
 }

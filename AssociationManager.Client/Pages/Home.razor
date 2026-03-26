@@ -125,13 +125,21 @@
                                     <h6 class="premium-card-title"><i class="bi bi-megaphone me-2"></i>Recent Announcements</h6>
                                 </div>
                                 <div class="p-3">
-                                    <div class="d-flex gap-3 align-items-center mb-0">
-                                        <div class="pulse-dot"></div>
-                                        <div class="flex-grow-1">
-                                            <div class="fw-medium small">Maintenance Batch Generated for @DateTime.Now.ToString("MMMM yyyy")</div>
-                                            <div class="text-muted" style="font-size: 10px;">@DateTime.Now.ToShortDateString() • Association Office</div>
+                                    @if (_adminMetrics?.RecentActivity?.Any() == true)
+                                    {
+                                        var latest = _adminMetrics.RecentActivity.First();
+                                        <div class="d-flex gap-3 align-items-center mb-0">
+                                            <div class="pulse-dot"></div>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-medium small">@latest.Action (@latest.Entity)</div>
+                                                <div class="text-muted" style="font-size: 10px;">@TimeAgo(latest.Timestamp) • System Audit</div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-muted small italic">No recent announcements.</div>
+                                    }
                                 </div>
                             </div>
                         </div>
