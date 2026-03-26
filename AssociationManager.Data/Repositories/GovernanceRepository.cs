@@ -80,7 +80,7 @@ public class GovernanceRepository : IGovernanceRepository
     public async Task<bool> UpdateCommitteeMemberAsync(CommitteeMember member)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        var sql = "UPDATE assoc.CommitteeMembers SET RoleId = @RoleId, StartDate = @StartDate, EndDate = @EndDate, IsActive = @IsActive WHERE CommitteeMemberId = @CommitteeMemberId";
+        var sql = "UPDATE assoc.CommitteeMembers SET RoleId = @RoleId, MemberName = @MemberName, StartDate = @StartDate, EndDate = @EndDate, IsActive = @IsActive WHERE CommitteeMemberId = @CommitteeMemberId";
         return await connection.ExecuteAsync(sql, member) > 0;
     }
 

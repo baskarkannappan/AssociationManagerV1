@@ -32,28 +32,30 @@
             }
         </div>
 
-        <div class="card bg-light border-0">
-            <div class="card-body p-3">
-                <h6 class="small fw-bold mb-3">Attach New Layer</h6>
-                <div class="row g-2">
-                    <div class="col-8">
-                        <select class="form-select form-select-sm" @bind="_selectedLayerId">
-                            <option value="0">Select a layer...</option>
-                            @if (_allLayers != null)
-                            {
-                                @foreach (var layer in _allLayers)
+        <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,FinanceManager">
+            <div class="card bg-light border-0">
+                <div class="card-body p-3">
+                    <h6 class="small fw-bold mb-3">Attach New Layer</h6>
+                    <div class="row g-2">
+                        <div class="col-8">
+                            <select class="form-select form-select-sm" @bind="_selectedLayerId">
+                                <option value="0">Select a layer...</option>
+                                @if (_allLayers != null)
                                 {
-                                    <option value="@layer.TariffLayerId">@layer.Name ($@layer.BaseRate)</option>
+                                    @foreach (var layer in _allLayers)
+                                    {
+                                        <option value="@layer.TariffLayerId">@layer.Name ($@layer.BaseRate)</option>
+                                    }
                                 }
-                            }
-                        </select>
-                    </div>
-                    <div class="col-4">
-                        <button class="btn btn-sm btn-vscode w-100" @onclick="AssignTariff">Attach</button>
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <button class="btn btn-sm btn-vscode w-100" @onclick="AssignTariff">Attach</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </AuthorizeView>
     }
 
     <div class="mt-5 pt-4 border-top">
@@ -93,20 +95,29 @@
 
     private async Task LoadBillingInfo()
     {
-        _assetTariffs = await ApiService.GetAsync<List<AssetTariff>>($"api/tariff/assets/{AssetId}");
-        
-        var groups = await ApiService.GetAsync<List<TariffGroup>>("api/tariff/groups");
-        _allLayers = new();
-        if (groups != null)
+        try
         {
-            foreach (var g in groups)
+            _assetTariffs = await ApiService.GetAsync<List<AssetTariff>>($"api/tariff/assets/{AssetId}");
+            
+            var groups = await ApiService.GetAsync<List<TariffGroup>>("api/tariff/groups");
+            _allLayers = new();
+            if (groups != null)
             {
-                var layers = await ApiService.GetAsync<List<TariffLayer>>($"api/tariff/groups/{g.TariffGroupId}/layers");
-                if (layers != null) _allLayers.AddRange(layers);
+                foreach (var g in groups)
+                {
+                    var layers = await ApiService.GetAsync<List<TariffLayer>>($"api/tariff/groups/{g.TariffGroupId}/layers");
+                    if (layers != null) _allLayers.AddRange(layers);
+                }
             }
-        }
 
-        _balance = await ApiService.GetAsync<decimal>($"api/finance/balance/asset/{AssetId}");
+            _balance = await ApiService.GetAsync<decimal>($"api/finance/balance/asset/{AssetId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Access restricted or error loading billing info: {ex.Message}");
+            _assetTariffs ??= new();
+            _allLayers ??= new();
+        }
     }
 
     private string GetLayerName(int layerId) => _allLayers?.FirstOrDefault(l => l.TariffLayerId == layerId)?.Name ?? $"Layer #{layerId}";

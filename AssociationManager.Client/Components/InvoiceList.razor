@@ -40,16 +40,85 @@
             <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
                 <span class="badge @GetStatusClass(context.Status)" style="font-size: 10px; border-radius: 2px;">@context.Status</span>
             </GridColumn>
+
+            <GridColumn TItem="Invoice" HeaderText="Actions">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-link p-0 text-primary" @onclick="() => ShowDetails(context)" title="View Details">
+                        <i class="bi bi-info-circle"></i> Breakdown
+                    </button>
+                    @if (context.Status != "Paid")
+                    {
+                        <button class="btn btn-sm btn-vscode py-0 px-2" @onclick="() => StartPayment(context)" style="font-size: 10px;">
+                            <i class="bi bi-credit-card pe-1"></i> Pay Now
+                        </button>
+                    }
+                </div>
+            </GridColumn>
         </Grid>
     }
 </div>
 
+@if (_selectedInvoice != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 bg-light py-2">
+                    <h6 class="modal-title fw-bold">Invoice Breakdown</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _selectedInvoice = null"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="small text-muted mb-1">Invoice Title</div>
+                        <div class="fw-bold">@_selectedInvoice.Title</div>
+                    </div>
+                    <div class="p-3 border rounded bg-light">
+                        <div class="small text-muted mb-2 fw-bold text-uppercase" style="font-size: 10px;">Calculation Details</div>
+                        <div style="font-size: 13px; line-height: 1.6;">
+                            @{
+                                var parts = _selectedInvoice.Description?.Split('|') ?? new string[] { "No details available." };
+                                foreach (var part in parts)
+                                {
+                                    <div class="d-flex justify-content-between border-bottom border-secondary border-opacity-10 py-1">
+                                        <span>@part.Split(':')[0]</span>
+                                        <span class="fw-bold">@part.Split(':').LastOrDefault()</span>
+                                    </div>
+                                }
+                            }
+                            <div class="d-flex justify-content-between pt-2 mt-1 fw-bold text-primary">
+                                <span>Total Amount</span>
+                                <span>₹@_selectedInvoice.Amount</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light py-2">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => _selectedInvoice = null">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public IEnumerable<Invoice>? Invoices { get; set; }
+    [Inject] private ToastService _toastService { get; set; } = default!;
+
+    private Invoice? _selectedInvoice;
 
     private async Task<GridDataProviderResult<Invoice>> InvoicesDataProvider(GridDataProviderRequest<Invoice> request)
     {
         return await Task.FromResult(request.ApplyTo(Invoices ?? new List<Invoice>()));
+    }
+
+    private void ShowDetails(Invoice invoice)
+    {
+        _selectedInvoice = invoice;
+    }
+
+    private void StartPayment(Invoice invoice)
+    {
+        _toastService.Notify(new(ToastType.Info, $"Redirecting to payment gateway for invoice: {invoice.Title}... (Mock Interaction)"));
     }
 
     private string GetStatusClass(string status) => status switch

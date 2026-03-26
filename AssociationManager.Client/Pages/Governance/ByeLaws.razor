@@ -8,10 +8,10 @@
 @inject IJSRuntime JSRuntime
 
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="premium-page-header d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="fw-bold">📜 Bye-laws Management</h2>
-            <p class="text-muted">Maintain and view the association's rules and regulations.</p>
+            <h1 class="premium-page-title">📜 Bye-laws Management</h1>
+            <p class="premium-page-subtitle">Maintain and view the association's rules and regulations.</p>
         </div>
         @if (_isAdmin)
         {
@@ -250,13 +250,3 @@
     }
 }
 
-<script>
-    window.downloadFileFromBase64 = (filename, contentType, base64) => {
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = `data:${contentType};base64,${base64}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-</script>

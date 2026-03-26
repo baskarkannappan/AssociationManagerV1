@@ -73,6 +73,11 @@ builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IGovernanceService, GovernanceService>();
 
+// Billing Strategies & Batch Service
+builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.FixedBillingStrategy>();
+builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.AreaBasedBillingStrategy>();
+builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();
+
 // Caching
 builder.Services.AddDistributedMemoryCache();
 /*

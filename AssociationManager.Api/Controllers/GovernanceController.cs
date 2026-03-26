@@ -61,6 +61,16 @@ public class GovernanceController : ControllerBase
         return Ok(ApiResponse<int>.SuccessResponse(id, "Member assigned to committee."));
     }
 
+    [HttpPut("committee/members/{id}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> UpdateCommitteeMember(int id, [FromBody] CommitteeMember member)
+    {
+        member.CommitteeMemberId = id;
+        member.AssociationId = _tenantContext.AssociationId;
+        var success = await _governanceService.UpdateCommitteeMemberAsync(member);
+        return success ? Ok(ApiResponse.SuccessResponse("Committee member updated.")) : BadRequest(ApiResponse.FailureResponse("Failed to update committee member."));
+    }
+
     [HttpGet("byelaws")]
     public async Task<IActionResult> GetByeLaws([FromQuery] bool activeOnly = true)
     {

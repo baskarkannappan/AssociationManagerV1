@@ -8,26 +8,28 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
-<div class="vscode-page-header">
-    <div class="header-left">
-        <h5 class="m-0 fw-semibold">
-            <i class="bi bi-wallet2 me-2"></i>
-            @(_scope == "tenant" ? "Corporate Finance & Billing" : "Association Finance & Billing")
-        </h5>
-    </div>
-    <div class="header-right">
-        @if (_scope == "association")
-        {
-            <button class="btn-vscode" @onclick="ShowCreateInvoice">
-                <i class="bi bi-plus-lg"></i> New Association Invoice
-            </button>
-        }
-        else
-        {
-             <button class="btn btn-sm btn-vscode-accent px-3" disabled title="Tenant billing is aggregated">
-                <i class="bi bi-bar-chart-fill me-1"></i> Aggregate View
-            </button>
-        }
+<div class="premium-page-header border-bottom px-4 py-3 mb-0">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="premium-page-title mb-0" style="font-size: 1.25rem;">
+                <i class="bi bi-wallet2 me-2"></i>
+                @(_scope == "tenant" ? "Corporate Finance & Billing" : "Association Finance & Billing")
+            </h1>
+        </div>
+        <div class="header-right">
+            @if (_scope == "association")
+            {
+                <button class="btn-vscode" @onclick="ShowCreateInvoice">
+                    <i class="bi bi-plus-lg"></i> New Association Invoice
+                </button>
+            }
+            else
+            {
+                 <button class="btn btn-sm btn-vscode-accent px-3" disabled title="Tenant billing is aggregated">
+                    <i class="bi bi-bar-chart-fill me-1"></i> Aggregate View
+                </button>
+            }
+        </div>
     </div>
 </div>
 
@@ -50,107 +52,218 @@
         </div>
 
         <div class="row">
-            <!-- Invoices List -->
-            <div class="col-md-8">
-                <div class="compact-card">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="m-0 fw-semibold">Recent Invoices</h6>
-                        <div class="d-flex gap-2">
-                            <span class="tree-badge">Filter: All</span>
-                        </div>
-                    </div>
-
-                    @if (_invoices == null)
+            <div class="col-12">
+                <div class="nav nav-tabs mb-4" id="billingTabs" role="tablist">
+                    <button class="nav-link @(_activeTab == "invoices" ? "active" : "")" @onclick='() => _activeTab = "invoices"'>
+                        <i class="bi bi-list-check me-2"></i>Recent Invoices
+                    </button>
+                    @if (_scope == "association")
                     {
-                        <div class="p-4 text-center opacity-50">
-                            <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
-                            <div>Loading invoices...</div>
-                        </div>
-                    }
-                    else if (!_invoices.Any())
-                    {
-                        <div class="p-5 text-center opacity-50">
-                            <i class="bi bi-receipt-cutoff display-6 mb-3"></i>
-                            <p>No invoices found for this association.</p>
-                        </div>
-                    }
-                    else
-                    {
-                        <Grid @ref="invoiceGrid" TItem="Invoice"
-                              Class="table table-hover table-bordered table-striped compact-table"
-                              DataProvider="InvoicesDataProvider"
-                              Responsive="true"
-                              AllowPaging="true"
-                              PageSize="10"
-                              AllowSorting="true">
-
-                            <GridColumn TItem="Invoice" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
-                                <span class="fw-medium">@context.Title</span>
-                            </GridColumn>
-
-                            <GridColumn TItem="Invoice" HeaderText="Unit" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
-                                <span class="tree-badge">@context.AssetName</span>
-                            </GridColumn>
-
-                            <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
-                                <span class="fw-semibold">₹@context.Amount</span>
-                            </GridColumn>
-
-                            <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
-                                @context.DueDate.ToShortDateString()
-                            </GridColumn>
-
-                            <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
-                                <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
-                            </GridColumn>
-
-                            <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                                @if (context.Status == "Unpaid")
-                                {
-                                    <button class="btn btn-sm btn-link p-0 text-success me-2" @onclick="() => RecordPayment(context)">
-                                        <i class="bi bi-cash-stack"></i>
-                                    </button>
-                                }
-                                <button class="btn btn-sm btn-link p-0 text-muted">
-                                    <i class="bi bi-three-dots-vertical"></i>
-                                </button>
-                            </GridColumn>
-                        </Grid>
+                        <button class="nav-link @(_activeTab == "batch" ? "active" : "")" @onclick='() => _activeTab = "batch"'>
+                            <i class="bi bi-stack me-2"></i>Batch Generation
+                        </button>
                     }
                 </div>
-            </div>
 
-            <!-- Payment History -->
-            <div class="col-md-4">
-                <div class="compact-card">
-                    <h6 class="m-0 fw-semibold mb-3">Recent Payments</h6>
-                    @if (_payments == null)
-                    {
-                        <div class="text-center py-3 opacity-50">Loading...</div>
-                    }
-                    else if (!_payments.Any())
-                    {
-                        <div class="text-muted small">No payment history.</div>
-                    }
-                    else
-                    {
-                        <div class="list-group list-group-flush">
-                            @foreach (var pay in _payments.OrderByDescending(p => p.CreatedDate).Take(10))
-                            {
-                                <div class="list-group-item px-0 py-2 border-0">
-                                    <div class="d-flex justify-content-between">
-                                        <span class="small fw-medium">Manual Payment</span>
-                                        <span class="small fw-bold text-success">+₹@pay.Amount</span>
+                @if (_activeTab == "invoices")
+                {
+                    <div class="row">
+                        <!-- Invoices List -->
+                        <div class="col-md-8">
+                            <div class="compact-card">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="m-0 fw-semibold">Recent Invoices</h6>
+                                    <div class="d-flex gap-2">
+                                        <span class="tree-badge">Filter: All</span>
                                     </div>
-                                    <div class="d-flex justify-content-between opacity-50" style="font-size: 10px;">
-                                        <span>@pay.CreatedDate.ToString("g")</span>
-                                        <span>@pay.Currency</span>
+                                </div>
+
+                                @if (_invoices == null)
+                                {
+                                    <div class="p-4 text-center opacity-50">
+                                        <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+                                        <div>Loading invoices...</div>
+                                    </div>
+                                }
+                                else if (!_invoices.Any())
+                                {
+                                    <div class="p-5 text-center opacity-50">
+                                        <i class="bi bi-receipt-cutoff display-6 mb-3"></i>
+                                        <p>No invoices found for this association.</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <Grid @ref="invoiceGrid" TItem="Invoice"
+                                          Class="table table-hover table-bordered table-striped compact-table"
+                                          DataProvider="InvoicesDataProvider"
+                                          Responsive="true"
+                                          AllowPaging="true"
+                                          PageSize="10"
+                                          AllowSorting="true">
+
+                                        <GridColumn TItem="Invoice" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
+                                            <span class="fw-medium">@context.Title</span>
+                                        </GridColumn>
+
+                                        <GridColumn TItem="Invoice" HeaderText="Unit" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
+                                            <span class="tree-badge">@context.AssetName</span>
+                                        </GridColumn>
+
+                                        <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
+                                            <span class="fw-semibold">₹@context.Amount</span>
+                                        </GridColumn>
+
+                                        <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
+                                            @context.DueDate.ToShortDateString()
+                                        </GridColumn>
+
+                                        <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                                            <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
+                                        </GridColumn>
+
+                                        <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                                            @if (context.Status == "Unpaid")
+                                            {
+                                                <button class="btn btn-sm btn-link p-0 text-success me-2" @onclick="() => RecordPayment(context)">
+                                                    <i class="bi bi-cash-stack"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-link p-0 text-muted">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                        </GridColumn>
+                                    </Grid>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Payment History -->
+                        <div class="col-md-4">
+                            <div class="compact-card">
+                                <h6 class="m-0 fw-semibold mb-3">Recent Payments</h6>
+                                @if (_payments == null)
+                                {
+                                    <div class="text-center py-3 opacity-50">Loading...</div>
+                                }
+                                else if (!_payments.Any())
+                                {
+                                    <div class="text-muted small">No payment history.</div>
+                                }
+                                else
+                                {
+                                    <div class="list-group list-group-flush">
+                                        @foreach (var pay in _payments.OrderByDescending(p => p.CreatedDate).Take(10))
+                                        {
+                                            <div class="list-group-item px-0 py-2 border-0">
+                                                <div class="d-flex justify-content-between">
+                                                    <span class="small fw-medium">Manual Payment</span>
+                                                    <span class="small fw-bold text-success">+₹@pay.Amount</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between opacity-50" style="font-size: 10px;">
+                                                    <span>@pay.CreatedDate.ToString("g")</span>
+                                                    <span>@pay.Currency</span>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (_activeTab == "batch")
+                {
+                    <div class="compact-card">
+                        <div class="row align-items-end g-3 mb-4">
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1 d-block text-uppercase">Month</label>
+                                <select class="form-select form-select-sm" @bind="_batchRequest.Month">
+                                    @for (int i = 1; i <= 12; i++)
+                                    {
+                                        <option value="@i">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(i)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold text-muted mb-1 d-block text-uppercase">Year</label>
+                                <select class="form-select form-select-sm" @bind="_batchRequest.Year">
+                                    @for (int i = DateTime.Today.Year - 1; i <= DateTime.Today.Year + 1; i++)
+                                    {
+                                        <option value="@i">@i</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1 d-block text-uppercase">Due Date</label>
+                                <input type="date" class="form-control form-control-sm" @bind="_batchRequest.DueDate" />
+                            </div>
+                            <div class="col-md-4 d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="PreviewBatch" disabled="@_isProcessingBatch">
+                                    @if (_isProcessingBatch) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                    <i class="bi bi-eye me-1"></i> Preview Batch
+                                </button>
+                                @if (_batchResult != null && _batchResult.Previews.Any() && !_batchResult.IsLocked)
+                                {
+                                    <button class="btn btn-sm btn-vscode flex-grow-1" @onclick="CommitBatch" disabled="@_isProcessingBatch">
+                                        <i class="bi bi-check-circle me-1"></i> Confirm & Generate
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        @if (_batchResult != null)
+                        {
+                            @if (_batchResult.IsLocked)
+                            {
+                                <div class="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center" style="font-size: 13px;">
+                                    <i class="bi bi-lock-fill me-2 fs-5"></i>
+                                    <div>
+                                        <strong>Billing Locked:</strong> Invoices for this period have already been generated. 
+                                        As per policy, no new generation is allowed. Please handle adjustments in the next month.
                                     </div>
                                 </div>
                             }
-                        </div>
-                    }
-                </div>
+
+                            <div class="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center" style="font-size: 13px;">
+                                <div>
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    @_batchResult.Message
+                                </div>
+                                <div class="fw-bold">Total: ₹@_batchResult.TotalAmount</div>
+                            </div>
+
+                            <div class="table-responsive border rounded" style="max-height: 400px;">
+                                <table class="table table-sm table-hover mb-0" style="font-size: 12px;">
+                                    <thead class="bg-light sticky-top">
+                                        <tr>
+                                            <th>Asset</th>
+                                            <th class="text-end">Amount</th>
+                                            <th>Breakdown</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in _batchResult.Previews)
+                                        {
+                                            <tr>
+                                                <td><span class="tree-badge">@item.AssetName</span></td>
+                                                <td class="text-end fw-bold">₹@item.Amount</td>
+                                                <td class="text-muted small">@item.Description</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-5 text-center text-muted border border-dashed rounded">
+                                <i class="bi bi-stack display-6 mb-3 opacity-25"></i>
+                                <p>Select a period and click "Preview Batch" to view calculated invoices.</p>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -161,8 +274,8 @@
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
-                <div class="vscode-page-header py-2 px-3">
-                    <h6 class="m-0 fw-semibold">New Invoice</h6>
+                <div class="premium-card-header">
+                    <h6 class="premium-card-title">New Invoice</h6>
                     <button type="button" class="btn-close" style="font-size: 10px;" @onclick="CloseModals"></button>
                 </div>
                 <div class="p-3 compact-form">
@@ -203,6 +316,10 @@
     private bool _isCreateModalOpen;
     private Invoice _newInvoice = new() { DueDate = DateTime.Today.AddDays(7) };
     private string _scope = "tenant";
+    private string _activeTab = "invoices";
+    private InvoiceBatchRequest _batchRequest = new() { Month = DateTime.Today.Month, Year = DateTime.Today.Year, DueDate = DateTime.Today.AddDays(15) };
+    private InvoiceBatchResult? _batchResult;
+    private bool _isProcessingBatch;
 
     protected override async Task OnInitializedAsync()
     {
@@ -328,4 +445,47 @@
         "Partial" => "bg-warning-subtle text-warning",
         _ => "bg-secondary-subtle text-secondary"
     };
+
+    private async Task PreviewBatch()
+    {
+        _isProcessingBatch = true;
+        _batchResult = null;
+        try 
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var aid = authState.User.FindFirst("AssociationId")?.Value;
+            if (int.TryParse(aid, out int associationId))
+            {
+                _batchRequest.AssociationId = associationId;
+                _batchRequest.DryRun = true;
+                _batchResult = await Api.PostAsync<InvoiceBatchRequest, InvoiceBatchResult>("api/finance/batch-generate", _batchRequest);
+            }
+        }
+        finally
+        {
+            _isProcessingBatch = false;
+        }
+    }
+
+    private async Task CommitBatch()
+    {
+        _isProcessingBatch = true;
+        try 
+        {
+            _batchRequest.DryRun = false;
+            var result = await Api.PostAsync<InvoiceBatchRequest, InvoiceBatchResult>("api/finance/batch-generate", _batchRequest);
+            if (result != null)
+            {
+                _toastService.Notify(new(ToastType.Success, result.Message));
+                _batchResult = null;
+                _activeTab = "invoices";
+                _invoices = null;
+                await LoadData();
+            }
+        }
+        finally
+        {
+            _isProcessingBatch = false;
+        }
+    }
 }

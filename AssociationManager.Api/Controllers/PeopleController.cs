@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 namespace AssociationManager.Api.Controllers;
 
 [Authorize]
-[Authorize(Policy = "RequireResident")]
 [ApiController]
 [Route("api/[controller]")]
 public class PeopleController : ControllerBase
@@ -41,7 +40,20 @@ public class PeopleController : ControllerBase
         return Ok(ApiResponse<int>.SuccessResponse(id, "Person record created."));
     }
 
+    [HttpGet("my-occupancy")]
+    public async Task<IActionResult> GetMyOccupancy()
+    {
+        var userIdStr = User.FindFirst("UserId")?.Value;
+        if (int.TryParse(userIdStr, out int userId))
+        {
+            var occupancy = await _peopleService.GetOccupancyByUserIdAsync(userId);
+            return Ok(ApiResponse<IEnumerable<Occupancy>>.SuccessResponse(occupancy));
+        }
+        return Unauthorized(ApiResponse.FailureResponse("User identity not found."));
+    }
+
     [HttpGet("unit/{unitId}/occupants")]
+    [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetOccupants(int unitId)
     {
         var occupants = await _peopleService.GetOccupancyByUnitAsync(unitId);
@@ -65,6 +77,7 @@ public class PeopleController : ControllerBase
     }
 
     [HttpGet("unit/{unitId}/vehicles")]
+    [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetVehicles(int unitId)
     {
         var vehicles = await _peopleService.GetVehiclesByUnitAsync(unitId);
@@ -72,6 +85,7 @@ public class PeopleController : ControllerBase
     }
 
     [HttpPost("vehicles")]
+    [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> AddVehicle([FromBody] Vehicle vehicle)
     {
         var id = await _peopleService.AddVehicleAsync(vehicle);
@@ -80,6 +94,7 @@ public class PeopleController : ControllerBase
     }
 
     [HttpGet("unit/{unitId}/pets")]
+    [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetPets(int unitId)
     {
         var pets = await _peopleService.GetPetsByUnitAsync(unitId);
@@ -87,6 +102,7 @@ public class PeopleController : ControllerBase
     }
 
     [HttpPost("pets")]
+    [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> AddPet([FromBody] Pet pet)
     {
         var id = await _peopleService.AddPetAsync(pet);

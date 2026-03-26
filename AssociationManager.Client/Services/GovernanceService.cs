@@ -32,7 +32,7 @@ public class GovernanceService
         => await _apiService.PostAsync("api/governance/committee/members", member);
 
     public async Task<bool> UpdateCommitteeMemberAsync(CommitteeMember member) 
-        => await _apiService.PostAsync($"api/governance/committee/members/{member.MemberId}", member);
+        => await _apiService.PutAsync($"api/governance/committee/members/{member.CommitteeMemberId}", member);
 
     // Bye-laws
     public async Task<List<ByeLaw>> GetByeLawsAsync(bool activeOnly = true) 
@@ -42,7 +42,7 @@ public class GovernanceService
         => await _apiService.PostAsync("api/governance/byelaws", byeLaw);
 
     public async Task<bool> UpdateByeLawAsync(ByeLaw byeLaw) 
-        => await _apiService.PostAsync($"api/governance/byelaws/{byeLaw.ByeLawId}", byeLaw);
+        => await _apiService.PutAsync($"api/governance/byelaws/{byeLaw.ByeLawId}", byeLaw);
 
     public async Task<bool> DeleteByeLawAsync(int id) 
         => await _apiService.DeleteAsync($"api/governance/byelaws/{id}");

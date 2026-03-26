@@ -38,24 +38,19 @@
             </div>
 
             <div class="col-md-5">
-                <div class="p-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
+                <div class="p-3 border h-100" style="background: #f8fafc; border-color: #e2e8f0 !important;">
                     <div class="d-flex align-items-center gap-2 mb-3 text-secondary">
-                        <i class="bi bi-info-circle"></i>
-                        <span class="small fw-bold text-uppercase" style="font-size: 10px;">Registry Metadata</span>
+                        <i class="bi bi-cpu"></i>
+                        <span class="small fw-bold text-uppercase" style="font-size: 10px;">Registry Metadata (JSON)</span>
                     </div>
-                    @if (Asset.MetadataJson != null)
-                    {
-                        <div class="small font-monospace opacity-70 overflow-auto" style="max-height: 150px; font-size: 10px;">
-                            @Asset.MetadataJson
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="text-center py-4 opacity-30">
-                            <i class="bi bi-cpu" style="font-size: 1.5rem;"></i>
-                            <p class="small mt-2 mb-0" style="font-size: 11px;">Template-specific fields will appear here.</p>
-                        </div>
-                    }
+                    <InputTextArea @bind-Value="Asset.MetadataJson" 
+                                   class="form-control-premium w-100 font-monospace" 
+                                   style="font-size: 11px; height: 160px; background: white; border: 1px solid #e2e8f0;" 
+                                   placeholder='e.g. { "Area": 1200, "Facing": "North" }'
+                                   disabled="@IsReadOnly" />
+                    <div class="mt-2 text-muted" style="font-size: 10px;">
+                        <i class="bi bi-info-circle me-1"></i> Add <strong>"Area": 1200</strong> for area-based billing.
+                    </div>
                 </div>
             </div>
         </div>

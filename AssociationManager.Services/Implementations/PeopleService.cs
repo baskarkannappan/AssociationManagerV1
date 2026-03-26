@@ -53,6 +53,8 @@ public class PeopleService : IPeopleService
 
     // Occupancy
     public async Task<IEnumerable<Occupancy>> GetOccupancyByUnitAsync(int unitId) => await _occupancyRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
+    public async Task<IEnumerable<Occupancy>> GetOccupancyByUserIdAsync(int userId) => await _occupancyRepository.GetByUserIdAsync(userId, CurrentTenantId, CurrentAssociationId);
+    
     public async Task<int> AddOccupantAsync(Occupancy occupancy)
     {
         occupancy.TenantId = CurrentTenantId;

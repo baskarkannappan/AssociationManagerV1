@@ -9,34 +9,36 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
-<div class="vscode-page-header">
-    <div class="header-left">
-        <h5 class="m-0 fw-semibold">
-            <i class="bi bi-people-fill me-2"></i>
-            @(_scope == "tenant" ? "Corporate Users & Roles" : "Association Users & Roles")
-        </h5>
-        <div class="ms-4 btn-group btn-group-sm">
-            <button class="btn @(_viewMode == ViewMode.List ? "btn-vscode" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.List">
-                <i class="bi bi-list-ul me-1"></i>List
-            </button>
-            <button class="btn @(_viewMode == ViewMode.Hierarchy ? "btn-vscode" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.Hierarchy">
-                <i class="bi bi-diagram-3 me-1"></i>Hierarchy
-            </button>
+<div class="premium-page-header border-bottom px-4 py-3 mb-0">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <h1 class="premium-page-title mb-0">
+                <i class="bi bi-people-fill me-2 opacity-50"></i>
+                @(_scope == "tenant" ? "Corporate Users & Roles" : "Association Users & Roles")
+            </h1>
+            <div class="ms-4 btn-group btn-group-sm">
+                <button class="btn @(_viewMode == ViewMode.List ? "btn-vscode" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.List">
+                    <i class="bi bi-list-ul me-1"></i>List
+                </button>
+                <button class="btn @(_viewMode == ViewMode.Hierarchy ? "btn-vscode" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.Hierarchy">
+                    <i class="bi bi-diagram-3 me-1"></i>Hierarchy
+                </button>
+            </div>
         </div>
-    </div>
-    <div class="header-right">
-        @if (_scope == "association")
-        {
-            <button class="btn btn-sm btn-vscode px-3" @onclick="ShowAddMemberModal">
-                <i class="bi bi-person-plus-fill me-1"></i>Add Association Member
-            </button>
-        }
-        else
-        {
-             <button class="btn btn-sm btn-vscode px-3" disabled title="Tenant users are managed globally">
-                <i class="bi bi-lock-fill me-1"></i>Global Access
-            </button>
-        }
+        <div class="header-right">
+            @if (_scope == "association")
+            {
+                <button class="btn btn-sm btn-vscode px-3" @onclick="ShowAddMemberModal">
+                    <i class="bi bi-person-plus-fill me-1"></i>Add Association Member
+                </button>
+            }
+            else
+            {
+                 <button class="btn btn-sm btn-vscode px-3" disabled title="Tenant users are managed globally">
+                    <i class="bi bi-lock-fill me-1"></i>Global Access
+                </button>
+            }
+        </div>
     </div>
 </div>
 
@@ -46,8 +48,8 @@
         @if (_viewMode == ViewMode.List)
         {
             <div class="compact-card p-0 overflow-hidden mb-4">
-                <div class="vscode-page-header py-2 px-3 border-bottom">
-                    <h6 class="m-0 small fw-bold text-uppercase opacity-75">Association Members</h6>
+                <div class="premium-card-header">
+                    <h6 class="premium-card-title">Association Members</h6>
                 </div>
                 <Grid @ref="grid" TItem="User"
                       Class="table table-hover table-bordered table-striped vscode-table"
@@ -135,8 +137,8 @@
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content compact-card p-0 overflow-hidden shadow-lg">
-                <div class="vscode-page-header py-2 px-3 border-bottom">
-                    <h6 class="m-0 fw-semibold"><i class="bi bi-person-plus-fill me-2"></i>Add Association Member</h6>
+                <div class="premium-card-header">
+                    <h6 class="premium-card-title"><i class="bi bi-person-plus-fill me-2"></i>Add Association Member</h6>
                     <button type="button" class="btn-close" @onclick="HideAddMemberModal"></button>
                 </div>
                 <div class="p-4">
@@ -176,8 +178,8 @@
     <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content compact-card p-0 overflow-hidden shadow-lg border-danger">
-                <div class="vscode-page-header py-2 px-3 bg-danger-subtle text-danger">
-                    <h6 class="m-0 fw-semibold">Confirm Removal</h6>
+                <div class="premium-card-header bg-danger-subtle text-danger border-danger">
+                    <h6 class="premium-card-title text-danger">Confirm Removal</h6>
                     <button type="button" class="btn-close" @onclick="CancelRemove"></button>
                 </div>
                 <div class="p-3">

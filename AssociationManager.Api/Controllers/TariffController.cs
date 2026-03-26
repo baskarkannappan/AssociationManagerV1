@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize(Policy = "RequireFinanceManager")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TariffController : ControllerBase
@@ -32,6 +32,7 @@ public class TariffController : ControllerBase
     }
 
     [HttpPost("groups")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> CreateGroup([FromBody] TariffGroup group)
     {
         var id = await _tariffService.CreateTariffGroupAsync(group);
@@ -40,6 +41,7 @@ public class TariffController : ControllerBase
     }
 
     [HttpDelete("groups/{id}")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> DeleteGroup(int id)
     {
         await _tariffService.DeleteTariffGroupAsync(id);
@@ -55,6 +57,7 @@ public class TariffController : ControllerBase
     }
 
     [HttpPost("layers")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> CreateLayer([FromBody] TariffLayer layer)
     {
         var id = await _tariffService.CreateTariffLayerAsync(layer);
@@ -63,6 +66,7 @@ public class TariffController : ControllerBase
     }
 
     [HttpDelete("layers/{id}")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> DeleteLayer(int id)
     {
         await _tariffService.DeleteTariffLayerAsync(id);
@@ -85,7 +89,22 @@ public class TariffController : ControllerBase
         return Ok(ApiResponse.SuccessResponse("Tariff assigned to asset."));
     }
 
+    [HttpPost("assets/bulk-assign")]
+    public async Task<IActionResult> BulkAssignTariffs([FromBody] List<AssetTariff> tariffs)
+    {
+        if (tariffs == null || !tariffs.Any()) return BadRequest(ApiResponse.FailureResponse("No assignments provided."));
+        
+        foreach (var t in tariffs)
+        {
+            await _tariffService.AssignTariffToAssetAsync(t);
+        }
+        
+        await _auditService.LogAsync("Bulk Assign Tariffs", "Asset", tariffs.First().AssetId);
+        return Ok(ApiResponse.SuccessResponse($"Assigned tariffs to {tariffs.Count} assets."));
+    }
+
     [HttpDelete("assets/{assetId}/layers/{layerId}")]
+    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> RemoveTariff(int assetId, int layerId)
     {
         await _tariffService.RemoveTariffFromAssetAsync(assetId, layerId);

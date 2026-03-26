@@ -14,6 +14,7 @@ public interface IPeopleService
 
     // Occupancy (Linking Person to Unit)
     Task<IEnumerable<Occupancy>> GetOccupancyByUnitAsync(int unitId);
+    Task<IEnumerable<Occupancy>> GetOccupancyByUserIdAsync(int userId);
     Task<int> AddOccupantAsync(Occupancy occupancy);
     Task<bool> RemoveOccupantAsync(int occupancyId, int? associationId = null);
 

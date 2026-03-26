@@ -2,7 +2,7 @@
    AssociationManager "Midnight Professional" Design System 
    Inspired by Linear, Stripe, and Vercel.
 */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
     /* Color Palette - Light Professional */
@@ -22,6 +22,10 @@
     --border-subtle: #e2e8f0;
     --border-bright: #cbd5e1;
     
+    /* Typography */
+    --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    
     /* Effects */
     --glow-primary: none;
     --glass-blur: none;
@@ -31,8 +35,9 @@
 body {
     background: var(--base-midnight);
     color: var(--text-primary);
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: var(--font-primary) !important;
     -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.011em;
     overflow-x: hidden;
     margin: 0;
     padding: 0;
@@ -56,11 +61,42 @@ body {
     height: 64px !important;
 }
 
-/* Typography - Allowing overrides for light themes */
-h1, h2, h3, h4, h5 {
-    font-weight: 700;
+/* Typography System */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    color: var(--text-primary);
     letter-spacing: -0.025em;
-    color: inherit;
+    margin-bottom: 0.5rem;
+}
+
+h1 { font-size: 2.25rem; font-weight: 800; line-height: 1.2; }
+h2 { font-size: 1.875rem; font-weight: 800; line-height: 1.2; }
+h3 { font-size: 1.5rem; font-weight: 700; line-height: 1.3; }
+h4 { font-size: 1.25rem; font-weight: 700; line-height: 1.4; }
+h5 { font-size: 1.125rem; font-weight: 600; line-height: 1.5; }
+h6 { font-size: 1rem; font-weight: 600; line-height: 1.5; }
+
+.premium-page-header {
+    margin-bottom: 2.5rem;
+    position: relative;
+}
+
+.premium-page-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.premium-page-subtitle {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
 }
 
 /* Premium Card System */
@@ -85,6 +121,24 @@ h1, h2, h3, h4, h5 {
     transform: translateY(-4px);
     border-color: var(--border-bright) !important;
     box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+}
+
+.premium-card-header {
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border-subtle);
+    background: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.premium-card-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin: 0;
 }
 
 /* Professional Buttons */
@@ -196,4 +250,25 @@ h1, h2, h3, h4, h5 {
     font-weight: 500 !important;
     padding: 8px 16px !important;
     border-radius: 2px !important;
+}
+
+/* Shell Overrides */
+.app-title {
+    font-family: var(--font-heading) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+}
+
+.vscode-explorer-header {
+    font-family: var(--font-heading) !important;
+    font-weight: 700 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.05em !important;
+    color: var(--text-tertiary) !important;
+    text-transform: uppercase;
+}
+
+.vscode-tree-item span {
+    font-family: var(--font-primary);
+    font-weight: 500;
 }

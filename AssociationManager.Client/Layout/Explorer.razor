@@ -14,11 +14,15 @@
         
         @if (hasAccess)
         {
-
             <div class="vscode-tree-group mt-3">
-                <div class="vscode-tree-item py-1 text-muted" style="font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                <div class="vscode-tree-item py-1 text-muted" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
                     Association Level
                 </div>
+                
+                <NavLink href="/" Match="NavLinkMatch.All" class="vscode-tree-item text-decoration-none">
+                    <i class="bi bi-grid-1x2-fill text-primary"></i>
+                    <span>Dashboard</span>
+                </NavLink>
                 
                 <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,AssetManager,Resident">
                     <NavLink href="assets" class="vscode-tree-item text-decoration-none">
@@ -76,7 +80,7 @@
                     </NavLink>
                 </AuthorizeView>
 
-                <div class="vscode-tree-item py-1 text-muted mt-3" style="font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
                     Governance
                 </div>
                 <NavLink href="governance/profile" class="vscode-tree-item text-decoration-none">

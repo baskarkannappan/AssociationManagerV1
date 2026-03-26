@@ -8,12 +8,12 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
-<div class="vscode-page-header border-bottom">
+<div class="premium-page-header border-bottom px-4 py-3 mb-0">
     <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-wallet2 text-muted" style="font-size: 14px;"></i>
-        <span class="fw-medium">
+        <h1 class="premium-page-title mb-0">
+            <i class="bi bi-wallet2 me-2 opacity-50"></i>
             @(_scope == "tenant" ? "Corporate Tariff Management" : "Association Tariff Management")
-        </span>
+        </h1>
     </div>
 </div>
 
@@ -120,9 +120,33 @@
                                 <div class="p-3 border rounded bg-light">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="small fw-bold">Assigned Assets</span>
-                                        <button class="btn btn-sm btn-vscode">Assign Assets</button>
+                                        <button class="btn btn-sm btn-vscode" @onclick="ShowBulkAssignModal">
+                                            <i class="bi bi-plus-circle me-1"></i> Bulk Assign
+                                        </button>
                                     </div>
-                                    <small class="text-muted">UI for mass assignment coming soon.</small>
+                                    
+                                    @if (_assignedAssets == null)
+                                    {
+                                        <div class="text-center py-2 opacity-50 small">Loading mappings...</div>
+                                    }
+                                    else if (!_assignedAssets.Any())
+                                    {
+                                        <div class="text-center py-3 border border-dashed rounded bg-white small text-muted">
+                                            No assets assigned to this layer yet.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var asset in _assignedAssets)
+                                            {
+                                                <span class="badge bg-secondary-subtle text-secondary border d-flex align-items-center gap-2" style="font-size: 11px;">
+                                                    @asset.AssetName
+                                                    <i class="bi bi-x cursor-pointer" @onclick="() => RemoveAssignment(asset)"></i>
+                                                </span>
+                                            }
+                                        </div>
+                                    }
                                 </div>
                             }
                         </div>
@@ -132,6 +156,57 @@
         }
     </div>
 </div>
+
+<!-- Bulk Assign Modal -->
+@if (_showBulkAssignModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 bg-light py-2">
+                    <h6 class="modal-title fw-bold">Bulk Assign Layer</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showBulkAssignModal = false"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="p-3 bg-white sticky-top border-bottom">
+                         <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control border-start-0" placeholder="Filter assets..." @bind="_assetFilter" @bind:event="oninput" />
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked="@_allSelected" @onchange="ToggleSelectAll" id="selectAllAssets">
+                                <label class="form-check-label small fw-semibold" for="selectAllAssets">Select All Billable Assets</label>
+                            </div>
+                            <span class="small text-muted">@_selectedAssetIds.Count selected</span>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush" style="max-height: 400px;">
+                        @foreach (var asset in GetFilteredAssets())
+                        {
+                            <label class="list-group-item d-flex align-items-center py-2 hover-bg-slate cursor-pointer">
+                                <input class="form-check-input me-3" type="checkbox" 
+                                       checked="@_selectedAssetIds.Contains(asset.AssetId)" 
+                                       @onchange='(e) => ToggleAssetSelection(asset.AssetId, (bool)e.Value!)'>
+                                <div>
+                                    <div class="fw-medium small">@asset.Name</div>
+                                    <div class="text-muted" style="font-size: 10px;">@asset.AssetType | @asset.Description</div>
+                                </div>
+                            </label>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light py-2">
+                    <button class="btn btn-sm btn-secondary" @onclick="() => _showBulkAssignModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-4" @onclick="ExecuteBulkAssign" disabled="@(!_selectedAssetIds.Any() || _isProcessing)">
+                        @if (_isProcessing) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        Confirm Assignment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <style>
     .small-pills .nav-link { padding: 4px 12px; font-size: 11px; border-radius: 4px; border: 1px solid transparent; margin-left: 5px; color: #64748b; }
@@ -229,13 +304,27 @@
 
 @code {
     private string _activeTab = "layers";
-    private int _selectedLayerIdForAssignment;
+    private int _selectedLayerIdForAssignment_Internal;
+    private int _selectedLayerIdForAssignment 
+    { 
+        get => _selectedLayerIdForAssignment_Internal; 
+        set { _selectedLayerIdForAssignment_Internal = value; _ = LoadAssignedAssets(); } 
+    }
+    
     private List<TariffGroup>? _groups;
     private List<TariffLayer>? _layers;
+    private List<AssetTariff>? _assignedAssets;
+    private List<Asset>? _allPossibleAssets;
+    private HashSet<int> _selectedAssetIds = new();
+    private string _assetFilter = "";
+    private bool _allSelected = false;
+    private bool _isProcessing = false;
+
     private TariffGroup? SelectedGroup;
 
     private bool _showGroupModal = false;
     private bool _showLayerModal = false;
+    private bool _showBulkAssignModal = false;
     private TariffGroup _newGroup = new();
     private TariffLayer _newLayer = new();
     private string _scope = "tenant";
@@ -343,6 +432,148 @@
         {
             _toastService.Notify(new(ToastType.Warning, "Tariff layer deleted."));
             if (SelectedGroup != null) await SelectGroup(SelectedGroup);
+        }
+    }
+
+    private async Task LoadAssignedAssets()
+    {
+        if (_selectedLayerIdForAssignment == 0) 
+        {
+            _assignedAssets = null;
+            return;
+        }
+
+        // We don't have a direct "Get Assets by Layer" endpoint in current Controller, 
+        // so we might need to fetch association hierarchy and check. 
+        // For now, let's assume we fetch all assets for association.
+        await LoadAllPossibleAssets();
+        
+        // This is a bit inefficient (checking every asset for mapping), 
+        // ideally we'd have api/tariff/layers/{id}/assignments
+        var activeAssignments = new List<AssetTariff>();
+        if (_allPossibleAssets != null)
+        {
+            foreach(var asset in _allPossibleAssets)
+            {
+                var layerAssignments = await ApiService.GetAsync<List<AssetTariff>>($"api/tariff/assets/{asset.AssetId}");
+                if (layerAssignments != null)
+                {
+                    var match = layerAssignments.FirstOrDefault(a => a.TariffLayerId == _selectedLayerIdForAssignment && a.IsActive);
+                    if (match != null) 
+                    {
+                        match.AssetName = asset.Name; // Inject name for display
+                        activeAssignments.Add(match);
+                    }
+                }
+            }
+        }
+        _assignedAssets = activeAssignments;
+    }
+
+    private async Task LoadAllPossibleAssets()
+    {
+        if (_allPossibleAssets != null) return;
+        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var aid = authState.User.FindFirst("AssociationId")?.Value;
+        if (int.TryParse(aid, out int associationId))
+        {
+            var assets = await ApiService.GetAsync<List<Asset>>($"api/assets/hierarchy?associationId={associationId}");
+            if (assets != null)
+            {
+                _allPossibleAssets = Flatten(assets).Where(a => a.AssetType == AssetType.Unit || a.AssetType == AssetType.Villa || a.AssetType == AssetType.Property).ToList();
+            }
+        }
+    }
+
+    private IEnumerable<Asset> Flatten(IEnumerable<Asset> assets)
+    {
+        foreach (var asset in assets)
+        {
+            yield return asset;
+            if (asset.Children != null)
+            {
+                foreach (var child in Flatten(asset.Children))
+                {
+                    yield return child;
+                }
+            }
+        }
+    }
+
+    private IEnumerable<Asset> GetFilteredAssets()
+    {
+        if (_allPossibleAssets == null) return Enumerable.Empty<Asset>();
+        var filtered = _allPossibleAssets;
+        if (!string.IsNullOrWhiteSpace(_assetFilter))
+        {
+            filtered = filtered.Where(a => a.Name.Contains(_assetFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        return filtered;
+    }
+
+    private async Task ShowBulkAssignModal()
+    {
+        await LoadAllPossibleAssets();
+        _selectedAssetIds.Clear();
+        _allSelected = false;
+        _showBulkAssignModal = true;
+    }
+
+    private void ToggleAssetSelection(int assetId, bool selected)
+    {
+        if (selected) _selectedAssetIds.Add(assetId);
+        else _selectedAssetIds.Remove(assetId);
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        _allSelected = (bool)e.Value!;
+        if (_allSelected)
+        {
+            foreach (var a in GetFilteredAssets()) _selectedAssetIds.Add(a.AssetId);
+        }
+        else
+        {
+            _selectedAssetIds.Clear();
+        }
+    }
+
+    private async Task ExecuteBulkAssign()
+    {
+        if (!_selectedAssetIds.Any()) return;
+        _isProcessing = true;
+        try
+        {
+            var assignments = _selectedAssetIds.Select(id => new AssetTariff
+            {
+                AssetId = id,
+                TariffLayerId = _selectedLayerIdForAssignment,
+                IsActive = true,
+                CreatedDate = DateTime.UtcNow
+            }).ToList();
+
+            var success = await ApiService.PostAsync("api/tariff/assets/bulk-assign", assignments);
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, $"Successfully assigned layer to {assignments.Count} assets."));
+                _showBulkAssignModal = false;
+                await LoadAssignedAssets();
+            }
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task RemoveAssignment(AssetTariff assignment)
+    {
+        var success = await ApiService.DeleteAsync($"api/tariff/assets/{assignment.AssetId}/layers/{assignment.TariffLayerId}");
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Assignment removed."));
+            await LoadAssignedAssets();
         }
     }
 }
