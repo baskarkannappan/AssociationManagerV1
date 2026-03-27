@@ -6,6 +6,7 @@ using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 using Google.Apis.Auth;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -27,6 +28,7 @@ public class AuthService : IAuthService
     private readonly IDistributedCache _cache;
     private readonly JwtSettings _jwtSettings;
     private readonly GoogleSettings _googleSettings;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IUserRepository userRepository,
@@ -34,7 +36,8 @@ public class AuthService : IAuthService
         IAssociationRepository associationRepository,
         IDistributedCache cache,
         IOptions<JwtSettings> jwtSettings,
-        IOptions<GoogleSettings> googleSettings)
+        IOptions<GoogleSettings> googleSettings,
+        ILogger<AuthService> logger)
     {
         _userRepository = userRepository;
         _tenantRepository = tenantRepository;
@@ -42,6 +45,7 @@ public class AuthService : IAuthService
         _cache = cache;
         _jwtSettings = jwtSettings.Value;
         _googleSettings = googleSettings.Value;
+        _logger = logger;
     }
 
     public async Task<AuthResponse> GoogleLoginAsync(string idToken)
@@ -142,21 +146,64 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RefreshTokenAsync(string token, string refreshToken)
     {
-        var principal = GetPrincipalFromExpiredToken(token);
-        if (principal == null) return new AuthResponse { Success = false, Message = "Invalid access token" };
+        _logger.LogInformation("Attempting token refresh...");
+        
+        ClaimsPrincipal? principal;
+        try
+        {
+            principal = GetPrincipalFromExpiredToken(token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get principal from expired token.");
+            return new AuthResponse { Success = false, Message = "Invalid access token signature or format" };
+        }
 
-        var email = principal.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
-        if (string.IsNullOrEmpty(email)) return new AuthResponse { Success = false, Message = "Invalid email in token" };
+        if (principal == null) 
+        {
+            _logger.LogWarning("Principal from expired token is null.");
+            return new AuthResponse { Success = false, Message = "Invalid access token" };
+        }
 
-        var savedRefreshToken = await _cache.GetStringAsync($"refreshToken:{email}");
-        if (savedRefreshToken != refreshToken) return new AuthResponse { Success = false, Message = "Invalid refresh token" };
+        var email = principal.Claims.FirstOrDefault(c => c.Type == "email" || c.Type == ClaimTypes.Email || c.Type == JwtRegisteredClaimNames.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) 
+        {
+            _logger.LogWarning("Email claim missing from token.");
+            return new AuthResponse { Success = false, Message = "Invalid email in token" };
+        }
+
+        _logger.LogInformation("Refreshing token for {Email}", email);
+
+        var cacheKey = $"refreshToken:{email.ToLowerInvariant()}";
+        var savedRefreshToken = await _cache.GetStringAsync(cacheKey);
+        
+        if (string.IsNullOrEmpty(savedRefreshToken))
+        {
+            _logger.LogWarning("No refresh token found in cache for {Email}", email);
+            return new AuthResponse { Success = false, Message = "Session expired. Please login again." };
+        }
+
+        if (savedRefreshToken != refreshToken) 
+        {
+            _logger.LogWarning("Refresh token mismatch for {Email}. Expected {Saved}, received {Received}", email, savedRefreshToken, refreshToken);
+            return new AuthResponse { Success = false, Message = "Invalid refresh token" };
+        }
 
         var userIdStr = principal.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-        if (!int.TryParse(userIdStr, out int userId)) return new AuthResponse { Success = false, Message = "Invalid user in token" };
+        if (!int.TryParse(userIdStr, out int userId)) 
+        {
+            _logger.LogWarning("UserId claim missing or invalid for {Email}", email);
+            return new AuthResponse { Success = false, Message = "Invalid user in token" };
+        }
 
         var user = await _userRepository.GetByIdAsync(userId);
-        if (user == null) return new AuthResponse { Success = false, Message = "User not found" };
+        if (user == null) 
+        {
+            _logger.LogWarning("User with ID {UserId} not found during refresh for {Email}", userId, email);
+            return new AuthResponse { Success = false, Message = "User not found" };
+        }
 
+        _logger.LogInformation("Token refresh successful for {Email}", email);
         return await GenerateAuthResponse(user);
     }
 
@@ -166,7 +213,7 @@ public class AuthService : IAuthService
         var refreshToken = GenerateRefreshToken();
 
         // Store refresh token in Redis with expiry
-        await _cache.SetStringAsync($"refreshToken:{user.Email}", refreshToken, new DistributedCacheEntryOptions
+        await _cache.SetStringAsync($"refreshToken:{user.Email.ToLowerInvariant()}", refreshToken, new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(_jwtSettings.RefreshExpiryInDays)
         });

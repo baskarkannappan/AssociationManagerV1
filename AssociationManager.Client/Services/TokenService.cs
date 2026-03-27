@@ -38,7 +38,10 @@ public class TokenService
 
         try
         {
-            var payload = token.Split('.')[1];
+            var parts = token.Split('.');
+            if (parts.Length < 2) return true;
+
+            var payload = parts[1];
             var jsonBytes = ParseBase64WithoutPadding(payload);
             var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
 
@@ -46,11 +49,18 @@ public class TokenService
             {
                 var exp = long.Parse(expValue.ToString()!);
                 var expDateTime = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
-                return expDateTime < DateTime.UtcNow.AddMinutes(1); // Refresh 1 minute before expiry
+                var now = DateTime.UtcNow;
+                
+                var isExpired = expDateTime < now.AddMinutes(1);
+                
+                System.Console.WriteLine($"[TokenService] Token Exp: {expDateTime:HH:mm:ss}, Now: {now:HH:mm:ss}, Buffer: 1m, IsExpired: {isExpired}");
+                
+                return isExpired;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Console.WriteLine($"[TokenService] Error parsing token: {ex.Message}");
             return true;
         }
         return true;
