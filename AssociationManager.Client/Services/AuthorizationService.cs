@@ -1,3 +1,6 @@
+using AssociationManager.Shared.Interfaces;
+using System.Threading.Tasks;
+using System.Linq;
 using System.Security.Claims;
 using AssociationManager.Shared.Enums;
 
@@ -5,44 +8,57 @@ namespace AssociationManager.Client.Services;
 
 public interface IAppAuthorizationService
 {
-    bool HasLevel(ClaimsPrincipal user, int requiredLevel);
-    bool IsInRoleOrHigher(ClaimsPrincipal user, string role);
+    Task<bool> HasLevelAsync(ClaimsPrincipal user, int requiredLevel);
+    Task<bool> IsInRoleOrHigherAsync(ClaimsPrincipal user, string role);
     int? GetUserId(ClaimsPrincipal user);
 }
 
 public class AppAuthorizationService : IAppAuthorizationService
 {
+    private readonly IRuleEngineService _ruleEngine;
+    private readonly ITenantContext _tenantContext;
+
+    public AppAuthorizationService(IRuleEngineService ruleEngine, ITenantContext tenantContext)
+    {
+        _ruleEngine = ruleEngine;
+        _tenantContext = tenantContext;
+    }
+
     public int? GetUserId(ClaimsPrincipal user)
     {
         var idStr = user.FindFirst("UserId")?.Value;
         if (int.TryParse(idStr, out int userId)) return userId;
         return null;
     }
-    public bool HasLevel(ClaimsPrincipal user, int requiredLevel)
+
+    public async Task<bool> HasLevelAsync(ClaimsPrincipal user, int requiredLevel)
     {
         if (user.Identity?.IsAuthenticated != true) return false;
 
-        var roleClaims = user.FindAll(ClaimTypes.Role).Select(c => c.Value)
-            .Concat(user.FindAll("Role").Select(c => c.Value))
-            .Concat(user.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value))
-            .ToList();
+        var workflowName = requiredLevel switch
+        {
+            90 => "RequireAdmin",
+            80 => "RequireAssociationAdmin",
+            60 => "RequireAssetManager",
+            50 => "RequireUserManager",
+            40 => "RequireFinanceManager",
+            10 => "RequireResident",
+            _ => "RequireResident"
+        };
 
-        if (!roleClaims.Any()) return false;
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", user.FindAll(ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(user.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
 
-        var individualRoles = roleClaims
-            .SelectMany(r => r.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .ToList();
-
-        if (!individualRoles.Any()) return false;
-
-        var maxLevel = individualRoles.Max(r => AppRole.GetLevel(r));
-        
-        return maxLevel >= requiredLevel;
+        return await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
     }
 
-    public bool IsInRoleOrHigher(ClaimsPrincipal user, string role)
+    public async Task<bool> IsInRoleOrHigherAsync(ClaimsPrincipal user, string role)
     {
         var requiredLevel = AppRole.GetLevel(role);
-        return HasLevel(user, requiredLevel);
+        return await HasLevelAsync(user, requiredLevel);
     }
 }

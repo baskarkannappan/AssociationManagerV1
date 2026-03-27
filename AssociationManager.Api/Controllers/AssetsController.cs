@@ -2,6 +2,7 @@ using AssociationManager.Api.Authorization;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
+using AssociationManager.Shared.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -17,27 +18,29 @@ public class AssetsController : ControllerBase
     private readonly IAssetService _assetService;
     private readonly IAuditService _auditService;
     private readonly AssociationManager.Shared.Interfaces.ITenantContext _tenantContext;
+    private readonly IRuleEngineService _ruleEngine;
 
-    public AssetsController(IAssetService assetService, IAuditService auditService, AssociationManager.Shared.Interfaces.ITenantContext tenantContext)
+    public AssetsController(IAssetService assetService, IAuditService auditService, AssociationManager.Shared.Interfaces.ITenantContext tenantContext, IRuleEngineService ruleEngine)
     {
         _assetService = assetService;
         _auditService = auditService;
         _tenantContext = tenantContext;
+        _ruleEngine = ruleEngine;
     }
 
     [HttpGet("hierarchy")]
     public async Task<IActionResult> GetHierarchy()
     {
-        // Check all role claims to find the highest privilege level
-        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role)
-                        .Select(c => c.Value)
-                        .Concat(User.FindAll("role").Select(c => c.Value))
-                        .Distinct();
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
 
-        int maxLevel = roles.Any() ? roles.Max(r => r != null ? AppRole.GetLevel(r) : 0) : AppRole.LevelResident;
-
-        // If the user is only a Resident (or lower), only show their owned/occupied assets
-        int? filterUserId = maxLevel <= AppRole.LevelResident ? _tenantContext.UserId : null;
+        // If the user is a Resident (or lower), only show their owned/occupied assets
+        bool isResidentOnly = await _ruleEngine.EvaluateRuleAsync("IsResident", securityContext);
+        int? filterUserId = isResidentOnly ? _tenantContext.UserId : null;
         
         var hierarchy = await _assetService.GetHierarchyAsync(filterUserId);
         return Ok(ApiResponse<IEnumerable<Asset>>.SuccessResponse(hierarchy));

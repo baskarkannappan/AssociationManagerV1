@@ -24,12 +24,13 @@ public class RequireRoleAttribute : Attribute, IAuthorizationFilter
             return;
         }
 
-        var userRole = user.Claims.FirstOrDefault(c => c.Type == "role" || c.Type == "Role" || c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
+        var userRoles = user.Claims.Where(c => c.Type == "role" || c.Type == "Role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                                   .Select(c => c.Value).ToList();
         
-        if (string.IsNullOrEmpty(userRole) || !_roles.Contains(userRole))
+        if (!userRoles.Any(r => _roles.Contains(r)))
         {
-            // SystemAdmin bypasses role checks unless explicitly restricted (optional logic)
-            if (userRole == "SystemAdmin") return;
+            // Admins bypasses role checks 
+            if (userRoles.Contains("SystemAdmin") || userRoles.Contains("PlatformAdmin")) return;
 
             context.Result = new ForbidResult();
         }

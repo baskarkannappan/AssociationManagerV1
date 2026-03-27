@@ -57,6 +57,7 @@ builder.Services.AddScoped<ITariffRepository, TariffRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IGovernanceRepository, GovernanceRepository>();
+builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -73,6 +74,8 @@ builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IGovernanceService, GovernanceService>();
+builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
+builder.Services.AddScoped<AssociationManager.Api.Authorization.RulesEngineSeeder>();
 
 // Billing Strategies & Batch Service
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.FixedBillingStrategy>();
@@ -183,5 +186,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
+
+// Seed Rules Engine
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<AssociationManager.Api.Authorization.RulesEngineSeeder>();
+    await seeder.SeedAsync();
+}
 
 app.Run();

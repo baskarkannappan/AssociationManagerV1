@@ -1,6 +1,8 @@
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Interfaces;
+using AssociationManager.Shared.Enums;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -17,12 +19,14 @@ public class AssociationsController : ControllerBase
     private readonly IAssociationService _associationService;
     private readonly IAuditService _auditService;
     private readonly ITenantContext _tenantContext;
+    private readonly IRuleEngineService _ruleEngine;
 
-    public AssociationsController(IAssociationService associationService, IAuditService auditService, ITenantContext tenantContext)
+    public AssociationsController(IAssociationService associationService, IAuditService auditService, ITenantContext tenantContext, IRuleEngineService ruleEngine)
     {
         _associationService = associationService;
         _auditService = auditService;
         _tenantContext = tenantContext;
+        _ruleEngine = ruleEngine;
     }
 
     [HttpGet("my-tenants")]
@@ -38,8 +42,17 @@ public class AssociationsController : ControllerBase
     {
         try 
         {
+            var securityContext = new SecurityContext
+            {
+                UserRole = string.Join(",", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+                UserLevel = AppRole.GetMaxLevel(User.Claims),
+                AssociationId = _tenantContext.AssociationId
+            };
+
+            bool isAdmin = await _ruleEngine.EvaluateRuleAsync("RequireAdmin", securityContext);
+
             IEnumerable<Association> associations;
-            if (User.IsInRole("PlatformAdmin") || User.IsInRole("SystemAdmin"))
+            if (isAdmin)
             {
                 associations = await _associationService.GetAllGlobalAsync();
             }

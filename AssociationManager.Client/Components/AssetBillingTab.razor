@@ -32,7 +32,7 @@
             }
         </div>
 
-        <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,FinanceManager">
+        <AuthorizeView Policy="RequireFinanceManager">
             <div class="card bg-light border-0">
                 <div class="card-body p-3">
                     <h6 class="small fw-bold mb-3">Attach New Layer</h6>
@@ -68,7 +68,7 @@
         </div>
     </div>
 
-    <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,FinanceManager">
+    <AuthorizeView Policy="RequireFinanceManager">
         <BillingAuditTimeline AssetId="AssetId" />
     </AuthorizeView>
 </div>

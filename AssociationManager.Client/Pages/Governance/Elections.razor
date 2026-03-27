@@ -204,7 +204,7 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateTask;
-        _isAdmin = AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
+        _isAdmin = await AuthService.HasLevelAsync(authState.User, AppRole.LevelAssociationAdmin);
         await LoadElections();
     }
 

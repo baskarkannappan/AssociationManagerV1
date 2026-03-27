@@ -1,3 +1,6 @@
+using AssociationManager.Shared.Interfaces;
+using System.Threading.Tasks;
+using System.Linq;
 using System.Security.Claims;
 using AssociationManager.Shared.Enums;
 
@@ -5,25 +8,49 @@ namespace AssociationManager.Corporate.Client.Services;
 
 public interface IAppAuthorizationService
 {
-    bool HasLevel(ClaimsPrincipal user, int requiredLevel);
-    bool IsInRoleOrHigher(ClaimsPrincipal user, string role);
+    Task<bool> HasLevelAsync(ClaimsPrincipal user, int requiredLevel);
+    Task<bool> IsInRoleOrHigherAsync(ClaimsPrincipal user, string role);
 }
 
 public class AppAuthorizationService : IAppAuthorizationService
 {
-    public bool HasLevel(ClaimsPrincipal user, int requiredLevel)
+    private readonly IRuleEngineService _ruleEngine;
+    private readonly ITenantContext _tenantContext;
+
+    public AppAuthorizationService(IRuleEngineService ruleEngine, ITenantContext tenantContext)
+    {
+        _ruleEngine = ruleEngine;
+        _tenantContext = tenantContext;
+    }
+
+    public async Task<bool> HasLevelAsync(ClaimsPrincipal user, int requiredLevel)
     {
         if (user.Identity?.IsAuthenticated != true) return false;
 
-        var roleClaim = user.FindFirst(ClaimTypes.Role)?.Value;
-        var userLevel = AppRole.GetLevel(roleClaim);
-        
-        return userLevel >= requiredLevel;
+        var workflowName = requiredLevel switch
+        {
+            90 => "RequireAdmin",
+            80 => "RequireAssociationAdmin",
+            60 => "RequireAssetManager",
+            50 => "RequireUserManager",
+            40 => "RequireManagement",
+            10 => "RequireResident",
+            _ => "RequireResident"
+        };
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", user.FindAll(ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(user.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
+
+        return await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
     }
 
-    public bool IsInRoleOrHigher(ClaimsPrincipal user, string role)
+    public async Task<bool> IsInRoleOrHigherAsync(ClaimsPrincipal user, string role)
     {
         var requiredLevel = AppRole.GetLevel(role);
-        return HasLevel(user, requiredLevel);
+        return await HasLevelAsync(user, requiredLevel);
     }
 }

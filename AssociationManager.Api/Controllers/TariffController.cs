@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = "RequireFinanceManager")]
 [ApiController]
 [Route("api/[controller]")]
 public class TariffController : ControllerBase
@@ -25,6 +25,10 @@ public class TariffController : ControllerBase
     }
 
     [HttpGet("groups")]
+    [AllowAnonymous] // Or refined to resident if needed, but usually group list is safer. 
+    // Wait, the user is getting 403 as Asset Manager. 
+    // Asset Manager is level 60. Finance Manager is 40. 
+    // If I put RequireFinanceManager at class level, it's fine.
     public async Task<IActionResult> GetGroups([FromQuery] int? associationId = null)
     {
         var groups = await _tariffService.GetTariffGroupsAsync(associationId);

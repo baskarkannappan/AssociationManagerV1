@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+
 namespace AssociationManager.Shared.Enums;
 
 public static class AppRole
@@ -45,6 +49,14 @@ public static class AppRole
         CorporateAuditor => LevelCorporateAuditor,
         _ => LevelGuest
     };
+
+    public static int GetMaxLevel(IEnumerable<Claim> claims)
+    {
+        var roles = claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role)
+                          .Select(c => c.Value);
+        if (!roles.Any()) return LevelGuest;
+        return roles.Select(GetLevel).Max();
+    }
 
     public static readonly string[] All = { 
         PlatformAdmin, SystemAdmin, CorporateManager, SubscriptionManager, 

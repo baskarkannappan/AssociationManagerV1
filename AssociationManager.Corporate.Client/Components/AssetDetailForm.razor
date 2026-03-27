@@ -60,7 +60,7 @@
             </div>
         </div>
 
-        <AuthorizeView Roles="@($"{AppRole.AssetManager},{AppRole.AssociationAdmin},{AppRole.SystemAdmin}")" Context="authContext">
+        <AuthorizeView Policy="RequireAssetManager" Context="authContext">
             <Authorized>
                 <div class="d-flex align-items-center gap-3 pt-4 border-top mt-4" style="border-color: rgba(255,255,255,0.05) !important;">
                     <button type="submit" class="btn btn-sm btn-vscode">

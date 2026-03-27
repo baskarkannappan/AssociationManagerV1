@@ -2,6 +2,8 @@ using AssociationManager.Api.Authorization;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
+using AssociationManager.Shared.Interfaces;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
@@ -16,25 +18,38 @@ public class PeopleController : ControllerBase
 {
     private readonly IPeopleService _peopleService;
     private readonly IAuditService _auditService;
+    private readonly IRuleEngineService _ruleEngine;
+    private readonly ITenantContext _tenantContext;
 
-    public PeopleController(IPeopleService peopleService, IAuditService auditService)
+    public PeopleController(IPeopleService peopleService, IAuditService auditService, IRuleEngineService ruleEngine, ITenantContext tenantContext)
     {
         _peopleService = peopleService;
         _auditService = auditService;
+        _ruleEngine = ruleEngine;
+        _tenantContext = tenantContext;
     }
 
     private async Task<bool> IsAuthorizedForAsset(int assetId)
     {
-        if (User.IsInRole(AppRole.AssociationAdmin) || 
-            User.IsInRole(AppRole.UserManager) || 
-            User.IsInRole(AppRole.AssetManager) ||
-            User.IsInRole(AppRole.SystemAdmin) ||
-            User.IsInRole(AppRole.PlatformAdmin) ||
-            User.IsInRole(AppRole.CorporateManager))
+        // 1. Prepare Security Context
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId,
+            IsOwner = false, // We'll check this below
+            Action = "Manage",
+            Resource = "Asset"
+        };
+
+        // 2. Check Management Permission via Rule Engine
+        // This workflow handles Admin, AssetManager, etc.
+        if (await _ruleEngine.EvaluateRuleAsync("RequireManagement", securityContext))
         {
             return true;
         }
 
+        // 3. Fallback to Primary Resident check
         var userIdStr = User.FindFirst("UserId")?.Value;
         if (int.TryParse(userIdStr, out int userId))
         {

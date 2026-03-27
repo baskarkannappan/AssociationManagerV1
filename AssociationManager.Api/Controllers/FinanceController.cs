@@ -21,19 +21,22 @@ public class FinanceController : ControllerBase
     private readonly ITenantContext _tenantContext;
     private readonly IPeopleService _peopleService;
     private readonly AssociationManager.Api.Services.Billing.BillingBatchService _batchService;
+    private readonly IRuleEngineService _ruleEngine;
 
     public FinanceController(
         IFinanceService financeService, 
         IAuditService auditService,
         ITenantContext tenantContext,
         IPeopleService peopleService,
-        AssociationManager.Api.Services.Billing.BillingBatchService batchService)
+        AssociationManager.Api.Services.Billing.BillingBatchService batchService,
+        IRuleEngineService ruleEngine)
     {
         _financeService = financeService;
         _auditService = auditService;
         _tenantContext = tenantContext;
         _peopleService = peopleService;
         _batchService = batchService;
+        _ruleEngine = ruleEngine;
     }
 
     [HttpPost("batch-generate")]
@@ -48,7 +51,14 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetInvoices([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
     {
-        bool isStaff = !User.IsInRole(AppRole.Resident); // All roles except Resident are management/staff
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
+
+        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
         
         if (!isStaff)
         {

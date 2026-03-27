@@ -59,7 +59,7 @@
                 </GridColumn>
 
                 <GridColumn TItem="AssociationSubscription" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                    <AuthorizeView Roles="PlatformAdmin,SubscriptionManager" Context="innerAuth">
+                    <AuthorizeView Policy="RequirePlanManagement" Context="innerAuth">
                         <Authorized>
                             <button class="btn btn-sm btn-vscode" @onclick="() => ShowChangePlanModal(context)">
                                 <i class="bi bi-pencil-square"></i>
@@ -74,7 +74,7 @@
     {
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="small text-muted">Manage the global subscription plans available to associations.</div>
-            <AuthorizeView Roles="@($"{AppRole.PlatformAdmin},{AppRole.SubscriptionManager}")">
+            <AuthorizeView Policy="RequirePlanManagement">
                 <button class="btn btn-sm btn-vscode" @onclick="ShowCreatePlanModal">
                     <i class="bi bi-plus me-1"></i> New Plan
                 </button>
@@ -106,7 +106,7 @@
                 </GridColumn>
 
                 <GridColumn TItem="SubscriptionPlan" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                    <AuthorizeView Roles="PlatformAdmin,SubscriptionManager" Context="planAuth">
+                    <AuthorizeView Policy="RequirePlanManagement" Context="planAuth">
                         <Authorized>
                             <button class="btn btn-sm btn-vscode" @onclick="() => ShowEditPlanModal(context)">
                                 <i class="bi bi-pencil-square"></i>

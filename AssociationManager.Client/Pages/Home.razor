@@ -3,13 +3,16 @@
 @inject TokenService TokenService
 @inject NavigationManager Navigation
 @inject GovernanceService GovernanceService
+@inject IRuleEngineService RuleEngine
+@inject ITenantContext TenantContext
+@using AssociationManager.Shared.Interfaces
 
 <AuthorizeView Context="authContext">
     <Authorized>
         @{
             var assocIdClaim = authContext.User.FindFirst("AssociationId")?.Value;
             bool hasAssociation = !string.IsNullOrEmpty(assocIdClaim) && assocIdClaim != "0";
-            bool isSystemAdmin = authContext.User.IsInRole("SystemAdmin");
+            bool isSystemAdmin = _isSystemAdmin;
             bool isPending = !isSystemAdmin && !hasAssociation;
         }
 
@@ -59,7 +62,7 @@
         }
         else
         {
-            @if (authContext.User.IsInRole(AppRole.Resident))
+        @if (_isResident)
             {
                 <div class="resident-dashboard p-3 animate-fade-in">
                     <div class="premium-page-header border-bottom px-4 py-3 mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem;">
@@ -355,7 +358,8 @@
     private AssociationDashboardMetrics? _adminMetrics;
     private ResidentDashboardMetrics? _residentMetrics;
 
-    // Resident specific
+    private bool _isResident;
+    private bool _isSystemAdmin;
     private Asset? _myUnit;
     private decimal _myBalance;
     private List<Invoice>? _myInvoices;
@@ -365,7 +369,17 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
-        if (user.IsInRole(AppRole.Resident))
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(user.Claims),
+            AssociationId = TenantContext.AssociationId
+        };
+
+        _isResident = await RuleEngine.EvaluateRuleAsync("IsResident", securityContext);
+        _isSystemAdmin = await RuleEngine.EvaluateRuleAsync("RequireAdmin", securityContext);
+
+        if (_isResident)
         {
             await LoadResidentData();
         }

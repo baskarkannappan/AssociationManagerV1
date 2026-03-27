@@ -5,9 +5,10 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Globalization;
+using Microsoft.AspNetCore.Authorization;
+using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Authorization;
-using Microsoft.AspNetCore.Authorization;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -48,6 +49,8 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiService>();
 builder.Services.AddScoped<IAppAuthorizationService, AppAuthorizationService>();
+builder.Services.AddScoped<IRuleEngineService, ClientRuleEngineService>();
+builder.Services.AddScoped<ITenantContext, ClientTenantContext>();
 builder.Services.AddScoped<GovernanceService>();
 builder.Services.AddTransient<AuthHeaderHandler>();
 

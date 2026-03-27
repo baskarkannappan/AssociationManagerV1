@@ -13,7 +13,7 @@ namespace AssociationManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "RequireAssociationAdmin")]
+[Authorize(Policy = "RequireUserManager")]
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
@@ -39,6 +39,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{userId}/role")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> UpdateRole(int userId, [FromBody] UpdateRoleRequest request)
     {
         if (string.IsNullOrEmpty(request.Role))
@@ -58,6 +59,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{userId}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> RemoveFromTenant(int userId)
     {
         if (userId == _tenantContext.UserId)

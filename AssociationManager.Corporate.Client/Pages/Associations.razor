@@ -14,7 +14,7 @@
                 <i class="bi bi-diagram-3-fill text-muted" style="font-size: 14px;"></i>
                 <span class="fw-medium">Associations</span>
             </div>
-            <AuthorizeView Roles="@AppRole.PlatformAdmin">
+            <AuthorizeView Policy="RequirePlatformAdmin">
                 <button class="btn-vscode" @onclick="() => _showCreateForm = !_showCreateForm">
                     <i class="bi @(_showCreateForm ? "bi-dash" : "bi-plus")"></i>
                     @(_showCreateForm ? "Discard" : "New Association")
@@ -87,14 +87,14 @@
                         </GridColumn>
 
                         <GridColumn TItem="Association" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                            <AuthorizeView Roles="PlatformAdmin,CorporateManager,SubscriptionManager" Context="innerAuth">
+                            <AuthorizeView Policy="RequireCorporate" Context="innerAuth">
                                 <Authorized>
                                     <a href="/subscriptions" class="btn btn-link btn-sm text-accent p-0 me-2" title="Manage Platform Tariff">
                                         <i class="bi bi-credit-card-2-front"></i>
                                     </a>
                                 </Authorized>
                             </AuthorizeView>
-                            <AuthorizeView Roles="PlatformAdmin,CorporateManager" Context="innerDeleteAuth">
+                            <AuthorizeView Policy="RequireCorporate" Context="innerDeleteAuth">
                                 <Authorized>
                                     <button @onclick="() => DeleteAssociation(context.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
                                         <i class="bi bi-trash"></i>

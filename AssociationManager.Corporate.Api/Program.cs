@@ -69,6 +69,7 @@ builder.Services.AddScoped<IOperationsService, OperationsService>();
 builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
@@ -137,26 +138,25 @@ builder.Services.AddCors(options =>
 
 // Authorization Policies
 builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
-builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleHandler>();
 builder.Services.AddAuthorization(options =>
 {
-    // Strict Corporate Policies
     options.AddPolicy("RequireCorporate", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(
-            AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.CorporateManager, 
-            AppRole.SubscriptionManager, AppRole.GlobalUserManager, AppRole.CorporateAuditor)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateManager)));
 
     options.AddPolicy("RequireManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.CorporateManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateManager)));
 
     options.AddPolicy("RequirePlanManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.SubscriptionManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSubscriptionManager)));
 
     options.AddPolicy("RequireUserManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelGlobalUserManager)));
 
     options.AddPolicy("RequirePlatformAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin)));
+    
+    options.AddPolicy("RequireAdmin", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin)));
 });
 
 var app = builder.Build();

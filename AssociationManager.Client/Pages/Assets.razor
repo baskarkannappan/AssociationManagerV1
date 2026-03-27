@@ -18,7 +18,7 @@
                             <i class="bi bi-diagram-3 me-2"></i> Asset Registry
                         </h1>
                     </div>
-                    @if (AuthService.HasLevel(assetAuthContext.User, AppRole.LevelAssociationAdmin))
+                    @if (_canManageAssets)
                     {
                         <div class="actions d-flex gap-2">
                             <button class="btn-vscode" @onclick="() => _bulkModal.ShowAsync()">
@@ -116,7 +116,7 @@
                             {
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="fw-bold small mb-0">Unit Announcements</h6>
-                                    @if (AuthService.HasLevel(assetAuthContext.User, AppRole.LevelAssociationAdmin))
+                                    @if (_canManageAssets)
                                     {
                                         <button class="btn btn-sm btn-vscode" @onclick="() => _assetBroadcastList?.ShowCreateModal()">
                                             <i class="bi bi-plus"></i> Post to Unit
@@ -186,6 +186,7 @@
 
     private BroadcastList? _assetBroadcastList;
     private BulkCreateModal _bulkModal = default!;
+    private bool _canManageAssets;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
@@ -193,9 +194,11 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateTask;
+        _canManageAssets = await AuthService.HasLevelAsync(authState.User, AppRole.LevelAssociationAdmin);
+        _isResident = !_canManageAssets;
+
         if (authState.User.Identity?.IsAuthenticated == true)
         {
-            _isResident = !AuthService.HasLevel(authState.User, AppRole.LevelAssociationAdmin);
             await LoadHierarchy();
         }
     }

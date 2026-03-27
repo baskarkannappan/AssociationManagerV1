@@ -4,13 +4,14 @@
 @inject TokenService TokenService
 @inject NavigationManager Navigation
 @inject ApiService Api
+@inject IAppAuthorizationService AuthService
 
 <AuthorizeView Context="authContext">
     <Authorized>
         @{
             var assocIdClaim = authContext.User.FindFirst("AssociationId")?.Value;
             bool hasAssociation = !string.IsNullOrEmpty(assocIdClaim) && assocIdClaim != "0";
-            bool isSystemAdmin = authContext.User.IsInRole("SystemAdmin") || authContext.User.IsInRole("PlatformAdmin");
+            bool isSystemAdmin = _isSystemAdmin; // Evaluated in OnInitializedAsync
             bool isPending = !isSystemAdmin && !hasAssociation;
         }
 
@@ -218,9 +219,15 @@
     private CorporateDashboardMetrics? dashboardData;
     private bool _isLoading = true;
     private string? _errorMessage;
+    private bool _isSystemAdmin;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateTask;
+        _isSystemAdmin = await AuthService.HasLevelAsync(authState.User, 90);
         await LoadDashboardMetrics();
     }
 
@@ -241,4 +248,6 @@
             _isLoading = false;
         }
     }
+
+    private void CreateAssociation() => Navigation.NavigateTo("/associations");
 }

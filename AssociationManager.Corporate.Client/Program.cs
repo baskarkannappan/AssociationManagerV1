@@ -8,6 +8,7 @@ using System.Globalization;
 using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using AssociationManager.Shared.Interfaces;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -26,25 +27,23 @@ builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
 // Authorization Policies
-builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
 builder.Services.AddAuthorizationCore(options =>
 {
     options.AddPolicy("RequireCorporate", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(
-            AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.CorporateManager, 
-            AppRole.SubscriptionManager, AppRole.GlobalUserManager, AppRole.CorporateAuditor)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateManager)));
 
     options.AddPolicy("RequireManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.CorporateManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateManager)));
 
     options.AddPolicy("RequirePlanManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.SubscriptionManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSubscriptionManager)));
 
     options.AddPolicy("RequireUserManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin, AppRole.SystemAdmin, AppRole.GlobalUserManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelGlobalUserManager)));
 
     options.AddPolicy("RequirePlatformAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleRequirement(AppRole.PlatformAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin)));
 });
 
 // Register Services
@@ -53,6 +52,10 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiService>();
 builder.Services.AddScoped<IAppAuthorizationService, AppAuthorizationService>();
 builder.Services.AddTransient<AuthHeaderHandler>();
+
+// Rule Engine Context
+builder.Services.AddScoped<ITenantContext, ClientTenantContext>();
+builder.Services.AddScoped<IRuleEngineService, ClientRuleEngineService>();
 
 // Base API URL (Gateway)
 var gatewayUrl = builder.Configuration["GatewayUrl"] ?? "https://localhost:7000/";

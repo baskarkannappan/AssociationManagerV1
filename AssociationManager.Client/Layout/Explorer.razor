@@ -3,16 +3,10 @@
 @inject IAppAuthorizationService AuthService
 
 <AuthorizeView Context="rootAuthContext">
-    @{
-        var assocId = rootAuthContext.User.FindFirst("AssociationId")?.Value;
-        bool isAdmin = rootAuthContext.User.IsInRole("SystemAdmin") || rootAuthContext.User.IsInRole("PlatformAdmin");
-        bool hasAccess = isAdmin || (!string.IsNullOrEmpty(assocId) && assocId != "0");
-    }
-    
     <div class="vscode-explorer">
         <div class="vscode-explorer-header">Navigation</div>
         
-        @if (hasAccess)
+        @if (_hasAccess)
         {
             <div class="vscode-tree-group mt-3">
                 <div class="vscode-tree-item py-1 text-muted" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
@@ -24,56 +18,56 @@
                     <span>Dashboard</span>
                 </NavLink>
                 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,AssetManager,Resident">
+                <AuthorizeView Policy="RequireResident">
                     <NavLink href="assets" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-layers text-secondary"></i>
                         <span>Assets</span>
                     </NavLink>
                 </AuthorizeView>
                 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,UserManager">
+                <AuthorizeView Policy="RequireUserManager">
                     <NavLink href="users?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-gear text-info"></i>
                         <span>User & Roles</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,FinanceManager">
+                <AuthorizeView Policy="RequireFinanceManager">
                     <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-tag text-success"></i>
                         <span>Tariff Management</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,FinanceManager,Resident">
+                <AuthorizeView Policy="RequireResident">
                     <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-cash-stack text-success"></i>
                         <span>Finance</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,AssetManager,Resident">
+                <AuthorizeView Policy="RequireResident">
                     <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-tools text-dark"></i>
                         <span>Operations</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin">
+                <AuthorizeView Policy="RequireAssociationAdmin">
                     <NavLink href="broadcasts?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-chat-left-dots text-warning"></i>
                         <span>Communication</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin,UserManager">
+                <AuthorizeView Policy="RequireUserManager">
                     <NavLink href="people?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-lines-fill text-danger"></i>
                         <span>Community</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="PlatformAdmin,SystemAdmin,AssociationAdmin">
+                <AuthorizeView Policy="RequireAssociationAdmin">
                     <NavLink href="settings" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-gear text-secondary"></i>
                         <span>Settings</span>
@@ -113,3 +107,24 @@
         }
     </div>
 </AuthorizeView>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private bool _isAdmin;
+    private bool _hasAccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            _isAdmin = await AuthService.HasLevelAsync(user, 90);
+            var assocId = user.FindFirst("AssociationId")?.Value;
+            _hasAccess = _isAdmin || (!string.IsNullOrEmpty(assocId) && assocId != "0");
+        }
+    }
+}
