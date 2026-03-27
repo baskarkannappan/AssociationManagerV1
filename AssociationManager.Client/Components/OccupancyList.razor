@@ -55,8 +55,9 @@
                 @context.OccupancyType
             </GridColumn>
 
-            <GridColumn TItem="Occupancy" HeaderText="Contact" PropertyName="PersonId" SortKeySelector="item => item.PersonId">
-                Person #@context.PersonId
+            <GridColumn TItem="Occupancy" HeaderText="Contact" PropertyName="PersonName" SortKeySelector="item => item.PersonName">
+                <div class="fw-bold">@context.PersonName</div>
+                <div class="text-muted" style="font-size: 10px;">@context.Email</div>
             </GridColumn>
 
             <GridColumn TItem="Occupancy" HeaderText="Primary" PropertyName="IsPrimaryContact" SortKeySelector="item => item.IsPrimaryContact">

@@ -29,6 +29,10 @@ public class Occupancy
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public bool IsPrimaryContact { get; set; }
+
+    // Enriched properties for display
+    public string? PersonName { get; set; }
+    public string? Email { get; set; }
 }
 
 public enum OccupancyType
