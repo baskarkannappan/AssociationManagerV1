@@ -87,19 +87,21 @@ public class AuthService : IAuthService
             user.PictureUrl = payload.Picture;
             user.LastLoginDate = DateTime.UtcNow;
             
-            /* 
-            // Auto-select first association if none is assigned but mappings exist
-            if (user.AssociationId == null || user.AssociationId == 0)
+            // Auto-resolve association if currently invalid (0 or 1)
+            if (user.AssociationId == null || user.AssociationId <= 1 || (user.TenantId <= 1 && user.AssociationId == null))
             {
                 var associations = await _associationRepository.GetByUserIdAsync(user.UserId);
                 var firstAssoc = associations.FirstOrDefault();
                 if (firstAssoc != null)
                 {
-                    user.AssociationId = firstAssoc.AssociationId;
-                    user.TenantId = firstAssoc.TenantId;
+                    // Update whichever field is used for current context
+                    if (user.AssociationId != null || (user.AssociationId == null && user.TenantId <= 1))
+                    {
+                         user.AssociationId = firstAssoc.AssociationId;
+                    }
+                    user.TenantId = firstAssoc.TenantId; // Usually 1 in assoc schema
                 }
             }
-            */
 
             await _userRepository.UpdateAsync(user);
 
