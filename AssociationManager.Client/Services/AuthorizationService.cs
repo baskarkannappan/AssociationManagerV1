@@ -7,10 +7,17 @@ public interface IAppAuthorizationService
 {
     bool HasLevel(ClaimsPrincipal user, int requiredLevel);
     bool IsInRoleOrHigher(ClaimsPrincipal user, string role);
+    int? GetUserId(ClaimsPrincipal user);
 }
 
 public class AppAuthorizationService : IAppAuthorizationService
 {
+    public int? GetUserId(ClaimsPrincipal user)
+    {
+        var idStr = user.FindFirst("UserId")?.Value;
+        if (int.TryParse(idStr, out int userId)) return userId;
+        return null;
+    }
     public bool HasLevel(ClaimsPrincipal user, int requiredLevel)
     {
         if (user.Identity?.IsAuthenticated != true) return false;

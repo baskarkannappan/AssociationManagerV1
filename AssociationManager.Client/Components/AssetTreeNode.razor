@@ -131,14 +131,14 @@
 
     private string GetIconClass() => Asset.AssetType switch
     {
-        AssetType.Property => "bi-geo-alt-fill",
-        AssetType.Building => "bi-building-fill",
-        AssetType.Floor => "bi-layers-fill",
-        AssetType.Unit => "bi-door-closed-fill",
-        AssetType.Villa => "bi-house-heart-fill",
-        AssetType.CommonArea => "bi-tree-fill",
+        AssetType.Property => "bi-geo-alt",
+        AssetType.Building => "bi-building",
+        AssetType.Floor => "bi-layers",
+        AssetType.Unit => "bi-door-closed",
+        AssetType.Villa => "bi-house-heart",
+        AssetType.CommonArea => "bi-tree",
         AssetType.Amenity => "bi-water",
-        AssetType.SecurityGate => "bi-shield-lock-fill",
+        AssetType.SecurityGate => "bi-shield-lock",
         _ => "bi-box"
     };
 

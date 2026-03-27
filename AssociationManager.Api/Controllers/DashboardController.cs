@@ -40,7 +40,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("admin/metrics")]
-    [Authorize(Policy = "RequireAssociationAdmin")]
+    [Authorize(Policy = "RequireManagement")]
     public async Task<IActionResult> GetAdminMetrics()
     {
         var tenantId = _tenantContext.TenantId;

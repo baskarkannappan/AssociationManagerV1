@@ -23,6 +23,34 @@ public class PeopleController : ControllerBase
         _auditService = auditService;
     }
 
+    private async Task<bool> IsAuthorizedForAsset(int assetId)
+    {
+        if (User.IsInRole(AppRole.AssociationAdmin) || 
+            User.IsInRole(AppRole.UserManager) || 
+            User.IsInRole(AppRole.AssetManager) ||
+            User.IsInRole(AppRole.SystemAdmin) ||
+            User.IsInRole(AppRole.PlatformAdmin) ||
+            User.IsInRole(AppRole.CorporateManager))
+        {
+            return true;
+        }
+
+        var userIdStr = User.FindFirst("UserId")?.Value;
+        if (int.TryParse(userIdStr, out int userId))
+        {
+            return await _peopleService.IsPrimaryResidentForAssetAsync(userId, assetId);
+        }
+
+        return false;
+    }
+
+    [HttpGet("can-manage-unit/{assetId}")]
+    public async Task<IActionResult> CanManageUnit(int assetId)
+    {
+        var result = await IsAuthorizedForAsset(assetId);
+        return Ok(ApiResponse<bool>.SuccessResponse(result));
+    }
+
     [HttpGet]
     [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> GetAllPeople([FromQuery] int? associationId = null)
@@ -32,12 +60,21 @@ public class PeopleController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> CreatePerson([FromBody] Person person)
     {
         var id = await _peopleService.CreatePersonAsync(person);
         await _auditService.LogAsync("Create Person", "Person", id);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Person record created."));
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdatePerson(int id, [FromBody] Person person)
+    {
+        person.PersonId = id;
+        var success = await _peopleService.UpdatePersonAsync(person);
+        if (!success) return NotFound(ApiResponse.FailureResponse("Person not found."));
+        await _auditService.LogAsync("Update Person", "Person", id);
+        return Ok(ApiResponse.SuccessResponse("Person record updated."));
     }
 
     [HttpGet("my-occupancy")]
@@ -63,6 +100,11 @@ public class PeopleController : ControllerBase
     [HttpPost("occupancy")]
     public async Task<IActionResult> AddOccupant([FromBody] Occupancy occupancy)
     {
+        if (!await IsAuthorizedForAsset(occupancy.AssetId))
+        {
+            return Forbid();
+        }
+
         var id = await _peopleService.AddOccupantAsync(occupancy);
         await _auditService.LogAsync("Add Occupant", "Occupancy", id);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Occupancy record added."));
@@ -71,6 +113,14 @@ public class PeopleController : ControllerBase
     [HttpDelete("occupancy/{id}")]
     public async Task<IActionResult> RemoveOccupant(int id)
     {
+        var occupancy = await _peopleService.GetOccupancyByIdAsync(id);
+        if (occupancy == null) return NotFound();
+
+        if (!await IsAuthorizedForAsset(occupancy.AssetId))
+        {
+            return Forbid();
+        }
+
         await _peopleService.RemoveOccupantAsync(id);
         await _auditService.LogAsync("Remove Occupant", "Occupancy", id);
         return Ok(ApiResponse.SuccessResponse("Occupancy removed."));
@@ -85,12 +135,32 @@ public class PeopleController : ControllerBase
     }
 
     [HttpPost("vehicles")]
-    [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> AddVehicle([FromBody] Vehicle vehicle)
     {
+        if (!await IsAuthorizedForAsset(vehicle.AssetId))
+        {
+            return Forbid();
+        }
+
         var id = await _peopleService.AddVehicleAsync(vehicle);
         await _auditService.LogAsync("Add Vehicle", "Vehicle", id);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Vehicle record added."));
+    }
+
+    [HttpDelete("vehicles/{id}")]
+    public async Task<IActionResult> RemoveVehicle(int id)
+    {
+        var vehicle = await _peopleService.GetVehicleByIdAsync(id);
+        if (vehicle == null) return NotFound();
+
+        if (!await IsAuthorizedForAsset(vehicle.AssetId))
+        {
+            return Forbid();
+        }
+
+        await _peopleService.RemoveVehicleAsync(id);
+        await _auditService.LogAsync("Remove Vehicle", "Vehicle", id);
+        return Ok(ApiResponse.SuccessResponse("Vehicle removed."));
     }
 
     [HttpGet("unit/{unitId}/pets")]
@@ -102,25 +172,29 @@ public class PeopleController : ControllerBase
     }
 
     [HttpPost("pets")]
-    [Authorize(Policy = "RequireUserManager")]
     public async Task<IActionResult> AddPet([FromBody] Pet pet)
     {
+        if (!await IsAuthorizedForAsset(pet.AssetId))
+        {
+            return Forbid();
+        }
+
         var id = await _peopleService.AddPetAsync(pet);
         await _auditService.LogAsync("Add Pet", "Pet", id);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Pet record added."));
     }
 
-    [HttpDelete("vehicles/{id}")]
-    public async Task<IActionResult> RemoveVehicle(int id)
-    {
-        await _peopleService.RemoveVehicleAsync(id);
-        await _auditService.LogAsync("Remove Vehicle", "Vehicle", id);
-        return Ok(ApiResponse.SuccessResponse("Vehicle removed."));
-    }
-
     [HttpDelete("pets/{id}")]
     public async Task<IActionResult> RemovePet(int id)
     {
+        var pet = await _peopleService.GetPetByIdAsync(id);
+        if (pet == null) return NotFound();
+
+        if (!await IsAuthorizedForAsset(pet.AssetId))
+        {
+            return Forbid();
+        }
+
         await _peopleService.RemovePetAsync(id);
         await _auditService.LogAsync("Remove Pet", "Pet", id);
         return Ok(ApiResponse.SuccessResponse("Pet removed."));

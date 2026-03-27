@@ -156,6 +156,8 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager)));
     options.AddPolicy("RequireFinanceManager", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager)));
+    options.AddPolicy("RequireManagement", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager))); // Level 40+
     options.AddPolicy("RequireAssociationAdmin", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
     options.AddPolicy("RequireSystemAdmin", policy => 

@@ -103,6 +103,15 @@ public class OccupancyRepository : IOccupancyRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<Occupancy?> GetByIdAsync(int id, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<Occupancy>(
+            "assoc.sp_Occupancy_GetById", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<int> CreateAsync(Occupancy occupancy)
     {
         using var connection = _dbConnectionFactory.CreateConnection();

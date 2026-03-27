@@ -48,7 +48,7 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetInvoices([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
     {
-        bool isStaff = User.IsInRole(AppRole.AssociationAdmin) || User.IsInRole(AppRole.SystemAdmin) || User.IsInRole(AppRole.FinanceManager) || User.IsInRole(AppRole.PlatformAdmin);
+        bool isStaff = !User.IsInRole(AppRole.Resident); // All roles except Resident are management/staff
         
         if (!isStaff)
         {

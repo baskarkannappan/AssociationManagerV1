@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize(Policy = "RequireAssociationAdmin")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class CommunicationsController : ControllerBase
@@ -23,6 +23,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpGet("broadcasts")]
+    [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetBroadcasts([FromQuery] int? assetId = null, [FromQuery] int? associationId = null)
     {
         IEnumerable<Broadcast> broadcasts;
@@ -38,6 +39,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpGet("broadcasts/{id}")]
+    [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetBroadcast(int id)
     {
         var broadcast = await _communicationsService.GetBroadcastByIdAsync(id);
@@ -46,6 +48,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpPost("broadcasts")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> CreateBroadcast([FromBody] Broadcast broadcast)
     {
         var id = await _communicationsService.CreateBroadcastAsync(broadcast);
@@ -54,6 +57,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpDelete("broadcasts/{id}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _communicationsService.DeleteBroadcastAsync(id);

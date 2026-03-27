@@ -21,6 +21,15 @@ public class VehicleRepository : IVehicleRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<Vehicle?> GetByIdAsync(int id, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<Vehicle>(
+            "assoc.sp_Vehicles_GetById", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<int> CreateAsync(Vehicle vehicle)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
@@ -71,6 +80,15 @@ public class PetRepository : IPetRepository
         return await connection.QueryAsync<Pet>(
             "assoc.sp_Pets_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<Pet?> GetByIdAsync(int id, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<Pet>(
+            "assoc.sp_Pets_GetById", 
+            new { Id = id, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
 

@@ -34,7 +34,7 @@ public class UsersController : ControllerBase
             return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(users));
         }
 
-        var tenantUsers = await _userRepository.GetByTenantIdAsync(_tenantContext.TenantId);
+        var tenantUsers = await _userRepository.GetByTenantIdAsync(_tenantContext.AssociationId);
         return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(tenantUsers));
     }
 
@@ -45,12 +45,12 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse.FailureResponse("Role cannot be empty."));
 
         // Verify user is in tenant
-        var currentRole = await _userRepository.GetRoleInTenantAsync(userId, _tenantContext.TenantId);
+        var currentRole = await _userRepository.GetRoleInTenantAsync(userId, _tenantContext.AssociationId);
         if (currentRole == null)
             return NotFound(ApiResponse.FailureResponse("User not found in this association."));
 
         // Update the association role
-        var success = await _userRepository.AddUserToTenantAsync(userId, _tenantContext.TenantId, request.Role);
+        var success = await _userRepository.AddUserToTenantAsync(userId, _tenantContext.AssociationId, request.Role);
         if (success)
             return Ok(ApiResponse.SuccessResponse("Role updated successfully."));
 
@@ -63,7 +63,7 @@ public class UsersController : ControllerBase
         if (userId == _tenantContext.UserId)
             return BadRequest(ApiResponse.FailureResponse("You cannot remove yourself from the association."));
 
-        var success = await _userRepository.RemoveUserFromTenantAsync(userId, _tenantContext.TenantId);
+        var success = await _userRepository.RemoveUserFromTenantAsync(userId, _tenantContext.AssociationId);
         if (success)
             return Ok(ApiResponse.SuccessResponse("User removed from association."));
 
@@ -92,11 +92,11 @@ public class UsersController : ControllerBase
         }
 
         // Check if already in association mapping
-        var currentRole = await _userRepository.GetRoleInTenantAsync(user.UserId, _tenantContext.TenantId);
+        var currentRole = await _userRepository.GetRoleInTenantAsync(user.UserId, _tenantContext.AssociationId);
         if (currentRole != null)
             return BadRequest(ApiResponse.FailureResponse("User is already a member of this association."));
 
-        var success = await _userRepository.AddUserToTenantAsync(user.UserId, _tenantContext.TenantId, request.Role ?? AppRole.Resident);
+        var success = await _userRepository.AddUserToTenantAsync(user.UserId, _tenantContext.AssociationId, request.Role ?? AppRole.Resident);
         if (success)
             return Ok(ApiResponse.SuccessResponse($"Added {user.Name} to association."));
 

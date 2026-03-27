@@ -54,6 +54,7 @@ public class PeopleService : IPeopleService
     // Occupancy
     public async Task<IEnumerable<Occupancy>> GetOccupancyByUnitAsync(int unitId) => await _occupancyRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
     public async Task<IEnumerable<Occupancy>> GetOccupancyByUserIdAsync(int userId) => await _occupancyRepository.GetByUserIdAsync(userId, CurrentTenantId, CurrentAssociationId);
+    public async Task<Occupancy?> GetOccupancyByIdAsync(int id) => await _occupancyRepository.GetByIdAsync(id, CurrentTenantId, CurrentAssociationId);
     
     public async Task<int> AddOccupantAsync(Occupancy occupancy)
     {
@@ -95,6 +96,8 @@ public class PeopleService : IPeopleService
 
     // Vehicles
     public async Task<IEnumerable<Vehicle>> GetVehiclesByUnitAsync(int unitId) => await _vehicleRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
+    public async Task<Vehicle?> GetVehicleByIdAsync(int id) => await _vehicleRepository.GetByIdAsync(id, CurrentTenantId, CurrentAssociationId);
+    
     public async Task<int> AddVehicleAsync(Vehicle vehicle)
     {
         vehicle.TenantId = CurrentTenantId;
@@ -111,6 +114,8 @@ public class PeopleService : IPeopleService
 
     // Pets
     public async Task<IEnumerable<Pet>> GetPetsByUnitAsync(int unitId) => await _petRepository.GetByAssetIdAsync(unitId, CurrentTenantId, CurrentAssociationId);
+    public async Task<Pet?> GetPetByIdAsync(int id) => await _petRepository.GetByIdAsync(id, CurrentTenantId, CurrentAssociationId);
+
     public async Task<int> AddPetAsync(Pet pet)
     {
         pet.TenantId = CurrentTenantId;
@@ -124,4 +129,17 @@ public class PeopleService : IPeopleService
         return await _petRepository.UpdateAsync(pet);
     }
     public async Task<bool> RemovePetAsync(int petId, int? associationId = null) => await _petRepository.DeleteAsync(petId, CurrentTenantId, associationId ?? CurrentAssociationId);
+
+    public async Task<bool> IsPrimaryResidentForAssetAsync(int userId, int assetId)
+    {
+        var occupancies = await _occupancyRepository.GetByUserIdAsync(userId, CurrentTenantId, CurrentAssociationId);
+        foreach (var occ in occupancies)
+        {
+            if (occ.AssetId == assetId && occ.IsPrimaryContact)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }

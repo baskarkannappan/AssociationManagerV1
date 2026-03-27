@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0 fw-bold">Registered Vehicles</h6>
         <AuthorizeView Context="vehicleAuthContext">
-            @if (AuthService.HasLevel(vehicleAuthContext.User, AppRole.LevelResident))
+            @if (_canManage)
             {
                 <button class="btn btn-sm btn-vscode" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
             }
@@ -54,7 +54,7 @@
 
             <GridColumn TItem="Vehicle" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
                 <AuthorizeView Context="vehicleAuthContext">
-                    @if (AuthService.HasLevel(vehicleAuthContext.User, AppRole.LevelResident))
+                    @if (_canManage)
                     {
                         <button class="btn btn-sm btn-vscode-danger ms-2" @onclick="() => OnDelete.InvokeAsync(context.VehicleId)">
                             <i class="bi bi-trash"></i>
@@ -72,6 +72,13 @@
     [Parameter] public EventCallback OnDataChanged { get; set; }
 
     private Grid<Vehicle> grid = default!;
+    private bool _canManage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _canManage = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{AssetId}");
+        if (grid != null) await grid.RefreshDataAsync();
+    }
 
     private async Task<GridDataProviderResult<Vehicle>> VehiclesDataProvider(GridDataProviderRequest<Vehicle> request)
     {
@@ -90,8 +97,9 @@
             _toastService.Notify(new(ToastType.Success, "Vehicle registered."));
             _newVehicle = new();
             _showAddForm = false;
-            await grid.RefreshDataAsync();
+            
             await OnDataChanged.InvokeAsync();
+            await grid.RefreshDataAsync();
         }
     }
 }
