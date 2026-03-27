@@ -51,9 +51,12 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetInvoices([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
     {
+        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
         var securityContext = new SecurityContext
         {
-            UserRole = string.Join(",", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+            UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
             AssociationId = _tenantContext.AssociationId
         };
@@ -126,13 +129,50 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetPayments([FromQuery] int? assetId = null)
     {
-        // For now, return payments for association if staff, or just restricted if I had the repo method.
-        // Since we are fixing 403, we'll allow but we SHOULD ideally filter by assetId.
+        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", roles),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
+
+        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        
+        if (!isStaff)
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
+                
+                if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
+                {
+                    return Forbid();
+                }
+                
+                if (!assetId.HasValue)
+                {
+                    if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(new List<Payment>()));
+                    assetId = allowedAssetIds.First();
+                }
+            }
+        }
+
         var payments = await _financeService.GetPaymentsAsync();
         if (assetId.HasValue)
         {
             payments = payments.Where(p => p.AssetId == assetId.Value);
         }
+        else if (!isStaff)
+        {
+            // If not staff and somehow escaped assetId logic, return empty
+            return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(new List<Payment>()));
+        }
+
         return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(payments));
     }
 
@@ -147,6 +187,7 @@ public class FinanceController : ControllerBase
     [HttpGet("transactions/asset/{assetId}")]
     public async Task<IActionResult> GetAssetTransactions(int assetId)
     {
+        if (!await IsAuthorizedForAsset(assetId)) return Forbid();
         var transactions = await _financeService.GetAssetTransactionsAsync(assetId);
         return Ok(ApiResponse<IEnumerable<Transaction>>.SuccessResponse(transactions));
     }
@@ -154,8 +195,33 @@ public class FinanceController : ControllerBase
     [HttpGet("balance/asset/{assetId}")]
     public async Task<IActionResult> GetAssetBalance(int assetId)
     {
+        if (!await IsAuthorizedForAsset(assetId)) return Forbid();
         var balance = await _financeService.GetAssetBalanceAsync(assetId);
         return Ok(ApiResponse<decimal>.SuccessResponse(balance));
+    }
+
+    private async Task<bool> IsAuthorizedForAsset(int assetId)
+    {
+         var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", roles),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
+
+        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        if (isStaff) return true;
+
+        var userIdStr = User.FindFirst("UserId")?.Value;
+        if (int.TryParse(userIdStr, out int userId))
+        {
+            var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+            return occupancies.Any(o => o.AssetId == assetId);
+        }
+        return false;
     }
 
     [HttpGet("transactions/tenant")]

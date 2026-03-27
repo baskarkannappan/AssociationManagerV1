@@ -17,17 +17,69 @@ public class OperationsController : ControllerBase
 {
     private readonly IOperationsService _operationsService;
     private readonly IAuditService _auditService;
+    private readonly IRuleEngineService _ruleEngine;
+    private readonly ITenantContext _tenantContext;
+    private readonly IPeopleService _peopleService;
 
-    public OperationsController(IOperationsService operationsService, IAuditService auditService)
+    public OperationsController(
+        IOperationsService operationsService, 
+        IAuditService auditService,
+        IRuleEngineService ruleEngine,
+        ITenantContext tenantContext,
+        IPeopleService peopleService)
     {
         _operationsService = operationsService;
         _auditService = auditService;
+        _ruleEngine = ruleEngine;
+        _tenantContext = tenantContext;
+        _peopleService = peopleService;
     }
 
     [HttpGet("workorders")]
-    public async Task<IActionResult> GetWorkOrders()
+    public async Task<IActionResult> GetWorkOrders([FromQuery] int? assetId = null)
     {
-        var workOrders = await _operationsService.GetAllWorkOrdersAsync();
+        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", roles),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
+
+        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        
+        if (!isStaff)
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
+                
+                if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
+                {
+                    return Forbid();
+                }
+                
+                if (!assetId.HasValue)
+                {
+                    if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<WorkOrder>>.SuccessResponse(new List<WorkOrder>()));
+                    assetId = allowedAssetIds.First();
+                }
+            }
+        }
+
+        IEnumerable<WorkOrder> workOrders;
+        if (assetId.HasValue)
+        {
+            workOrders = await _operationsService.GetWorkOrdersByAssetIdAsync(assetId.Value);
+        }
+        else
+        {
+            workOrders = await _operationsService.GetAllWorkOrdersAsync();
+        }
         return Ok(ApiResponse<IEnumerable<WorkOrder>>.SuccessResponse(workOrders));
     }
 
@@ -36,6 +88,32 @@ public class OperationsController : ControllerBase
     {
         var workOrder = await _operationsService.GetWorkOrderByIdAsync(id);
         if (workOrder == null) return NotFound(ApiResponse.FailureResponse("Work order not found."));
+        
+        // Authorization check for residents
+        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", roles),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId
+        };
+
+        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        if (!isStaff)
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+                if (!occupancies.Any(o => o.AssetId == workOrder.AssetId))
+                {
+                    return Forbid();
+                }
+            }
+        }
+
         return Ok(ApiResponse<WorkOrder>.SuccessResponse(workOrder));
     }
 

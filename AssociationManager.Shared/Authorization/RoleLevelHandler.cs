@@ -21,9 +21,12 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleLevelRequirement requirement)
     {
         // 1. Prepare Security Context
+        var roles = context.User.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role)
+                                      .Select(c => c.Value);
+
         var securityContext = new SecurityContext
         {
-            UserRole = string.Join(",", context.User.FindAll(ClaimTypes.Role).Select(c => c.Value)),
+            UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(context.User.Claims),
             AssociationId = _tenantContext.AssociationId,
             IsOwner = false // This could be filled by a more complex pre-check if needed

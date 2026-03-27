@@ -11,6 +11,8 @@ public class AuthService
     private readonly HttpClient _httpClient;
     private readonly TokenService _tokenService;
     private readonly CustomAuthenticationStateProvider _authStateProvider;
+    private static readonly SemaphoreSlim _refreshSemaphore = new(1, 1);
+    private static Task<AuthResponse?>? _refreshTask;
 
     public AuthService(IHttpClientFactory httpClientFactory, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider)
     {
@@ -64,6 +66,24 @@ public class AuthService
     }
 
     public async Task<AuthResponse?> RefreshToken()
+    {
+        await _refreshSemaphore.WaitAsync();
+        try
+        {
+            if (_refreshTask != null) return await _refreshTask;
+
+            _refreshTask = DoRefreshToken();
+            var result = await _refreshTask;
+            return result;
+        }
+        finally
+        {
+            _refreshTask = null;
+            _refreshSemaphore.Release();
+        }
+    }
+
+    private async Task<AuthResponse?> DoRefreshToken()
     {
         var token = await _tokenService.GetToken();
         var refreshToken = await _tokenService.GetRefreshToken();
