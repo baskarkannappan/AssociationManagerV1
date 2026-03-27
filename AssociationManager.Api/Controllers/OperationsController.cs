@@ -1,5 +1,6 @@
 using AssociationManager.Api.Authorization;
 using AssociationManager.Services.Interfaces;
+using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
