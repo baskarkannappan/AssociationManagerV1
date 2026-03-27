@@ -369,22 +369,31 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
+        var roles = user.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
         var securityContext = new SecurityContext
         {
-            UserRole = string.Join(",", user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
+            UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(user.Claims),
             AssociationId = TenantContext.AssociationId
         };
 
+        bool isManagement = await RuleEngine.EvaluateRuleAsync("RequireManagement", securityContext);
         _isResident = await RuleEngine.EvaluateRuleAsync("IsResident", securityContext);
         _isSystemAdmin = await RuleEngine.EvaluateRuleAsync("RequireAdmin", securityContext);
 
-        if (_isResident)
+        if (isManagement)
+        {
+            await LoadAdminData();
+        }
+        else if (_isResident)
         {
             await LoadResidentData();
         }
         else
         {
+            // Default fallback
             await LoadAdminData();
         }
     }
