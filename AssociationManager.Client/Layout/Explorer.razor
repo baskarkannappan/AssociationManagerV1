@@ -18,85 +18,87 @@
                     <span>Dashboard</span>
                 </NavLink>
                 
-                <AuthorizeView Policy="RequireResident">
+                <AuthorizeView Policy="ShowMenu_Assets">
                     <NavLink href="assets" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-layers text-secondary"></i>
                         <span>Assets</span>
                     </NavLink>
                 </AuthorizeView>
                 
-                <AuthorizeView Policy="RequireUserManager">
+                <AuthorizeView Policy="ShowMenu_Users">
                     <NavLink href="users?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-gear text-info"></i>
                         <span>User & Roles</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="RequireFinanceManager">
+                <AuthorizeView Policy="ShowMenu_Tariffs">
                     <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-tag text-success"></i>
                         <span>Tariff Management</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="RequireResident">
+                <AuthorizeView Policy="ShowMenu_Finance">
                     <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-cash-stack text-success"></i>
                         <span>Finance</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="RequireResident">
+                <AuthorizeView Policy="ShowMenu_Operations">
                     <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-tools text-dark"></i>
                         <span>Operations</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="RequireAssociationAdmin">
+                <AuthorizeView Policy="ShowMenu_Broadcasts">
                     <NavLink href="broadcasts?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-chat-left-dots text-warning"></i>
                         <span>Communication</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="RequireUserManager">
+                <AuthorizeView Policy="ShowMenu_Community">
                     <NavLink href="people?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-lines-fill text-danger"></i>
                         <span>Community</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="RequireAssociationAdmin">
+                <AuthorizeView Policy="ShowMenu_Settings">
                     <NavLink href="settings" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-gear text-secondary"></i>
                         <span>Settings</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
-                    Governance
-                </div>
-                <NavLink href="governance/profile" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-building text-primary"></i>
-                    <span>Association Profile</span>
-                </NavLink>
-                <NavLink href="governance/committee" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-people text-info"></i>
-                    <span>Committee</span>
-                </NavLink>
-                <NavLink href="governance/byelaws" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-file-earmark-text text-secondary"></i>
-                    <span>Bye-laws</span>
-                </NavLink>
-                <NavLink href="governance/meetings" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-calendar-check text-warning"></i>
-                    <span>Meetings</span>
-                </NavLink>
-                <NavLink href="governance/elections" class="vscode-tree-item text-decoration-none">
-                    <i class="bi bi-box-seam text-danger"></i>
-                    <span>Elections</span>
-                </NavLink>
+                <AuthorizeView Policy="ShowMenu_Governance">
+                    <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
+                        Governance
+                    </div>
+                    <NavLink href="governance/profile" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-building text-primary"></i>
+                        <span>Association Profile</span>
+                    </NavLink>
+                    <NavLink href="governance/committee" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-people text-info"></i>
+                        <span>Committee</span>
+                    </NavLink>
+                    <NavLink href="governance/byelaws" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-file-earmark-text text-secondary"></i>
+                        <span>Bye-laws</span>
+                    </NavLink>
+                    <NavLink href="governance/meetings" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-calendar-check text-warning"></i>
+                        <span>Meetings</span>
+                    </NavLink>
+                    <NavLink href="governance/elections" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-box-seam text-danger"></i>
+                        <span>Elections</span>
+                    </NavLink>
+                </AuthorizeView>
             </div>
         }
         else

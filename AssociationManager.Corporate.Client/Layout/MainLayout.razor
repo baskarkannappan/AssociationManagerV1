@@ -171,25 +171,12 @@
                 _currentAssociationId = aid;
             }
 
-            var allRoleClaims = user.FindAll(System.Security.Claims.ClaimTypes.Role)
-                .Select(c => c.Value).ToList();
-            if (!allRoleClaims.Any())
-            {
-                allRoleClaims = user.FindAll("Role").Select(c => c.Value).ToList();
-            }
-            if (!allRoleClaims.Any())
-            {
-                allRoleClaims = user.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value).ToList();
-            }
-
-            var highestRole = allRoleClaims
-                .SelectMany(r => r.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                .OrderByDescending(r => AppRole.GetLevel(r))
-                .FirstOrDefault();
+            var contextRole = user.FindFirst(c => c.Type.Equals("ContextRole", StringComparison.OrdinalIgnoreCase))?.Value;
+            var displayRole = !string.IsNullOrEmpty(contextRole) ? contextRole : AppRole.GetHighestRole(user.Claims);
             
-            if (_currentRole != highestRole && highestRole != null)
+            if (_currentRole != displayRole && displayRole != "Guest")
             {
-                _currentRole = highestRole;
+                _currentRole = displayRole;
             }
             
             try 

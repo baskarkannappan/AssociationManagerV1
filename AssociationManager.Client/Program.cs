@@ -42,6 +42,40 @@ builder.Services.AddAuthorizationCore(options =>
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
     options.AddPolicy("RequireSystemAdmin", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin)));
+
+    // --- MENU VISIBILITY POLICIES ---
+    options.AddPolicy("ShowMenu_Assets", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Assets")));
+    options.AddPolicy("ShowMenu_Finance", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Finance")));
+    options.AddPolicy("ShowMenu_Operations", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Operations")));
+    options.AddPolicy("ShowMenu_Users", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Users")));
+    options.AddPolicy("ShowMenu_Tariffs", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Tariffs")));
+    options.AddPolicy("ShowMenu_Community", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Community")));
+    options.AddPolicy("ShowMenu_Broadcasts", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Broadcasts")));
+    options.AddPolicy("ShowMenu_Governance", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Governance")));
+    options.AddPolicy("ShowMenu_Settings", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "ShowMenu_Settings")));
+
+    // --- DASHBOARD WIDGET POLICIES ---
+    options.AddPolicy("ShowWidget_FinancialSummary", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_FinancialSummary")));
+    options.AddPolicy("ShowWidget_ActiveRequests", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_ActiveRequests")));
+    options.AddPolicy("ShowWidget_Announcements", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_Announcements")));
+    options.AddPolicy("ShowWidget_AuditLog", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager, "ShowWidget_AuditLog")));
+    options.AddPolicy("ShowWidget_Committee", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_Committee")));
+    options.AddPolicy("ShowWidget_Outstanding", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowWidget_Outstanding")));
 });
 
 // Register Services

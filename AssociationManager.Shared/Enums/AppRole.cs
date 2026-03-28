@@ -58,6 +58,25 @@ public static class AppRole
         return roles.Select(GetLevel).Max();
     }
 
+    public static string GetHighestRole(IEnumerable<Claim> claims)
+    {
+        var roles = claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role)
+                          .Select(c => c.Value).ToList();
+        
+        if (!roles.Any()) return "Guest";
+        
+        return roles.OrderByDescending(GetLevel).First();
+    }
+
+    public static string[] GetRoleHierarchy(string? rolesCsv)
+    {
+        if (string.IsNullOrEmpty(rolesCsv)) return new[] { "Guest" };
+        
+        return rolesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                       .OrderByDescending(GetLevel)
+                       .ToArray();
+    }
+
     public static readonly string[] All = { 
         PlatformAdmin, SystemAdmin, CorporateManager, SubscriptionManager, 
         GlobalUserManager, CorporateAuditor, AssociationAdmin, AssetManager, 

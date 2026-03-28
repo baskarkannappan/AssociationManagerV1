@@ -152,19 +152,53 @@ builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Auth
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireResident", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "RequireResident")));
     options.AddPolicy("RequireUserManager", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager, "RequireUserManager")));
     options.AddPolicy("RequireAssetManager", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager, "RequireAssetManager")));
     options.AddPolicy("RequireFinanceManager", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "RequireFinanceManager")));
     options.AddPolicy("RequireManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager))); // Level 40+
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "RequireManagement"))); // Level 40+
     options.AddPolicy("RequireAssociationAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "RequireAssociationAdmin")));
     options.AddPolicy("RequireSystemAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin, "RequireAdmin")));
+
+    // --- MENU VISIBILITY POLICIES ---
+    options.AddPolicy("ShowMenu_Assets", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Assets")));
+    options.AddPolicy("ShowMenu_Finance", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Finance")));
+    options.AddPolicy("ShowMenu_Operations", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Operations")));
+    options.AddPolicy("ShowMenu_Users", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Users"))); // Level 80+
+    options.AddPolicy("ShowMenu_Tariffs", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Tariffs"))); // Level 40+
+    options.AddPolicy("ShowMenu_Community", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Community"))); // Level 80+
+    options.AddPolicy("ShowMenu_Broadcasts", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Broadcasts"))); // Level 40+
+    options.AddPolicy("ShowMenu_Governance", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Governance")));
+    options.AddPolicy("ShowMenu_Settings", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "ShowMenu_Settings"))); // Level 90+
+
+    // --- DASHBOARD WIDGET POLICIES ---
+    options.AddPolicy("ShowWidget_FinancialSummary", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_FinancialSummary")));
+    options.AddPolicy("ShowWidget_ActiveRequests", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_ActiveRequests")));
+    options.AddPolicy("ShowWidget_Announcements", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_Announcements")));
+    options.AddPolicy("ShowWidget_AuditLog", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager, "ShowWidget_AuditLog"))); // Level 60+
+    options.AddPolicy("ShowWidget_Committee", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowWidget_Committee")));
+    options.AddPolicy("ShowWidget_Outstanding", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowWidget_Outstanding"))); // Level 40+
 });
 
 var app = builder.Build();

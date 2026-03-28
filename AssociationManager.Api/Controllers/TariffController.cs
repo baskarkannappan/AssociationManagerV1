@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
 
-[Authorize(Policy = "RequireFinanceManager")]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TariffController : ControllerBase

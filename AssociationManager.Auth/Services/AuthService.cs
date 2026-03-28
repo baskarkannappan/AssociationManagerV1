@@ -67,7 +67,9 @@ public class AuthService : IAuthService
                 {
                     // 2. Try global schema (corp) as fallback for Admins
                     var globalUser = await _userRepository.GetByEmailGlobalAsync(payload.Email);
-                    if (globalUser != null && (globalUser.Role == AppRole.SystemAdmin || globalUser.Role == AppRole.PlatformAdmin))
+                    if (globalUser != null && (globalUser.Role == AppRole.SystemAdmin || 
+                                               globalUser.Role == AppRole.PlatformAdmin ||
+                                               globalUser.Role == AppRole.AssociationAdmin))
                     {
                         // Provision this global admin into the local (assoc) schema
                         globalUser.UserId = 0; // Ensure new ID
@@ -90,6 +92,12 @@ public class AuthService : IAuthService
             user.Name = payload.Name;
             user.PictureUrl = payload.Picture;
             user.LastLoginDate = DateTime.UtcNow;
+
+            // Cleanup potentially contaminated role string from DB
+            if (!string.IsNullOrEmpty(user.Role) && user.Role.Contains(","))
+            {
+                user.Role = AppRole.GetRoleHierarchy(user.Role).FirstOrDefault() ?? AppRole.Resident;
+            }
             
             // Auto-resolve association if currently invalid (0 or 1)
             if (user.AssociationId == null || user.AssociationId <= 1 || (user.TenantId <= 1 && user.AssociationId == null))
@@ -135,7 +143,7 @@ public class AuthService : IAuthService
                 }
             }
 
-            return await GenerateAuthResponse(user);
+            return await GenerateAuthResponse(user, user.Role);
         }
         catch (Exception ex)
         {
@@ -207,9 +215,9 @@ public class AuthService : IAuthService
         return await GenerateAuthResponse(user);
     }
 
-    private async Task<AuthResponse> GenerateAuthResponse(User user)
+    private async Task<AuthResponse> GenerateAuthResponse(User user, string? contextRole = null)
     {
-        var token = GenerateJwtToken(user);
+        var token = GenerateJwtToken(user, contextRole);
         var refreshToken = GenerateRefreshToken();
 
         // Store refresh token in Redis with expiry
@@ -228,7 +236,7 @@ public class AuthService : IAuthService
         };
     }
 
-    private string GenerateJwtToken(User user)
+    private string GenerateJwtToken(User user, string? contextRole = null)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -244,6 +252,11 @@ public class AuthService : IAuthService
             new Claim("name", user.Name),
             new Claim("DeviceId", "Web") // Simplified for now
         };
+
+        if (!string.IsNullOrEmpty(contextRole))
+        {
+            claims.Add(new Claim("ContextRole", contextRole));
+        }
 
         if (!string.IsNullOrEmpty(user.Role))
         {
@@ -292,18 +305,36 @@ public class AuthService : IAuthService
         return principal;
     }
 
-    public async Task<AuthResponse> SwitchTenantAsync(int userId, int tenantId, int associationId)
+    public async Task<AuthResponse> SwitchTenantAsync(int userId, string? email, int tenantId, int associationId)
     {
-        var isAuthorized = await _userRepository.IsUserAuthorisedForAssociationAsync(userId, tenantId, associationId);
+        // 1. Resolve the correct User record for the CURRENT repository schema (assoc or corp)
+        // This handles cases where a token from one API is used in another with a different UserId mapping
+        User? user = null;
+        if (userId > 0)
+        {
+            user = await _userRepository.GetByIdAsync(userId);
+        }
+
+        // If ID didn't match or was missing, fallback to Email lookup (reliable bridge between schemas)
+        if (user == null || (email != null && !user.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (string.IsNullOrEmpty(email))
+            {
+                return new AuthResponse { Success = false, Message = "User identity could not be verified." };
+            }
+            user = await _userRepository.GetByEmailAsync(email);
+        }
+
+        if (user == null)
+        {
+            return new AuthResponse { Success = false, Message = "User not found in this context." };
+        }
+
+        // 2. Perform authorization check using the resolved context-specific UserId
+        var isAuthorized = await _userRepository.IsUserAuthorisedForAssociationAsync(user.UserId, tenantId, associationId);
         if (!isAuthorized)
         {
             return new AuthResponse { Success = false, Message = "User not authorized for this association." };
-        }
-
-        var user = await _userRepository.GetByIdAsync(userId);
-        if (user == null)
-        {
-            return new AuthResponse { Success = false, Message = "User not found." };
         }
 
         // Update the user's current tenant and association for the session/token
@@ -311,33 +342,58 @@ public class AuthService : IAuthService
         user.AssociationId = associationId;
         
         // Refresh the role for this specific tenant or association
-        var roleId = associationId > 0 ? associationId : tenantId;
-        var role = await _userRepository.GetRoleInTenantAsync(userId, roleId);
+        var roleId = (_userRepository.Schema == "assoc" && associationId > 0) ? associationId : tenantId;
+        var newRole = await _userRepository.GetRoleInTenantAsync(user.UserId, roleId);
         
-        // Final role resolution
-        if (associationId > 0)
+        // Mapping roles are in UserAssociations.
+        
+        var originalGlobalRole = user.Role;
+        if (!string.IsNullOrEmpty(originalGlobalRole) && originalGlobalRole.Contains(","))
         {
-            // In association context, role is determined by mapping, defaulting to Resident
-            user.Role = role ?? AppRole.Resident;
+            originalGlobalRole = AppRole.GetRoleHierarchy(originalGlobalRole).FirstOrDefault() ?? AppRole.Resident;
         }
-        else
-        {
-            // In corporate/tenant context, keep corporate roles if assigned, or use mapping
-            if (AppRole.IsCorporateRole(user.Role))
-            {
-                if (!string.IsNullOrEmpty(role) && user.Role != role)
-                {
-                    user.Role = $"{user.Role}, {role}";
-                }
-            }
-            else
-            {
-                user.Role = role ?? AppRole.Resident;
-            }
-        }
+        user.Role = MergeRoles(originalGlobalRole, newRole ?? AppRole.Resident);
 
+        // Generate response with merged roles
+        var response = await GenerateAuthResponse(user, newRole);
+
+        // Restore original role for database update (persist context but not role merge)
+        user.Role = originalGlobalRole;
         await _userRepository.UpdateAsync(user);
 
-        return await GenerateAuthResponse(user);
+        return response;
+    }
+
+    private string MergeRoles(string? currentRoles, string newRole)
+    {
+        if (string.IsNullOrEmpty(currentRoles)) return newRole;
+
+        var roles = currentRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        
+        // If the new role is already present, just return current
+        if (roles.Contains(newRole, StringComparer.OrdinalIgnoreCase)) return currentRoles;
+
+        // Hierarchy logic: If the user is a high-level admin, keep that role primary
+        var highLevelRoles = new[] { AppRole.SystemAdmin, AppRole.PlatformAdmin, AppRole.GlobalUserManager, AppRole.AssociationAdmin };
+        bool hasHighLevel = roles.Any(r => highLevelRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
+
+        if (hasHighLevel)
+        {
+            // Keep high-level roles but add the context role if it's not already there
+            if (!roles.Contains(newRole, StringComparer.OrdinalIgnoreCase))
+            {
+                roles.Add(newRole);
+            }
+            return string.Join(", ", roles.Distinct());
+        }
+
+        // If switching between associations, replace the previous association role but keep global ones
+        // For simplicity in this V1, we just return the new role if no high-level global role is present,
+        // OR we could keep all non-association roles.
+        var associationRoles = AppRole.AssociationRolesArray;
+        var cleanedRoles = roles.Where(r => !associationRoles.Contains(r)).ToList();
+        cleanedRoles.Add(newRole);
+
+        return string.Join(", ", cleanedRoles.Distinct());
     }
 }

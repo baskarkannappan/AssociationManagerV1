@@ -29,7 +29,7 @@ public class PeopleController : ControllerBase
         _tenantContext = tenantContext;
     }
 
-    private async Task<bool> IsAuthorizedForAsset(int assetId)
+    private async Task<bool> IsAuthorizedForAsset(int assetId, string action = "Manage")
     {
         // 1. Prepare Security Context
         var securityContext = new SecurityContext
@@ -37,26 +37,22 @@ public class PeopleController : ControllerBase
             UserRole = string.Join(",", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
             AssociationId = _tenantContext.AssociationId,
-            IsOwner = false, // We'll check this below
-            Action = "Manage",
+            AssetId = assetId,
+            IsOwner = false,
+            Action = action,
             Resource = "Asset"
         };
-
-        // 2. Check Management Permission via Rule Engine
-        // This workflow handles Admin, AssetManager, etc.
-        if (await _ruleEngine.EvaluateRuleAsync("RequireManagement", securityContext))
-        {
-            return true;
-        }
-
-        // 3. Fallback to Primary Resident check
+        
+        // 2. Add Primary Resident context
         var userIdStr = User.FindFirst("UserId")?.Value;
         if (int.TryParse(userIdStr, out int userId))
         {
-            return await _peopleService.IsPrimaryResidentForAssetAsync(userId, assetId);
+            securityContext.IsPrimaryResident = await _peopleService.IsPrimaryResidentForAssetAsync(userId, assetId);
         }
 
-        return false;
+        // 3. Evaluate Rule via Rule Engine
+        string workflowName = action == "Manage" ? "CanManageAsset" : "CanViewAsset";
+        return await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
     }
 
     [HttpGet("can-manage-unit/{assetId}")]

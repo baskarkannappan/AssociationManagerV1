@@ -52,9 +52,10 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> SwitchTenant([FromBody] SwitchTenantRequest request)
     {
         var userId = _tenantContext.UserId;
-        if (userId == 0) return Unauthorized();
+        var email = _tenantContext.Email;
+        if (userId == 0 && string.IsNullOrEmpty(email)) return Unauthorized();
 
-        var response = await _authService.SwitchTenantAsync(userId, request.TenantId, request.AssociationId);
+        var response = await _authService.SwitchTenantAsync(userId, email, request.TenantId, request.AssociationId);
         if (response.Success)
         {
             return Ok(response);

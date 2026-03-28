@@ -40,6 +40,8 @@ public class TenantContext : ITenantContext
         }
     }
 
+    public string? Email => GetClaim("email", System.Security.Claims.ClaimTypes.Email, "Email");
+
     public bool IsPlatformAdmin => IsInRole("PlatformAdmin");
     public bool IsSystemAdmin => IsInRole("SystemAdmin");
 

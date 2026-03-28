@@ -32,16 +32,8 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
             IsOwner = false // This could be filled by a more complex pre-check if needed
         };
 
-        // 2. Determine Workflow Name based on Requirement Level (Mapping hardcoded policies to workflows)
-        string workflowName = requirement.RequiredLevel switch
-        {
-            80 => "RequireAssociationAdmin",
-            60 => "RequireAssetManager",
-            50 => "RequireUserManager",
-            40 => "RequireFinanceManager",
-            10 => "RequireResident",
-            _ => "RequireResident"
-        };
+        // 2. Use Workflow Name from requirement
+        string workflowName = string.IsNullOrEmpty(requirement.WorkflowName) ? "RequireResident" : requirement.WorkflowName;
 
         // 3. Evaluate Rule
         var isAuthorized = await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);

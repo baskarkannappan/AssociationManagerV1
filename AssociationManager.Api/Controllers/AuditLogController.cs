@@ -20,7 +20,6 @@ public class AuditLogController : ControllerBase
     }
 
     [HttpGet("asset/{assetId}")]
-    [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> GetAssetLogs(int assetId)
     {
         var logs = await _auditService.GetAssetLogsAsync(assetId);

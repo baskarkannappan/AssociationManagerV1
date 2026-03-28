@@ -19,8 +19,11 @@ public class AreaBasedBillingStrategy : IBillingStrategy
             try 
             {
                 var meta = JsonSerializer.Deserialize<Dictionary<string, object>>(asset.MetadataJson);
+                if (meta == null) return rate * area;
+
                 var keys = new[] { "Area", "area", "TotalAreaSqFt", "sqft", "SquareFeet", "Size" };
                 string? matchedKey = null;
+
                 foreach (var k in keys)
                 {
                     if (meta.ContainsKey(k))

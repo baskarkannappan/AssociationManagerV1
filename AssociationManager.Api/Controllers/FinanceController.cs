@@ -58,7 +58,9 @@ public class FinanceController : ControllerBase
         {
             UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId
+            AssociationId = _tenantContext.AssociationId,
+            Action = "View",
+            Resource = "Invoice"
         };
 
         bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
@@ -71,12 +73,16 @@ public class FinanceController : ControllerBase
                  var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
                  var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
                  
-                 if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
+                 if (assetId.HasValue)
                  {
-                     return Forbid();
+                     securityContext.AssetId = assetId.Value;
+                     securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
+                     if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
+                     {
+                         return Forbid();
+                     }
                  }
-                 
-                 if (!assetId.HasValue)
+                 else
                  {
                      if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<Invoice>>.SuccessResponse(new List<Invoice>()));
                      assetId = allowedAssetIds.First();
@@ -136,7 +142,9 @@ public class FinanceController : ControllerBase
         {
             UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId
+            AssociationId = _tenantContext.AssociationId,
+            Action = "View",
+            Resource = "Payment"
         };
 
         bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
@@ -149,12 +157,16 @@ public class FinanceController : ControllerBase
                 var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
                 var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
                 
-                if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
+                if (assetId.HasValue)
                 {
-                    return Forbid();
+                    securityContext.AssetId = assetId.Value;
+                    securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
+                    if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
+                    {
+                        return Forbid();
+                    }
                 }
-                
-                if (!assetId.HasValue)
+                else
                 {
                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(new List<Payment>()));
                     assetId = allowedAssetIds.First();
@@ -200,28 +212,29 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<decimal>.SuccessResponse(balance));
     }
 
-    private async Task<bool> IsAuthorizedForAsset(int assetId)
+    private async Task<bool> IsAuthorizedForAsset(int assetId, string action = "View")
     {
-         var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
-                              .Select(c => c.Value);
+        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                             .Select(c => c.Value);
 
         var securityContext = new SecurityContext
         {
             UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId
+            AssociationId = _tenantContext.AssociationId,
+            AssetId = assetId,
+            Action = action,
+            Resource = "Asset"
         };
-
-        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
-        if (isStaff) return true;
 
         var userIdStr = User.FindFirst("UserId")?.Value;
         if (int.TryParse(userIdStr, out int userId))
         {
-            var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-            return occupancies.Any(o => o.AssetId == assetId);
+            securityContext.IsPrimaryResident = await _peopleService.IsPrimaryResidentForAssetAsync(userId, assetId);
         }
-        return false;
+
+        string workflowName = action == "Manage" ? "CanManageAsset" : "CanViewAsset";
+        return await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
     }
 
     [HttpGet("transactions/tenant")]

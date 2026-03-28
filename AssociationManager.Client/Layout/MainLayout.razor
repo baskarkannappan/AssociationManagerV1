@@ -197,15 +197,13 @@
                     _currentAssociationId = aid;
                 }
 
-                var roleClaim = user.FindFirst("role")?.Value 
-                            ?? user.FindFirst("Role")?.Value 
-                            ?? user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
-                            ?? user.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value;
+                var contextRole = user.FindFirst(c => c.Type.Equals("ContextRole", StringComparison.OrdinalIgnoreCase))?.Value;
+                var displayRole = !string.IsNullOrEmpty(contextRole) ? contextRole : AppRole.GetHighestRole(user.Claims);
                 
-                if (_currentRole != roleClaim && roleClaim != null)
+                if (_currentRole != displayRole && displayRole != "Guest")
                 {
-                    _currentRole = roleClaim;
-                    ShowRoleCapabilities(roleClaim);
+                    _currentRole = displayRole;
+                    ShowRoleCapabilities(displayRole);
                 }
                 
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");

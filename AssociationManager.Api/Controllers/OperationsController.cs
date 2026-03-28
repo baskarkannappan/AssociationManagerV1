@@ -46,7 +46,9 @@ public class OperationsController : ControllerBase
         {
             UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId
+            AssociationId = _tenantContext.AssociationId,
+            Action = "View",
+            Resource = "WorkOrders"
         };
 
         bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
@@ -59,12 +61,16 @@ public class OperationsController : ControllerBase
                 var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
                 var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
                 
-                if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
+                if (assetId.HasValue)
                 {
-                    return Forbid();
+                    securityContext.AssetId = assetId.Value;
+                    securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
+                    if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
+                    {
+                        return Forbid();
+                    }
                 }
-                
-                if (!assetId.HasValue)
+                else
                 {
                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<WorkOrder>>.SuccessResponse(new List<WorkOrder>()));
                     assetId = allowedAssetIds.First();
@@ -98,21 +104,21 @@ public class OperationsController : ControllerBase
         {
             UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId
+            AssociationId = _tenantContext.AssociationId,
+            AssetId = workOrder.AssetId,
+            Action = "View",
+            Resource = "WorkOrders"
         };
 
-        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
-        if (!isStaff)
+        var userIdStr = User.FindFirst("UserId")?.Value;
+        if (int.TryParse(userIdStr, out int userId))
         {
-            var userIdStr = User.FindFirst("UserId")?.Value;
-            if (int.TryParse(userIdStr, out int userId))
-            {
-                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                if (!occupancies.Any(o => o.AssetId == workOrder.AssetId))
-                {
-                    return Forbid();
-                }
-            }
+            securityContext.IsPrimaryResident = await _peopleService.IsPrimaryResidentForAssetAsync(userId, workOrder.AssetId ?? 0);
+        }
+
+        if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
+        {
+            return Forbid();
         }
 
         return Ok(ApiResponse<WorkOrder>.SuccessResponse(workOrder));

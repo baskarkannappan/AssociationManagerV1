@@ -33,7 +33,7 @@ public class ApiService
         catch (HttpRequestException ex)
         {
             Console.WriteLine($"HTTP Error: {ex.Message}");
-            throw;
+            return default;
         }
     }
 

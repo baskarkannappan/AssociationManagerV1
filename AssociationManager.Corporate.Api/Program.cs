@@ -54,6 +54,7 @@ builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
 builder.Services.AddScoped<ITariffRepository, TariffRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
