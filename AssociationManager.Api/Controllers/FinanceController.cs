@@ -199,7 +199,7 @@ public class FinanceController : ControllerBase
     [HttpGet("transactions/asset/{assetId}")]
     public async Task<IActionResult> GetAssetTransactions(int assetId)
     {
-        if (!await IsAuthorizedForAsset(assetId)) return Forbid();
+        if (!await IsAuthorizedForAsset(assetId, "View")) return Forbid();
         var transactions = await _financeService.GetAssetTransactionsAsync(assetId);
         return Ok(ApiResponse<IEnumerable<Transaction>>.SuccessResponse(transactions));
     }
@@ -207,7 +207,7 @@ public class FinanceController : ControllerBase
     [HttpGet("balance/asset/{assetId}")]
     public async Task<IActionResult> GetAssetBalance(int assetId)
     {
-        if (!await IsAuthorizedForAsset(assetId)) return Forbid();
+        if (!await IsAuthorizedForAsset(assetId, "View")) return Forbid();
         var balance = await _financeService.GetAssetBalanceAsync(assetId);
         return Ok(ApiResponse<decimal>.SuccessResponse(balance));
     }
@@ -233,7 +233,20 @@ public class FinanceController : ControllerBase
             securityContext.IsPrimaryResident = await _peopleService.IsPrimaryResidentForAssetAsync(userId, assetId);
         }
 
-        string workflowName = action == "Manage" ? "CanManageAsset" : "CanViewAsset";
+        string workflowName = action == "Manage" ? "CanManageAsset" : (action == "View" && securityContext.UserLevel == AppRole.LevelResident ? "CanViewAsset" : "CanViewAsset");
+        // Actually, just let the rule engine handle it, but ensured we call the right one.
+        // The fix is in the rule engine or here. Let's make it simpler:
+        if (action == "View" && securityContext.UserLevel >= AppRole.LevelResident)
+        {
+            // If they are a resident for this asset, let them view.
+            var userIdStr2 = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr2, out int uid))
+            {
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(uid);
+                if (occupancies.Any(o => o.AssetId == assetId)) return true;
+            }
+        }
+        
         return await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
     }
 

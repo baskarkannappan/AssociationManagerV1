@@ -95,6 +95,21 @@ public class RulesEngineSeeder
             },
             new AuthWorkflow
             {
+                Name = "RequireAssetManager",
+                Description = "Requires level 60 or higher",
+                WorkflowJson = JsonSerializer.Serialize(new[]
+                {
+                    new {
+                        WorkflowName = "RequireAssetManager",
+                        Rules = new[]
+                        {
+                            new { RuleName = "LevelCheck", Expression = "input1.UserLevel >= 60", SuccessEvent = "Authorized" }
+                        }
+                    }
+                })
+            },
+            new AuthWorkflow
+            {
                 Name = "IsStaff",
                 Description = "Checks if the user is a staff member (level 40+)",
                 WorkflowJson = JsonSerializer.Serialize(new[]
@@ -165,7 +180,7 @@ public class RulesEngineSeeder
                         Rules = new[]
                         {
                             new { RuleName = "StaffCheck", Expression = "input1.UserLevel >= 40", SuccessEvent = "True" },
-                            new { RuleName = "ResidentCheck", Expression = "input1.UserLevel >= 10 AND input1.IsPrimaryResident == true", SuccessEvent = "True" }
+                            new { RuleName = "ResidentCheck", Expression = "input1.UserLevel >= 10", SuccessEvent = "True" }
                         }
                     }
                 })

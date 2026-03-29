@@ -9,6 +9,7 @@ public class ClientRuleEngineService : IRuleEngineService
     {
         // On the client, we use level-based logic for UI responsiveness.
         // Special mapping for Menu and Widget visibility policies
+        bool result = false;
         if (workflowName.StartsWith("ShowMenu_") || workflowName.StartsWith("ShowWidget_"))
         {
             int required = workflowName switch
@@ -19,22 +20,25 @@ public class ClientRuleEngineService : IRuleEngineService
                 "ShowMenu_Tariffs" or "ShowMenu_Broadcasts" or "ShowWidget_Outstanding" => 40,
                 _ => 10 // Most menus/widgets are visible to residents (Level 10)
             };
-            return Task.FromResult(context.UserLevel >= required);
+            result = context.UserLevel >= required;
         }
-
-        // Standard functional requirements
-        bool result = workflowName switch
+        else
         {
-            "RequireAssociationAdmin" => context.UserLevel >= 80,
-            "RequireAssetManager" => context.UserLevel >= 60,
-            "RequireUserManager" => context.UserLevel >= 50,
-            "RequireFinanceManager" => context.UserLevel >= 40,
-            "RequireManagement" => context.UserLevel >= 40,
-            "RequireResident" => context.UserLevel >= 10,
-            "IsStaff" => context.UserLevel >= 40,
-            "IsResident" => context.UserLevel <= 10 && context.UserLevel > 0,
-            _ => false
-        };
+            // Standard functional requirements
+            result = workflowName switch
+            {
+                "RequireAdmin" => context.UserLevel >= 90,
+                "RequireAssociationAdmin" => context.UserLevel >= 80,
+                "RequireAssetManager" => context.UserLevel >= 60,
+                "RequireUserManager" => context.UserLevel >= 50,
+                "RequireFinanceManager" => context.UserLevel >= 40,
+                "RequireManagement" => context.UserLevel >= 40,
+                "RequireResident" => context.UserLevel >= 10,
+                "IsStaff" => context.UserLevel >= 40,
+                "IsResident" => context.UserLevel <= 10 && context.UserLevel > 0,
+                _ => false
+            };
+        }
 
         return Task.FromResult(result);
     }

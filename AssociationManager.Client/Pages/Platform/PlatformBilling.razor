@@ -1,0 +1,187 @@
+@page "/platform/billing"
+@attribute [Authorize(Policy = "RequireAssociationAdmin")]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@using BlazorBootstrap
+@inject ApiService ApiService
+@inject ToastService _toastService
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center justify-content-between w-100">
+        <div class="d-flex align-items-center gap-2 ps-2">
+            <i class="bi bi-credit-card text-muted" style="font-size: 14px;"></i>
+            <span class="fw-medium">Platform Subscription & Billing</span>
+        </div>
+    </div>
+</div>
+
+<div class="p-3">
+    @if (_subscription != null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-primary text-white h-100 p-3">
+                    <div class="small text-white-50 mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Active Plan</div>
+                    <div class="h4 mb-2">@_subscription.PlanName</div>
+                    <div class="small mb-0 opacity-75">Status: <span class="badge bg-white text-primary">@_subscription.Status</span></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-white h-100 p-3">
+                    <div class="small text-muted mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Monthly Cost</div>
+                    <div class="h4 mb-1">₹@((_subscription.BasePrice + (_assetCount * _subscription.PricePerAsset)).ToString("N2"))</div>
+                    <div class="small text-muted mb-0">Base: ₹@_subscription.BasePrice.ToString("N2") + (₹@_subscription.PricePerAsset.ToString("N2") × @_assetCount assets)</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-white h-100 p-3">
+                    <div class="small text-muted mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Next Billing Date</div>
+                    <div class="h4 mb-1">@_subscription.NextBillingDate.ToString("dd MMM yyyy")</div>
+                    <div class="small text-muted mb-0">Automatic generation approx. monthly.</div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="vscode-explorer-header mb-2" style="background: transparent; padding-left: 0; color: var(--text-primary);">Billing History</div>
+    
+    <div class="border bg-white p-2">
+        <Grid @ref="invoiceGrid" TItem="PlatformInvoice"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="InvoicesDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="10"
+              AllowSorting="true">
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Date" PropertyName="BillingDate" SortKeySelector="item => item.BillingDate">
+                @context.BillingDate.ToString("dd MMM yyyy")
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Plan" PropertyName="PlanName" SortKeySelector="item => item.PlanName">
+                @context.PlanName
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
+                ₹@context.Amount.ToString("N2")
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
+                @context.DueDate.ToString("dd MMM yyyy")
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                <span class="badge @(context.Status == "Paid" ? "bg-success-subtle text-success" : (context.Status == "Unpaid" ? "bg-warning-subtle text-warning" : "bg-danger-subtle text-danger")) border">
+                    @context.Status
+                </span>
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                @if (context.Status == "Unpaid")
+                {
+                    <button class="btn btn-sm btn-vscode" @onclick="() => InitiatePayment(context)">
+                        <i class="bi bi-wallet2 me-1"></i> Pay Now
+                    </button>
+                }
+            </GridColumn>
+        </Grid>
+    </div>
+</div>
+
+@if (_showPaymentModal && _selectedInvoice != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Platform Invoice Payment</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showPaymentModal = false"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="mb-3 text-success">
+                        <i class="bi bi-shield-check" style="font-size: 48px;"></i>
+                    </div>
+                    <h5>Complete Payment of ₹@_selectedInvoice.Amount.ToString("N2")</h5>
+                    <p class="text-muted small">By clicking "Confirm", you simulate a successful online payment to the platform entity.</p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showPaymentModal = false">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick="ConfirmPayment">Confirm Payment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .font-heading { font-family: 'Outfit', sans-serif; }
+    .uppercase { text-transform: uppercase; }
+    .letter-spacing-05 { letter-spacing: 0.05em; }
+    .bg-success-subtle { background-color: #f0fdf4 !important; }
+    .bg-warning-subtle { background-color: #fffbeb !important; }
+    .bg-danger-subtle { background-color: #fef2f2 !important; }
+    .badge { font-weight: 500; font-size: 10px; text-transform: uppercase; }
+</style>
+
+@code {
+    private AssociationSubscription? _subscription;
+    private List<PlatformInvoice>? _invoices;
+    private Grid<PlatformInvoice> invoiceGrid = default!;
+    private int _assetCount;
+    
+    private bool _showPaymentModal;
+    private PlatformInvoice? _selectedInvoice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _subscription = await ApiService.GetAsync<AssociationSubscription>("api/subscription/current");
+        _invoices = await ApiService.GetAsync<List<PlatformInvoice>>("api/platformbilling/my-invoices");
+        
+        // Optionally fetch asset count if not in subscription model
+        var assets = await ApiService.GetAsync<List<Asset>>("api/assets");
+        _assetCount = assets?.Count ?? 0;
+    }
+
+    private async Task<GridDataProviderResult<PlatformInvoice>> InvoicesDataProvider(GridDataProviderRequest<PlatformInvoice> request)
+    {
+        if (_invoices == null) await LoadData();
+        return request.ApplyTo(_invoices ?? new List<PlatformInvoice>());
+    }
+
+    private void InitiatePayment(PlatformInvoice invoice)
+    {
+        _selectedInvoice = invoice;
+        _showPaymentModal = true;
+    }
+
+    private async Task ConfirmPayment()
+    {
+        if (_selectedInvoice == null) return;
+
+        var payment = new PlatformPayment
+        {
+            PlatformInvoiceId = _selectedInvoice.PlatformInvoiceId,
+            Amount = _selectedInvoice.Amount,
+            PaymentDate = DateTime.UtcNow,
+            TransactionRef = $"MOCK_PLATFORM_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}"
+        };
+
+        var success = await ApiService.PostAsync("api/platformbilling/pay", payment);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Platform bill paid successfully."));
+            _showPaymentModal = false;
+            _invoices = null;
+            await invoiceGrid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to process platform payment."));
+        }
+    }
+}

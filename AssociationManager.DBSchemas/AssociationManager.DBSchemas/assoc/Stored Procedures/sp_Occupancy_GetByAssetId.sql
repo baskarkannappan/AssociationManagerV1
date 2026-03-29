@@ -1,3 +1,14 @@
-﻿CREATE   PROCEDURE assoc.sp_Occupancy_GetByAssetId @AssetId INT, @TenantId INT, @AssociationId INT AS 
-BEGIN SELECT * FROM assoc.Occupancy WHERE AssetId = @AssetId AND AssociationId = @AssociationId; END
+﻿CREATE   PROCEDURE assoc.sp_Occupancy_GetByAssetId 
+    @AssetId INT, 
+    @TenantId INT, 
+    @AssociationId INT 
+AS 
+BEGIN 
+    SELECT o.*, 
+           (p.FirstName + ' ' + p.LastName) as PersonName, 
+           p.Email as Email 
+    FROM assoc.Occupancy o
+    JOIN assoc.Persons p ON o.PersonId = p.PersonId
+    WHERE o.AssetId = @AssetId AND o.AssociationId = @AssociationId; 
+END
 GO

@@ -86,7 +86,7 @@
                             {
                                 <AssetDetailForm Asset="_selectedAsset" 
                                                 IsNew="_isNew" 
-                                                IsReadOnly="_isResident"
+                                                IsReadOnly="!_canManageAssets"
                                                 OnSave="HandleSave" 
                                                 OnAddChild="CreateChild" 
                                                 OnDelete="HandleDelete" />
@@ -250,6 +250,9 @@
 
     private async Task LoadUnitData(int assetId)
     {
+        // Re-evaluate management permission for the specific asset
+        _canManageAssets = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{assetId}");
+        
         _occupants = await ApiService.GetAsync<List<Occupancy>>($"api/people/unit/{assetId}/occupants");
         _vehicles = await ApiService.GetAsync<List<Vehicle>>($"api/people/unit/{assetId}/vehicles");
         _pets = await ApiService.GetAsync<List<Pet>>($"api/people/unit/{assetId}/pets");

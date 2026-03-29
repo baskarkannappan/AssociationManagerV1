@@ -48,7 +48,7 @@ public class AppAuthorizationService : IAppAuthorizationService
 
         var securityContext = new SecurityContext
         {
-            UserRole = string.Join(",", user.FindAll(ClaimTypes.Role).Select(c => c.Value)),
+            UserRole = string.Join(",", user.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value)),
             UserLevel = AppRole.GetMaxLevel(user.Claims),
             AssociationId = _tenantContext.AssociationId
         };

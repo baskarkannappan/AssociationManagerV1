@@ -54,6 +54,7 @@ builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
 builder.Services.AddScoped<ITariffRepository, TariffRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 
 // Services
@@ -70,6 +71,7 @@ builder.Services.AddScoped<IOperationsService, OperationsService>();
 builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 
 // Caching

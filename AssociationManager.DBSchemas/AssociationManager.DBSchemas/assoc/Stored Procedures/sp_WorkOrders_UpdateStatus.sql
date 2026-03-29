@@ -1,2 +1,5 @@
 ﻿CREATE   PROCEDURE assoc.sp_WorkOrders_UpdateStatus @Id INT, @Status NVARCHAR(50), @TenantId INT, @AssociationId INT AS 
-BEGIN UPDATE assoc.WorkOrders SET Status = @Status WHERE WorkOrderId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END
+BEGIN 
+    UPDATE assoc.WorkOrders SET Status = @Status 
+    WHERE WorkOrderId = @Id AND AssociationId = @AssociationId; 
+END

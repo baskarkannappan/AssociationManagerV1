@@ -42,7 +42,7 @@ public class AuthWorkflowRepository : IAuthWorkflowRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<AuthWorkflow>(
-            "SELECT * FROM assoc.AuthWorkflows",
-            commandType: CommandType.Text);
+            "assoc.sp_AuthWorkflows_List",
+            commandType: CommandType.StoredProcedure);
     }
 }

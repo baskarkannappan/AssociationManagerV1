@@ -93,6 +93,7 @@ public class AssociationRepository : IAssociationRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<Association>(
-            "SELECT * FROM corp.Associations");
+            "corp.sp_Associations_List",
+            commandType: CommandType.StoredProcedure);
     }
 }

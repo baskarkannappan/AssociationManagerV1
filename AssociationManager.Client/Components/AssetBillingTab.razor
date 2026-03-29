@@ -25,9 +25,11 @@
                             @(tariff.CustomAmount.HasValue ? $"Custom Override: ${tariff.CustomAmount}" : "Default Rate Applied")
                         </div>
                     </div>
-                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => RemoveTariff(tariff.TariffLayerId)">
-                        <i class="bi bi-x-circle"></i>
-                    </button>
+                    <AuthorizeView Policy="RequireFinanceManager">
+                        <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => RemoveTariff(tariff.TariffLayerId)">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </AuthorizeView>
                 </div>
             }
         </div>
@@ -68,9 +70,8 @@
         </div>
     </div>
 
-    <AuthorizeView Policy="RequireFinanceManager">
-        <BillingAuditTimeline AssetId="AssetId" />
-    </AuthorizeView>
+    @* Visible to all authorized users (residents for their asset, or managers) *@
+    <BillingAuditTimeline AssetId="AssetId" />
 </div>
 
 <style>

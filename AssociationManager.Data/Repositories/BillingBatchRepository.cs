@@ -63,7 +63,8 @@ public class BillingBatchRepository : IBillingBatchRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "UPDATE assoc.BillingBatches SET Status = @Status WHERE BillingBatchId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId",
-            new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId }) > 0;
+            "assoc.sp_BillingBatches_UpdateStatus",
+            new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

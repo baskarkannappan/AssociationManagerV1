@@ -134,72 +134,86 @@ public class BillingBatchService
                 }
             }
 
-            // Show in preview even if total is 0 IF it has assignments (to help user debug)
-            if (totalAmount > 0 || hasZeroAmountCharge)
+            try
             {
-                var invoiceDescription = string.Join(" | ", lineItems.Select(l => $"{l.ChargeName}: ₹{l.Amount}"));
-                
-                result.Previews.Add(new InvoicePreviewItem
+                // Show in preview even if total is 0 IF it has assignments (to help user debug)
+                if (totalAmount > 0 || hasZeroAmountCharge)
                 {
-                    AssetId = asset.AssetId,
-                    AssetName = asset.Name,
-                    Amount = totalAmount,
-                    Description = invoiceDescription
-                });
-
-                if (!request.DryRun && totalAmount > 0)
-                {
-                    var invoice = new Invoice
+                    var invoiceDescription = string.Join(" | ", lineItems.Select(l => $"{l.ChargeName}: ₹{l.Amount}"));
+                    
+                    result.Previews.Add(new InvoicePreviewItem
                     {
-                        TenantId = tenantId,
-                        AssociationId = request.AssociationId,
                         AssetId = asset.AssetId,
-                        BillingBatchId = batchId,
-                        Title = $"Monthly Maintenance - {periodName}",
-                        Description = invoiceDescription,
+                        AssetName = asset.Name,
                         Amount = totalAmount,
-                        DueDate = request.DueDate,
-                        Status = "Unpaid",
-                        CreatedDate = DateTime.UtcNow
-                    };
-                    
-                    // Persist Invoice and Line Items through FinanceService to ensure Ledger integrity
-                    var invoiceId = await _financeService.CreateInvoiceAsync(invoice, lineItems);
-                    
-                    foreach (var line in lineItems)
-                    {
-                        // Introspection Log
-                        await _auditService.LogAsync(
-                            action: $"Billed {line.ChargeName}: ₹{line.Amount} (Rate: ₹{line.Rate}, Logic: {line.Description})",
-                            entity: "Billing",
-                            entityId: invoiceId,
-                            associationId: request.AssociationId,
-                            assetId: asset.AssetId
-                        );
-                    }
+                        Description = invoiceDescription
+                    });
 
-                    // Deactivate One-Time Charges
-                    foreach (var aa in assetAssignments)
+                    if (!request.DryRun && totalAmount > 0)
                     {
-                        if (!aa.IsRecurring)
+                        var invoice = new Invoice
                         {
-                            aa.IsActive = false;
-                            await _tariffRepository.UpsertAssetTariffAsync(aa);
-                            
+                            TenantId = tenantId,
+                            AssociationId = request.AssociationId,
+                            AssetId = asset.AssetId,
+                            BillingBatchId = batchId,
+                            Title = $"Monthly Maintenance - {periodName}",
+                            Description = invoiceDescription,
+                            Amount = totalAmount,
+                            DueDate = request.DueDate,
+                            Status = "Unpaid",
+                            CreatedDate = DateTime.UtcNow
+                        };
+                        
+                        // Persist Invoice and Line Items through FinanceService to ensure Ledger integrity
+                        var invoiceId = await _financeService.CreateInvoiceAsync(invoice, lineItems);
+                        
+                        foreach (var line in lineItems)
+                        {
+                            // Introspection Log
                             await _auditService.LogAsync(
-                                action: $"Deactivated One-Time Charge: {aa.TariffLayerId}",
-                                entity: "AssetTariff",
-                                entityId: aa.AssetId,
+                                action: $"Billed {line.ChargeName}: ₹{line.Amount} (Rate: ₹{line.Rate}, Logic: {line.Description})",
+                                entity: "Billing",
+                                entityId: invoiceId,
                                 associationId: request.AssociationId,
                                 assetId: asset.AssetId
                             );
                         }
-                    }
-                    
-                    result.InvoicesGenerated++;
-                }
 
-                result.TotalAmount += totalAmount;
+                        // Deactivate One-Time Charges
+                        foreach (var aa in assetAssignments)
+                        {
+                            if (!aa.IsRecurring)
+                            {
+                                aa.IsActive = false;
+                                await _tariffRepository.UpsertAssetTariffAsync(aa);
+                                
+                                await _auditService.LogAsync(
+                                    action: $"Deactivated One-Time Charge: {aa.TariffLayerId}",
+                                    entity: "AssetTariff",
+                                    entityId: aa.AssetId,
+                                    associationId: request.AssociationId,
+                                    assetId: asset.AssetId
+                                );
+                            }
+                        }
+                        
+                        result.InvoicesGenerated++;
+                    }
+
+                    result.TotalAmount += totalAmount;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log failure for this asset and continue
+                await _auditService.LogAsync(
+                    action: $"Batch Generation Failed for Asset {asset.Name}: {ex.Message}",
+                    entity: "BillingBatch",
+                    entityId: batchId,
+                    associationId: request.AssociationId,
+                    assetId: asset.AssetId
+                );
             }
         }
 

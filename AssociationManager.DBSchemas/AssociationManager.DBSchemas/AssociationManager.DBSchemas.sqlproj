@@ -203,14 +203,14 @@
     <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_RefreshTokens_GetByToken.sql" />
     <Build Include="assoc\Stored Procedures\sp_Associations_GetByUserId.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_UserAssociations_IsAuthorised.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_UserAssociations_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_UserAssociations_GetRole.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_UserAssociations_Upsert.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
@@ -256,5 +256,62 @@
     <Build Include="assoc\Tables\Candidates.sql" />
     <Build Include="assoc\Tables\ByeLaws.sql" />
     <Build Include="assoc\Tables\AssociationProfile.sql" />
+    <Build Include="assoc\Tables\InvoiceLineItems.sql" />
+    <Build Include="assoc\Tables\BillingBatches.sql" />
+    <Build Include="assoc\Tables\AuthWorkflows.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Vehicles_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Pets_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_GetByInvoiceId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetByAssociation.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_GetByName.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
+    <Build Include="corp\Tables\PlatformPayments.sql" />
+    <Build Include="corp\Tables\PlatformInvoices.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_List.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_IsAuthorisedForAssociation.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_GetByAssociationId_Complex.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_DeleteGlobal.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformPayments_Insert.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_Insert.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_GetByAssociationId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Votes_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Votes_Check.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_DeleteGlobal.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Meetings_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Meetings_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_MeetingMinutes_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_MeetingMinutes_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Elections_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Elections_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ElectionResults_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeRoles_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Candidates_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateStatus.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_Count.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_ResidentMapping.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_OrphanedData.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_BatchHistory.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetTariffs.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetFinancials.sql" />
   </ItemGroup>
 </Project>

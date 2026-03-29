@@ -20,7 +20,8 @@ public class AssocUserRepository : UserRepository, IAssocUserRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
-            "DELETE FROM assoc.UserAssociations WHERE AssociationId = @AssociationId",
-            new { AssociationId = associationId }) >= 0;
+            "assoc.sp_UserAssociations_DeleteByAssociationId",
+            new { AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) >= 0;
     }
 }

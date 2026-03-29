@@ -1,0 +1,195 @@
+@page "/platform-billing"
+@attribute [Authorize(Roles = $"{AppRole.PlatformAdmin},{AppRole.SubscriptionManager},{AppRole.CorporateAuditor}")]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Corporate.Client.Services
+@inject ApiService ApiService
+@inject ToastService _toastService
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center justify-content-between w-100">
+        <div class="d-flex align-items-center gap-2 ps-2">
+            <i class="bi bi-receipt text-muted" style="font-size: 14px;"></i>
+            <span class="fw-medium">Platform Billing & Invoices</span>
+        </div>
+    </div>
+</div>
+
+<div class="p-3">
+    <!-- Period-Based Generation Section -->
+    <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light py-2">
+            <span class="small fw-bold text-uppercase text-muted">Generate Monthly Batch</span>
+        </div>
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted fw-bold">Year:</span>
+                        <select class="form-select form-select-sm" style="width: 100px;" @bind="_batchYear">
+                            @for (int y = 2024; y <= 2030; y++)
+                            {
+                                <option value="@y">@y</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted fw-bold">Month:</span>
+                        <select class="form-select form-select-sm" style="width: 140px;" @bind="_batchMonth">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+                <AuthorizeView Policy="RequirePlatformAdmin">
+                    <button class="btn btn-sm btn-vscode" @onclick="GenerateBillingBatch" disabled="@_isGenerating">
+                        @if (_isGenerating) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-lightning-charge me-1"></i> Generate Month Batch
+                    </button>
+                </AuthorizeView>
+            </div>
+            <div class="mt-2 small text-muted">
+                <i class="bi bi-info-circle me-1"></i> This will generate invoices for all associations for the selected period if they don't already exist.
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Filters section -->
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted">Filter Year:</span>
+            <select class="form-select form-select-sm" style="width: 100px;" @bind="_filterYear" @bind:after="ReloadInvoices">
+                <option value="0">All Years</option>
+                @for (int y = 2024; y <= 2030; y++)
+                {
+                    <option value="@y">@y</option>
+                }
+            </select>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted">Filter Month:</span>
+            <select class="form-select form-select-sm" style="width: 120px;" @bind="_filterMonth" @bind:after="ReloadInvoices">
+                <option value="0">All Months</option>
+                @for(int m = 1; m <= 12; m++)
+                {
+                    <option value="@m">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(m)</option>
+                }
+            </select>
+        </div>
+        <div class="flex-grow-1"></div>
+        <div class="small text-muted">@(_platformInvoices?.Count ?? 0) invoices found</div>
+    </div>
+
+    <div class="border bg-white p-2 shadow-sm rounded">
+        <Grid @ref="invoiceGrid" TItem="PlatformInvoice"
+              Class="table table-hover table-bordered table-striped compact-table mb-0"
+              DataProvider="PlatformInvoicesDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="15"
+              AllowSorting="true">
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Association" PropertyName="AssociationName">
+                <span class="fw-medium">@context.AssociationName</span>
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Plan" PropertyName="PlanName">
+                @context.PlanName
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
+                ₹@context.Amount.ToString("N2")
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Billing Date" PropertyName="BillingDate" SortKeySelector="item => item.BillingDate">
+                @context.BillingDate.ToString("MMM yyyy")
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Due Date" PropertyName="DueDate">
+                @context.DueDate.ToShortDateString()
+            </GridColumn>
+
+            <GridColumn TItem="PlatformInvoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                <span class="badge @(context.Status == "Paid" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning") border py-1 px-2">
+                    @context.Status
+                </span>
+            </GridColumn>
+        </Grid>
+    </div>
+</div>
+
+<style>
+    .bg-success-subtle { background-color: #f0fdf4 !important; }
+    .bg-warning-subtle { background-color: #fffbeb !important; }
+    .badge { font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .compact-table { font-size: 13px; }
+</style>
+
+@code {
+    private Grid<PlatformInvoice> invoiceGrid = default!;
+    private List<PlatformInvoice>? _platformInvoices;
+    private bool _isGenerating;
+    private int _batchMonth = DateTime.Now.Month;
+    private int _batchYear = DateTime.Now.Year;
+
+    private int _filterMonth = 0; // 0 for All
+    private int _filterYear = DateTime.Now.Year;
+
+    private async Task<GridDataProviderResult<PlatformInvoice>> PlatformInvoicesDataProvider(GridDataProviderRequest<PlatformInvoice> request)
+    {
+        if (_platformInvoices == null) await LoadPlatformInvoices();
+        
+        var data = _platformInvoices ?? new List<PlatformInvoice>();
+        
+        // Final sanity filter for UI (though server should handle most)
+        if (_filterYear > 0) data = data.Where(i => i.BillingDate.Year == _filterYear).ToList();
+        if (_filterMonth > 0) data = data.Where(i => i.BillingDate.Month == _filterMonth).ToList();
+
+        return request.ApplyTo(data);
+    }
+
+    private async Task LoadPlatformInvoices()
+    {
+        // 0 for all associations
+        _platformInvoices = await ApiService.GetAsync<List<PlatformInvoice>>("platformbilling/all-invoices/0");
+    }
+
+    private async Task ReloadInvoices()
+    {
+        _platformInvoices = null;
+        await invoiceGrid.RefreshDataAsync();
+    }
+
+    private async Task GenerateBillingBatch()
+    {
+        _isGenerating = true;
+        try
+        {
+            var request = new BillingBatchRequest { Month = _batchMonth, Year = _batchYear };
+            var result = await ApiService.PostAsync<BillingBatchRequest, int>("platformbilling/generate-batch", request);
+            if (result > 0)
+            {
+                _toastService.Notify(new(ToastType.Success, $"{result} invoices generated for {_batchMonth}/{_batchYear}."));
+                await ReloadInvoices();
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Info, $"No pending or new subscriptions to bill for {_batchMonth}/{_batchYear}."));
+            }
+        }
+        finally
+        {
+            _isGenerating = false;
+        }
+    }
+}

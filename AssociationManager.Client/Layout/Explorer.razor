@@ -18,63 +18,63 @@
                     <span>Dashboard</span>
                 </NavLink>
                 
-                <AuthorizeView Policy="ShowMenu_Assets">
+                <AuthorizeView Policy="ShowMenu_Assets" Context="assetMenuContext">
                     <NavLink href="assets" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-layers text-secondary"></i>
                         <span>Assets</span>
                     </NavLink>
                 </AuthorizeView>
                 
-                <AuthorizeView Policy="ShowMenu_Users">
+                <AuthorizeView Policy="ShowMenu_Users" Context="userMenuContext">
                     <NavLink href="users?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-gear text-info"></i>
                         <span>User & Roles</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Tariffs">
+                <AuthorizeView Policy="ShowMenu_Tariffs" Context="tariffMenuContext">
                     <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-tag text-success"></i>
                         <span>Tariff Management</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Finance">
+                <AuthorizeView Policy="ShowMenu_Finance" Context="financeMenuContext">
                     <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-cash-stack text-success"></i>
                         <span>Finance</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Operations">
+                <AuthorizeView Policy="ShowMenu_Operations" Context="opsMenuContext">
                     <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-tools text-dark"></i>
                         <span>Operations</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Broadcasts">
+                <AuthorizeView Policy="ShowMenu_Broadcasts" Context="broadcastMenuContext">
                     <NavLink href="broadcasts?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-chat-left-dots text-warning"></i>
                         <span>Communication</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Community">
+                <AuthorizeView Policy="ShowMenu_Community" Context="communityMenuContext">
                     <NavLink href="people?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-lines-fill text-danger"></i>
                         <span>Community</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Settings">
+                <AuthorizeView Policy="ShowMenu_Settings" Context="settingsMenuContext">
                     <NavLink href="settings" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-gear text-secondary"></i>
                         <span>Settings</span>
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Governance">
+                <AuthorizeView Policy="ShowMenu_Governance" Context="govMenuContext">
                     <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
                         Governance
                     </div>
@@ -98,6 +98,15 @@
                         <i class="bi bi-box-seam text-danger"></i>
                         <span>Elections</span>
                     </NavLink>
+                    <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
+                        System
+                    </div>
+                    <AuthorizeView Policy="RequireAssociationAdmin" Context="platformBillingContext">
+                        <NavLink href="platform/billing" class="vscode-tree-item text-decoration-none">
+                            <i class="bi bi-credit-card text-success"></i>
+                            <span>Platform Subscription</span>
+                        </NavLink>
+                    </AuthorizeView>
                 </AuthorizeView>
             </div>
         }

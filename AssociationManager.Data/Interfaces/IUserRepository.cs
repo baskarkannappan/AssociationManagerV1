@@ -6,6 +6,7 @@ namespace AssociationManager.Data.Interfaces;
 
 public interface IUserRepository
 {
+    string Schema { get; }
     Task<User?> GetByIdAsync(int id);
     Task<User?> GetByGoogleIdAsync(string googleId);
     Task<User?> GetByEmailAsync(string email);

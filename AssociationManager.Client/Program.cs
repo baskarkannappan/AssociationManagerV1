@@ -31,17 +31,19 @@ builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Auth
 builder.Services.AddAuthorizationCore(options =>
 {
     options.AddPolicy("RequireResident", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "RequireResident")));
     options.AddPolicy("RequireUserManager", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager, "RequireUserManager")));
     options.AddPolicy("RequireAssetManager", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssetManager, "RequireAssetManager")));
     options.AddPolicy("RequireFinanceManager", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "RequireFinanceManager")));
+    options.AddPolicy("RequireManagement", policy => 
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "RequireManagement")));
     options.AddPolicy("RequireAssociationAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "RequireAssociationAdmin")));
     options.AddPolicy("RequireSystemAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin)));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin, "RequireAdmin")));
 
     // --- MENU VISIBILITY POLICIES ---
     options.AddPolicy("ShowMenu_Assets", policy => 

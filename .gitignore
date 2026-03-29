@@ -12,4 +12,7 @@
 .agents/
 brain/
 force_fix_db.cs
-verify_db.cs
+
+# SQL Project binaries
+*.dbmdl
+*.jfm

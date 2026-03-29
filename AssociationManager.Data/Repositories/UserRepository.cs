@@ -11,6 +11,7 @@ public class UserRepository : IUserRepository
 {
     private readonly DbConnectionFactory _dbConnectionFactory;
     private readonly string _schema;
+    public string Schema => _schema;
     private readonly string _mappingIdColumn;
 
     public UserRepository(DbConnectionFactory dbConnectionFactory, string schema = "corp")
@@ -172,27 +173,10 @@ public class UserRepository : IUserRepository
                 commandType: CommandType.StoredProcedure) > 0;
         }
 
-        const string sql = @"
-            SELECT COUNT(1) FROM (
-                -- 1. High-level Admins see everything in their tenant
-                SELECT a.AssociationId 
-                FROM corp.Associations a
-                INNER JOIN corp.UserAssociations ua ON a.TenantId = ua.TenantId
-                WHERE ua.UserId = @UserId AND ua.Role IN ('SystemAdmin', 'AssociationAdmin') AND a.AssociationId = @AssociationId
-
-                UNION
-
-                -- 2. Everyone else (Resident, UserManager, AssetManager, etc.) 
-                -- only see associations they are directly linked to via Occupancy/Assets
-                SELECT a.AssociationId
-                FROM corp.Associations a
-                INNER JOIN assoc.Occupancy o ON a.AssociationId = o.AssociationId
-                INNER JOIN assoc.Persons p ON o.PersonId = p.PersonId
-                INNER JOIN corp.Users u ON p.Email = u.Email
-                WHERE u.UserId = @UserId AND a.AssociationId = @AssociationId
-            ) AS AuthCheck";
-        
-        return await connection.ExecuteScalarAsync<int>(sql, new { UserId = userId, TenantId = tenantId, AssociationId = associationId }) > 0;
+        return await connection.ExecuteScalarAsync<int>(
+            "corp.sp_Users_IsAuthorisedForAssociation",
+            new { UserId = userId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<IEnumerable<User>> GetByAssociationIdAsync(int associationId)
@@ -207,31 +191,26 @@ public class UserRepository : IUserRepository
                 commandType: CommandType.StoredProcedure);
         }
 
-        const string sql = @"
-            SELECT DISTINCT u.*
-            FROM corp.Users u
-            LEFT JOIN assoc.Persons p ON u.Email = p.Email
-            LEFT JOIN assoc.Occupancy o ON p.PersonId = o.PersonId
-            LEFT JOIN corp.UserAssociations ua ON u.TenantId = ua.TenantId
-            WHERE 
-                u.AssociationId = @AssociationId -- Active association
-                OR o.AssociationId = @AssociationId -- Resident association
-                OR (ua.Role IN ('SystemAdmin', 'AssociationAdmin') AND u.TenantId = (SELECT TenantId FROM corp.Associations WHERE AssociationId = @AssociationId))
-            ORDER BY u.Name";
-        
-        return await connection.QueryAsync<User>(sql, new { AssociationId = associationId });
+        return await connection.QueryAsync<User>(
+            "corp.sp_Users_GetByAssociationId_Complex",
+            new { AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<User>> GetAllAsync()
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<User>($"SELECT * FROM {_schema}.Users ORDER BY Name");
+        return await connection.QueryAsync<User>(
+            $"{_schema}.sp_Users_List",
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> DeleteUserGlobalAsync(int userId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        await connection.ExecuteAsync($"DELETE FROM {_schema}.UserAssociations WHERE UserId = @UserId", new { UserId = userId });
-        return await connection.ExecuteAsync($"DELETE FROM {_schema}.Users WHERE UserId = @UserId", new { UserId = userId }) > 0;
+        return await connection.ExecuteAsync(
+            $"{_schema}.sp_Users_DeleteGlobal",
+            new { UserId = userId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }
