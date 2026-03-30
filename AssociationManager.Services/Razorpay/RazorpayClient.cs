@@ -64,4 +64,16 @@ public class RazorpayClient
         var content = await response.Content.ReadAsStringAsync();
         return JsonDocument.Parse(content).RootElement;
     }
+
+    public bool VerifyWebhookSignature(string payload, string signature, string webhookSecret)
+    {
+        var secretBytes = Encoding.UTF8.GetBytes(webhookSecret);
+        var payloadBytes = Encoding.UTF8.GetBytes(payload);
+
+        using var hmac = new HMACSHA256(secretBytes);
+        var hashBytes = hmac.ComputeHash(payloadBytes);
+        var hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+
+        return hash == signature.ToLower();
+    }
 }

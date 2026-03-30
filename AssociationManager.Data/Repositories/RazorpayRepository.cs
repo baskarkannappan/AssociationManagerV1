@@ -120,8 +120,15 @@ public class RazorpayRepository : IRazorpayRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<PaymentOrder>(
-            "assoc.sp_PaymentOrders_GetByInvoiceId",
-            new { InvoiceId = invoiceId, TenantId = tenantId },
-            commandType: CommandType.StoredProcedure);
+            "SELECT * FROM assoc.PaymentOrders WHERE InvoiceId = @InvoiceId AND TenantId = @TenantId",
+            new { InvoiceId = invoiceId, TenantId = tenantId });
+    }
+
+    public async Task<bool> TransactionExistsAsync(string razorpayPaymentId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<bool>(
+            "SELECT COUNT(1) FROM assoc.PaymentTransactions WHERE RazorpayPaymentId = @RazorpayPaymentId AND TenantId = @TenantId",
+            new { RazorpayPaymentId = razorpayPaymentId, TenantId = tenantId });
     }
 }
