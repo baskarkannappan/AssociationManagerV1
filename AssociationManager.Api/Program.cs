@@ -59,6 +59,7 @@ builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IGovernanceRepository, GovernanceRepository>();
 builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
+builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -76,13 +77,15 @@ builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IGovernanceService, GovernanceService>();
 builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
+builder.Services.AddScoped<IPaymentServiceV2, PaymentServiceV2>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
+builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
+builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();
 builder.Services.AddScoped<AssociationManager.Api.Authorization.RulesEngineSeeder>();
 
 // Billing Strategies & Batch Service
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.FixedBillingStrategy>();
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.AreaBasedBillingStrategy>();
-builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
@@ -208,6 +211,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
 }

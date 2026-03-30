@@ -257,4 +257,28 @@ public class FinanceController : ControllerBase
         var transactions = await _financeService.GetTenantTransactionsAsync(start, end);
         return Ok(ApiResponse<IEnumerable<Transaction>>.SuccessResponse(transactions));
     }
+
+    [HttpGet("bank-details")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetBankDetails()
+    {
+        var details = await _financeService.GetBankDetailsAsync(_tenantContext.AssociationId);
+        return Ok(ApiResponse<AssociationBankDetails>.SuccessResponse(details ?? new AssociationBankDetails { AssociationId = _tenantContext.AssociationId }));
+    }
+
+    [HttpPost("bank-details")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> UpdateBankDetails([FromBody] AssociationBankDetails details)
+    {
+        try
+        {
+            details.AssociationId = _tenantContext.AssociationId;
+            var success = await _financeService.UpdateBankDetailsAsync(details);
+            return success ? Ok(ApiResponse.SuccessResponse("Bank details updated.")) : BadRequest(ApiResponse.FailureResponse("Failed to update bank details."));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse.FailureResponse($"Error saving bank details: {ex.Message}"));
+        }
+    }
 }

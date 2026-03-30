@@ -1,0 +1,78 @@
+@namespace AssociationManager.Client.Components
+@using Microsoft.JSInterop
+@using AssociationManager.Shared.Models
+@inject IJSRuntime JSRuntime
+@inject HttpClient Http
+
+@code {
+    private DotNetObjectReference<RazorpayCheckout>? _objRef;
+
+    [Parameter] public EventCallback<string> OnPaymentSuccess { get; set; }
+    [Parameter] public EventCallback OnPaymentFailed { get; set; }
+
+    public async Task InitializePayment(RazorpayOrderResponse order, string name, string description, string email, string contact)
+    {
+        _objRef = DotNetObjectReference.Create(this);
+
+        var options = new
+        {
+            key = order.KeyId,
+            amount = (int)(order.Amount * 100),
+            currency = order.Currency,
+            name = name,
+            description = description,
+            order_id = order.OrderId,
+            prefill = new
+            {
+                name = name,
+                email = email,
+                contact = contact
+            },
+            theme = new
+            {
+                color = "#3399cc"
+            }
+        };
+
+        await JSRuntime.InvokeVoidAsync("razorpayInterop.openCheckout", options, _objRef);
+    }
+
+    [JSInvokable]
+    public async Task HandlePaymentSuccess(RazorpaySuccessResponse response)
+    {
+        var verifyRequest = new RazorpayVerifyRequest
+        {
+            RazorpayOrderId = response.razorpay_order_id,
+            RazorpayPaymentId = response.razorpay_payment_id,
+            RazorpaySignature = response.razorpay_signature
+        };
+
+        var verifyResult = await Http.PostAsJsonAsync("api/payments/verify", verifyRequest);
+        if (verifyResult.IsSuccessStatusCode)
+        {
+            await OnPaymentSuccess.InvokeAsync(response.razorpay_payment_id);
+        }
+        else
+        {
+            await OnPaymentFailed.InvokeAsync();
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPaymentDismiss()
+    {
+        return OnPaymentFailed.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+    }
+
+    public class RazorpaySuccessResponse
+    {
+        public string razorpay_payment_id { get; set; } = string.Empty;
+        public string razorpay_order_id { get; set; } = string.Empty;
+        public string razorpay_signature { get; set; } = string.Empty;
+    }
+}

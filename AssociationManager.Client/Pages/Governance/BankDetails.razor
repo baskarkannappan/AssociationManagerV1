@@ -1,0 +1,296 @@
+@page "/governance/bank-details"
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject ApiService Api
+@inject ToastService _toastService
+@inject IAppAuthorizationService AuthService
+
+<div class="container-fluid py-4">
+    <div class="premium-page-header mb-4">
+        <h1 class="premium-page-title">🏦 Association Bank Details</h1>
+        <p class="premium-page-subtitle">Configure the bank accounts and payment QR codes for resident maintenance and fee payments.</p>
+    </div>
+
+    @if (_bankDetails == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Loading account details...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="_bankDetails" OnValidSubmit="HandleSaveBankDetails">
+            <div class="row g-4">
+                <!-- Primary Account Card -->
+                <div class="col-lg-6">
+                    <Card Class="shadow-sm border-0 h-100">
+                        <CardHeader Class="bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                            <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-1-circle-fill me-2"></i>Primary Account</h5>
+                            <span class="badge bg-primary rounded-pill">Preferred</span>
+                        </CardHeader>
+                        <CardBody Class="p-4">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold text-muted">Account Name</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.PrimaryAccountName" readonly="@(_isReadOnly)" placeholder="e.g. My Association Resident Fund" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Account Number</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.PrimaryAccountNumber" readonly="@(_isReadOnly)" placeholder="Enter Number" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">IFSC Code</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.PrimaryIFSCCode" readonly="@(_isReadOnly)" placeholder="Enter IFSC" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Bank Name</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.PrimaryBankName" readonly="@(_isReadOnly)" placeholder="e.g. HDFC Bank" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Branch Name</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.PrimaryBranchName" readonly="@(_isReadOnly)" placeholder="Branch Name" />
+                                </div>
+                                
+                                <div class="col-12 mt-4">
+                                    <div class="qr-upload-container p-3 border rounded bg-light text-center">
+                                        <label class="form-label small fw-bold d-block mb-3">Primary Payment QR Code</label>
+                                        @if (_bankDetails.PrimaryQRCode != null && _bankDetails.PrimaryQRCode.Length > 0)
+                                        {
+                                            <div class="mb-3">
+                                                <img src="data:@(_bankDetails.PrimaryQRCodeContentType ?? "image/png");base64,@Convert.ToBase64String(_bankDetails.PrimaryQRCode)" 
+                                                     class="img-thumbnail shadow-sm" style="max-height: 150px; cursor: pointer;" 
+                                                     @onclick="() => ShowQRCode(_bankDetails.PrimaryQRCode, _bankDetails.PrimaryQRCodeContentType)" />
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mb-3 py-4 text-muted">
+                                                <i class="bi bi-qr-code fs-1 opacity-25"></i>
+                                                <p class="small mt-2 mb-0">No QR Code Uploaded</p>
+                                            </div>
+                                        }
+                                        
+                                        @if (!_isReadOnly)
+                                        {
+                                            <div class="custom-file-upload">
+                                                <InputFile class="form-control form-control-sm" OnChange="(e) => HandleBankFileUpload(e, true)" accept="image/*" />
+                                                <p class="x-small text-muted mt-2 mb-0">Max size: 500KB. Formats: PNG, JPG, GIF.</p>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                <!-- Secondary Account Card -->
+                <div class="col-lg-6">
+                    <Card Class="shadow-sm border-0 h-100">
+                        <CardHeader Class="bg-white border-bottom py-3">
+                            <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-2-circle-fill me-2"></i>Secondary Account</h5>
+                        </CardHeader>
+                        <CardBody Class="p-4">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold text-muted">Account Name</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.SecondaryAccountName" readonly="@(_isReadOnly)" placeholder="e.g. Sinking Fund A/C" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Account Number</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.SecondaryAccountNumber" readonly="@(_isReadOnly)" placeholder="Enter Number" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">IFSC Code</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.SecondaryIFSCCode" readonly="@(_isReadOnly)" placeholder="Enter IFSC" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Bank Name</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.SecondaryBankName" readonly="@(_isReadOnly)" placeholder="e.g. ICICI Bank" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-muted">Branch Name</label>
+                                    <InputText class="form-control" @bind-Value="_bankDetails.SecondaryBranchName" readonly="@(_isReadOnly)" placeholder="Branch Name" />
+                                </div>
+
+                                <div class="col-12 mt-4">
+                                    <div class="qr-upload-container p-3 border rounded bg-light text-center">
+                                        <label class="form-label small fw-bold d-block mb-3">Secondary Payment QR Code</label>
+                                        @if (_bankDetails.SecondaryQRCode != null && _bankDetails.SecondaryQRCode.Length > 0)
+                                        {
+                                            <div class="mb-3">
+                                                <img src="data:@(_bankDetails.SecondaryQRCodeContentType ?? "image/png");base64,@Convert.ToBase64String(_bankDetails.SecondaryQRCode)" 
+                                                     class="img-thumbnail shadow-sm" style="max-height: 150px; cursor: pointer;"
+                                                     @onclick="() => ShowQRCode(_bankDetails.SecondaryQRCode, _bankDetails.SecondaryQRCodeContentType)" />
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mb-3 py-4 text-muted">
+                                                <i class="bi bi-qr-code-scan fs-1 opacity-25"></i>
+                                                <p class="small mt-2 mb-0">Optional Secondary QR</p>
+                                            </div>
+                                        }
+                                        
+                                        @if (!_isReadOnly)
+                                        {
+                                            <div class="custom-file-upload">
+                                                <InputFile class="form-control form-control-sm" OnChange="(e) => HandleBankFileUpload(e, false)" accept="image/*" />
+                                                <p class="x-small text-muted mt-2 mb-0">Max size: 500KB. Formats: PNG, JPG, GIF.</p>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+
+                @if (!_isReadOnly)
+                {
+                    <div class="col-12">
+                        <div class="d-flex justify-content-end mt-2">
+                            <button type="submit" class="btn btn-primary px-5 py-2 shadow-sm" disabled="@_isSaving">
+                                @if (_isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                <i class="bi bi-check2-circle me-2"></i> Save Bank Details
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </EditForm>
+    }
+</div>
+
+@if (_showQRModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close" @onclick="() => _showQRModal = false"></button>
+                </div>
+                <div class="modal-body text-center pt-0 pb-4">
+                    <img src="data:@(_modalQRContentType ?? "image/png");base64,@Convert.ToBase64String(_modalQRData!)" 
+                         style="max-width: 100%; border-radius: 12px;" />
+                    <p class="mt-3 text-muted">Scan to Pay via UPI/Banking App</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private AssociationBankDetails? _bankDetails;
+    private bool _isReadOnly = true;
+    private bool _isSaving = false;
+    private bool _showQRModal = false;
+    private byte[]? _modalQRData;
+    private string? _modalQRContentType;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        var user = authState.User;
+        _isReadOnly = !await AuthService.HasLevelAsync(user, AppRole.LevelAssociationAdmin);
+        
+        await LoadBankDetails();
+    }
+
+    private async Task LoadBankDetails()
+    {
+        var result = await Api.GetAsync<AssociationBankDetails>("api/finance/bank-details");
+        if (result != null)
+        {
+            _bankDetails = result;
+        }
+        else
+        {
+            // Fallback for new associations
+            _bankDetails = new AssociationBankDetails();
+        }
+    }
+
+    private async Task HandleSaveBankDetails()
+    {
+        if (_bankDetails == null) return;
+
+        _isSaving = true;
+        var success = await Api.PostAsync<AssociationBankDetails>("api/finance/bank-details", _bankDetails);
+        
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Bank details saved successfully."));
+            await LoadBankDetails(); // Refresh
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to save bank details."));
+        }
+        _isSaving = false;
+    }
+
+    private async Task HandleBankFileUpload(InputFileChangeEventArgs e, bool isPrimary)
+    {
+        var file = e.File;
+        if (file == null || _bankDetails == null) return;
+
+        if (file.Size > 500 * 1024)
+        {
+            _toastService.Notify(new(ToastType.Warning, "File size must be less than 500KB."));
+            return;
+        }
+
+        using var stream = file.OpenReadStream(500 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        
+        if (isPrimary)
+        {
+            _bankDetails.PrimaryQRCode = ms.ToArray();
+            _bankDetails.PrimaryQRCodeContentType = file.ContentType;
+        }
+        else
+        {
+            _bankDetails.SecondaryQRCode = ms.ToArray();
+            _bankDetails.SecondaryQRCodeContentType = file.ContentType;
+        }
+    }
+
+    private void ShowQRCode(byte[] data, string? contentType)
+    {
+        _modalQRData = data;
+        _modalQRContentType = contentType;
+        _showQRModal = true;
+    }
+}
+
+<style>
+    .qr-upload-container {
+        transition: all 0.3s ease;
+        border: 2px dashed #e9ecef !important;
+    }
+    .qr-upload-container:hover {
+        border-color: var(--vscode-accent) !important;
+        background-color: #f8f9fa !important;
+    }
+    .img-thumbnail {
+        padding: 0.5rem;
+        border-radius: 12px;
+        transition: transform 0.2s ease;
+    }
+    .img-thumbnail:hover {
+        transform: scale(1.02);
+    }
+    .x-small {
+        font-size: 0.75rem;
+    }
+</style>

@@ -96,4 +96,47 @@ public class AssociationRepository : IAssociationRepository
             "corp.sp_Associations_List",
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<AssociationBankDetails?> GetBankDetailsAsync(int associationId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<AssociationBankDetails>(
+            "assoc.sp_AssociationBankDetails_Get",
+            new { AssociationId = associationId, TenantId = tenantId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> UpsertBankDetailsAsync(AssociationBankDetails details)
+    {
+        if (details.AssociationId <= 0) 
+            throw new ArgumentException("Invalid AssociationId for bank details.");
+
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("@AssociationId", details.AssociationId, DbType.Int32);
+        parameters.Add("@TenantId", details.TenantId, DbType.Int32);
+        parameters.Add("@PrimaryAccountName", details.PrimaryAccountName, DbType.String, size: 255);
+        parameters.Add("@PrimaryAccountNumber", details.PrimaryAccountNumber, DbType.String, size: 50);
+        parameters.Add("@PrimaryIFSCCode", details.PrimaryIFSCCode, DbType.String, size: 20);
+        parameters.Add("@PrimaryBankName", details.PrimaryBankName, DbType.String, size: 255);
+        parameters.Add("@PrimaryBranchName", details.PrimaryBranchName, DbType.String, size: 255);
+        
+        // Explicitly set type to Binary for VARBINARY(MAX) fields
+        parameters.Add("@PrimaryQRCode", details.PrimaryQRCode, DbType.Binary, size: -1);
+        parameters.Add("@PrimaryQRCodeContentType", details.PrimaryQRCodeContentType, DbType.String, size: 100);
+        
+        parameters.Add("@SecondaryAccountName", details.SecondaryAccountName, DbType.String, size: 255);
+        parameters.Add("@SecondaryAccountNumber", details.SecondaryAccountNumber, DbType.String, size: 50);
+        parameters.Add("@SecondaryIFSCCode", details.SecondaryIFSCCode, DbType.String, size: 20);
+        parameters.Add("@SecondaryBankName", details.SecondaryBankName, DbType.String, size: 255);
+        parameters.Add("@SecondaryBranchName", details.SecondaryBranchName, DbType.String, size: 255);
+        
+        parameters.Add("@SecondaryQRCode", details.SecondaryQRCode, DbType.Binary, size: -1);
+        parameters.Add("@SecondaryQRCodeContentType", details.SecondaryQRCodeContentType, DbType.String, size: 100);
+        
+        parameters.Add("@UserId", _tenantContext.UserId, DbType.Int32);
+
+        await connection.ExecuteAsync("assoc.sp_AssociationBankDetails_Upsert", parameters, commandType: CommandType.StoredProcedure);
+        return true;
+    }
 }

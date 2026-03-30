@@ -23,4 +23,8 @@ public interface IFinanceService
     Task<IEnumerable<Transaction>> GetAssetTransactionsAsync(int assetId);
     Task<decimal> GetAssetBalanceAsync(int assetId);
     Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null);
+
+    // Bank Account Configuration
+    Task<AssociationBankDetails?> GetBankDetailsAsync(int associationId);
+    Task<bool> UpdateBankDetailsAsync(AssociationBankDetails details);
 }

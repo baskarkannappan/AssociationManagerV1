@@ -52,9 +52,39 @@ Start-Process dotnet -ArgumentList "run --project AssociationManager.Client\Asso
 Write-Host "[6/6] Starting Corporate Client (Port 7011)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Corporate.Client\AssociationManager.Corporate.Client.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
-Write-Host "`nAll services initialized!" -ForegroundColor Green
+Write-Host "`nInitialization complete!" -ForegroundColor Green
 Write-Host "Gateway:       https://localhost:7000"
 Write-Host "Assoc Client:  https://localhost:7001" -ForegroundColor Yellow
 Write-Host "Corp Client:   https://localhost:7011" -ForegroundColor Magenta
-Write-Host "Corporate API: https://localhost:7010 (routed via Gateway)"
-Write-Host "`nPlease wait a few seconds for the client to warm up, then refresh your browser."
+Write-Host "`n--- Verifying Service Health (Optional) ---" -ForegroundColor Cyan
+
+function Test-ServiceHealth {
+    param([string]$name, [string]$url)
+    Write-Host "Checking $name ($url)... " -NoNewline
+    try {
+        $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 -SkipCertificateCheck
+        if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+            Write-Host "[OK]" -ForegroundColor Green
+            return $true
+        }
+    } catch {
+        Write-Host "[WAITING]" -ForegroundColor Gray
+    }
+    return $false
+}
+
+$services = @(
+    @{ Name = "Gateway (7000)"; Url = "https://localhost:7000" },
+    @{ Name = "Assoc API (5001)"; Url = "https://localhost:5001/swagger/index.html" },
+    @{ Name = "Corp API (7010)"; Url = "https://localhost:7010/swagger/index.html" },
+    @{ Name = "Realtime (6001)"; Url = "https://localhost:6001/hubs/notifications" },
+    @{ Name = "Assoc Client (7001)"; Url = "https://localhost:7001" },
+    @{ Name = "Corp Client (7011)"; Url = "https://localhost:7011" }
+)
+
+# Single pass health check
+foreach ($svc in $services) {
+    [void](Test-ServiceHealth -name $svc.Name -url $svc.Url)
+}
+
+Write-Host "`nYou can now open your browser and start working."

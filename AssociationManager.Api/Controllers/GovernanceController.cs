@@ -57,6 +57,7 @@ public class GovernanceController : ControllerBase
     public async Task<IActionResult> AddCommitteeMember([FromBody] CommitteeMember member)
     {
         member.AssociationId = _tenantContext.AssociationId;
+        EnsureSafeDates(member);
         var id = await _governanceService.AddCommitteeMemberAsync(member);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Member assigned to committee."));
     }
@@ -67,6 +68,7 @@ public class GovernanceController : ControllerBase
     {
         member.CommitteeMemberId = id;
         member.AssociationId = _tenantContext.AssociationId;
+        EnsureSafeDates(member);
         var success = await _governanceService.UpdateCommitteeMemberAsync(member);
         return success ? Ok(ApiResponse.SuccessResponse("Committee member updated.")) : BadRequest(ApiResponse.FailureResponse("Failed to update committee member."));
     }
@@ -83,6 +85,7 @@ public class GovernanceController : ControllerBase
     public async Task<IActionResult> CreateByeLaw([FromBody] ByeLaw byeLaw)
     {
         byeLaw.AssociationId = _tenantContext.AssociationId;
+        EnsureSafeDates(byeLaw);
         var id = await _governanceService.CreateByeLawAsync(byeLaw);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Bye-law created."));
     }
@@ -93,6 +96,7 @@ public class GovernanceController : ControllerBase
     {
         byeLaw.ByeLawId = id;
         byeLaw.AssociationId = _tenantContext.AssociationId;
+        EnsureSafeDates(byeLaw);
         var success = await _governanceService.UpdateByeLawAsync(byeLaw);
         return success ? Ok(ApiResponse.SuccessResponse("Bye-law updated.")) : BadRequest(ApiResponse.FailureResponse("Failed to update bye-law."));
     }
@@ -130,6 +134,7 @@ public class GovernanceController : ControllerBase
     {
         meeting.AssociationId = _tenantContext.AssociationId;
         meeting.CreatedBy = _tenantContext.UserId;
+        EnsureSafeDates(meeting);
         var id = await _governanceService.CreateMeetingAsync(meeting);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Meeting scheduled."));
     }
@@ -154,6 +159,7 @@ public class GovernanceController : ControllerBase
     public async Task<IActionResult> CreateElection([FromBody] Election election)
     {
         election.AssociationId = _tenantContext.AssociationId;
+        EnsureSafeDates(election);
         var id = await _governanceService.CreateElectionAsync(election);
         return Ok(ApiResponse<int>.SuccessResponse(id, "Election created."));
     }
@@ -171,5 +177,27 @@ public class GovernanceController : ControllerBase
     {
         var results = await _governanceService.GetElectionResultsAsync(id);
         return Ok(ApiResponse<IEnumerable<ElectionResult>>.SuccessResponse(results));
+    }
+
+    private void EnsureSafeDates(object model)
+    {
+        var minDate = new System.DateTime(1753, 1, 1);
+        var now = System.DateTime.UtcNow;
+        
+        foreach (var prop in model.GetType().GetProperties())
+        {
+            if (prop.PropertyType == typeof(System.DateTime))
+            {
+                var val = prop.GetValue(model);
+                if (val is System.DateTime value && value < minDate) 
+                    prop.SetValue(model, now);
+            }
+            else if (prop.PropertyType == typeof(System.DateTime?))
+            {
+                var val = prop.GetValue(model);
+                if (val is System.DateTime value && value < minDate) 
+                    prop.SetValue(model, null);
+            }
+        }
     }
 }

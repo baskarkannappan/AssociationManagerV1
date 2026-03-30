@@ -14,17 +14,20 @@ public class FinanceService : IFinanceService
     private readonly IPaymentRepository _paymentRepository;
     private readonly ILedgerService _ledgerService;
     private readonly ITenantContext _tenantContext;
+    private readonly IAssociationRepository _associationRepository;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
         IPaymentRepository paymentRepository, 
         ILedgerService ledgerService,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        IAssociationRepository associationRepository)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
         _ledgerService = ledgerService;
         _tenantContext = tenantContext;
+        _associationRepository = associationRepository;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -153,5 +156,16 @@ public class FinanceService : IFinanceService
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
     {
         return await _ledgerService.GetTenantTransactionsAsync(start, end);
+    }
+
+    public async Task<AssociationBankDetails?> GetBankDetailsAsync(int associationId)
+    {
+        return await _associationRepository.GetBankDetailsAsync(associationId, CurrentTenantId);
+    }
+
+    public async Task<bool> UpdateBankDetailsAsync(AssociationBankDetails details)
+    {
+        details.TenantId = CurrentTenantId;
+        return await _associationRepository.UpsertBankDetailsAsync(details);
     }
 }
