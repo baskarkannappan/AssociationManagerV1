@@ -1,4 +1,5 @@
-﻿CREATE   PROCEDURE assoc.sp_CommitteeMembers_Insert
+﻿-- 2. Fix Committee Member Insert (Ensure 7 params)
+CREATE   PROCEDURE assoc.sp_CommitteeMembers_Insert
     @AssociationId INT,
     @MemberId INT,
     @MemberName NVARCHAR(255) = NULL,

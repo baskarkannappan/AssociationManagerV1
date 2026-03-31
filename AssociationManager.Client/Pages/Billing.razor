@@ -52,13 +52,13 @@
             <div class="col-md-3">
                 <div class="compact-card text-center">
                     <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Total Unpaid</div>
-                    <div class="h4 m-0 fw-bold text-danger">₹@(_invoices?.Where(i => i.Status == "Unpaid").Sum(i => i.Amount) ?? 0)</div>
+                    <div class="h4 m-0 fw-bold text-danger">₹@(_totalUnpaid)</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="compact-card text-center">
                     <div class="text-muted mb-1" style="font-size: 11px; text-transform: uppercase;">Collected (30d)</div>
-                    <div class="h4 m-0 fw-bold text-success">₹@(_payments?.Where(p => p.CreatedDate > DateTime.Now.AddDays(-30)).Sum(p => p.Amount) ?? 0)</div>
+                    <div class="h4 m-0 fw-bold text-success">₹@(_collected30Days)</div>
                 </div>
             </div>
         </div>
@@ -88,75 +88,68 @@
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="m-0 fw-semibold">Recent Invoices</h6>
                                     <div class="d-flex gap-2">
-                                        <span class="tree-badge">Filter: All</span>
+                                        <div class="input-group input-group-sm" style="width: 250px;">
+                                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search py-1"></i></span>
+                                            <input type="text" class="form-control border-start-0" placeholder="Search Title or Unit..." 
+                                                   @bind="_searchTerm" @bind:event="oninput" @onkeyup="HandleSearchKeyUp" />
+                                        </div>
+                                        <select class="form-select form-select-sm" style="width: 120px;" @bind="_statusFilter" @bind:after="OnFilterChanged">
+                                            <option value="">All Status</option>
+                                            <option value="Unpaid">Unpaid</option>
+                                            <option value="Paid">Paid</option>
+                                            <option value="Partial">Partial</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                @if (_invoices == null)
-                                {
-                                    <div class="p-4 text-center opacity-50">
-                                        <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
-                                        <div>Loading invoices...</div>
-                                    </div>
-                                }
-                                else if (!_invoices.Any())
-                                {
-                                    <div class="p-5 text-center opacity-50">
-                                        <i class="bi bi-receipt-cutoff display-6 mb-3"></i>
-                                        <p>No invoices found for this association.</p>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <Grid @ref="invoiceGrid" TItem="Invoice"
-                                          Class="table table-hover table-bordered table-striped compact-table"
-                                          DataProvider="InvoicesDataProvider"
-                                          Responsive="true"
-                                          AllowPaging="true"
-                                          PageSize="10"
-                                          AllowSorting="true">
+                                <Grid @ref="invoiceGrid" TItem="Invoice"
+                                      Class="table table-hover table-bordered table-striped compact-table"
+                                      DataProvider="InvoicesDataProvider"
+                                      Responsive="true"
+                                      AllowPaging="true"
+                                      PageSize="10"
+                                      AllowSorting="true">
 
-                                        <GridColumn TItem="Invoice" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
-                                            <span class="fw-medium">@context.Title</span>
-                                        </GridColumn>
+                                    <GridColumn TItem="Invoice" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
+                                        <span class="fw-medium">@context.Title</span>
+                                    </GridColumn>
 
-                                        <GridColumn TItem="Invoice" HeaderText="Unit" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
-                                            <span class="tree-badge">@context.AssetName</span>
-                                        </GridColumn>
+                                    <GridColumn TItem="Invoice" HeaderText="Unit" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
+                                        <span class="tree-badge">@context.AssetName</span>
+                                    </GridColumn>
 
-                                        <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
-                                            <span class="fw-semibold">₹@context.Amount</span>
-                                        </GridColumn>
+                                    <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
+                                        <span class="fw-semibold">₹@context.Amount</span>
+                                    </GridColumn>
 
-                                        <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
-                                            @context.DueDate.ToShortDateString()
-                                        </GridColumn>
+                                    <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
+                                        @context.DueDate.ToShortDateString()
+                                    </GridColumn>
 
-                                        <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
-                                            <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
-                                        </GridColumn>
+                                    <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                                        <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
+                                    </GridColumn>
 
-                                        <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                                            @if (context.Status == "Unpaid")
-                                            {
-                                                <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => InitiateRazorpayPayment(context)">
-                                                    <i class="bi bi-credit-card-2-back"></i>
+                                    <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                                        @if (context.Status == "Unpaid")
+                                        {
+                                            <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => InitiateRazorpayPayment(context)">
+                                                <i class="bi bi-credit-card-2-back"></i>
+                                            </button>
+                                            <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
+                                                <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => RecordPayment(context)">
+                                                    <i class="bi bi-cash-stack"></i>
                                                 </button>
-                                                <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
-                                                    <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => RecordPayment(context)">
-                                                        <i class="bi bi-cash-stack"></i>
-                                                    </button>
-                                                </AuthorizeView>
-                                            }
-                                            <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => ShowTransactionHistory(context)">
-                                                <i class="bi bi-clock-history"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-link p-0 text-muted">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                        </GridColumn>
-                                    </Grid>
-                                }
+                                            </AuthorizeView>
+                                        }
+                                        <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => ShowTransactionHistory(context)">
+                                            <i class="bi bi-clock-history"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-link p-0 text-muted">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                    </GridColumn>
+                                </Grid>
                             </div>
                         </div>
 
@@ -422,7 +415,6 @@
 
 @code {
     private Grid<Invoice> invoiceGrid = default!;
-    private List<Invoice>? _invoices;
     private List<Payment>? _payments;
     private bool _isCreateModalOpen;
     private Invoice _newInvoice = new() { DueDate = DateTime.Today.AddDays(7) };
@@ -431,7 +423,13 @@
     private InvoiceBatchRequest _batchRequest = new() { Month = DateTime.Today.Month, Year = DateTime.Today.Year, DueDate = DateTime.Today.AddDays(15) };
     private InvoiceBatchResult? _batchResult;
     private bool _isProcessingBatch;
+    private decimal _totalUnpaid;
+    private decimal _collected30Days;
+    private string? _searchTerm;
+    private string? _statusFilter;
+    private System.Threading.Timer? _searchTimer;
     private RazorpayCheckout _razorpayCheckout = default!;
+    private List<Invoice> _invoices_deprecated = new(); // Left for compatibility if any other piece needs it
     
     // History Modal
     private bool _isHistoryModalOpen;
@@ -450,7 +448,6 @@
     {
         if (ParseQueryParameters())
         {
-            _invoices = null;
             _payments = null;
             await LoadData();
         }
@@ -470,47 +467,109 @@
         return false;
     }
 
+
     private async Task<GridDataProviderResult<Invoice>> InvoicesDataProvider(GridDataProviderRequest<Invoice> request)
     {
-        if (_invoices == null) await LoadData();
-        return request.ApplyTo(_invoices ?? new List<Invoice>());
+        string baseUrl = "api/finance/invoices";
+        var filters = new List<string>();
+
+        // Basic Params
+        filters.Add($"pageNumber={request.PageNumber}");
+        filters.Add($"pageSize={request.PageSize}");
+
+        // Sorting
+        var sort = request.Sorting.FirstOrDefault();
+        if (sort != null)
+        {
+            filters.Add($"sortColumn={sort.SortString}");
+            filters.Add($"sortDirection={(sort.SortDirection == SortDirection.Ascending ? "ASC" : "DESC")}");
+        }
+
+        // Scope/Association
+        if (_scope == "association")
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var aid = authState.User.FindFirst("AssociationId")?.Value;
+            if (int.TryParse(aid, out int associationId))
+            {
+                filters.Add($"associationId={associationId}");
+            }
+        }
+
+        // Search/Filters
+        if (!string.IsNullOrWhiteSpace(_searchTerm)) filters.Add($"searchTerm={Uri.EscapeDataString(_searchTerm)}");
+        if (!string.IsNullOrWhiteSpace(_statusFilter)) filters.Add($"status={_statusFilter}");
+
+        string url = $"{baseUrl}?{string.Join("&", filters)}";
+        var response = await Api.GetAsync<PagedResult<Invoice>>(url);
+
+        if (response != null)
+        {
+            // Sync Header Stats from Metadata
+            _totalUnpaid = response.TotalUnpaid;
+            // Note: Collected30Days might need a separate call or specific metadata handling
+            return new GridDataProviderResult<Invoice> { Data = response.Items, TotalCount = response.TotalCount };
+        }
+
+        return new GridDataProviderResult<Invoice> { Data = new List<Invoice>(), TotalCount = 0 };
     }
 
     private async Task LoadData()
     {
         try 
         {
-            string baseUrl = "api/finance";
-            string invoicesUrl = $"{baseUrl}/invoices";
-            string paymentsUrl = $"{baseUrl}/payments";
+            string summaryUrl = "api/finance/summary";
+            string paymentsUrl = "api/finance/payments";
 
             if (_scope == "association")
             {
                 var authState = await AuthStateProvider.GetAuthenticationStateAsync();
                 var aid = authState.User.FindFirst("AssociationId")?.Value;
-                
-
-                if (int.TryParse(aid, out int associationId) && associationId != 0)
+                if (int.TryParse(aid, out int associationId))
                 {
-                    invoicesUrl += $"?associationId={associationId}";
+                    summaryUrl += $"?associationId={associationId}";
                     paymentsUrl += $"?associationId={associationId}";
-                    
                 }
             }
 
-            var invoices = await Api.GetAsync<IEnumerable<Invoice>>(invoicesUrl);
-            _invoices = invoices?.ToList();
+            // Summary Stats
+            var summary = await Api.GetAsync<dynamic>(summaryUrl);
+            if (summary != null)
+            {
+                _totalUnpaid = summary.totalUnpaid ?? 0;
+                _collected30Days = summary.collected30Days ?? 0;
+            }
             
             var payments = await Api.GetAsync<IEnumerable<Payment>>(paymentsUrl);
             _payments = payments?.ToList();
+
+            if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading billing data: {ex.Message}");
-            _invoices = new List<Invoice>();
             _payments = new List<Payment>();
         }
     }
+
+    private void HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        _searchTimer?.Dispose();
+        _searchTimer = new System.Threading.Timer(async _ => 
+        {
+            await InvokeAsync(async () => 
+            {
+                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+                StateHasChanged();
+            });
+        }, null, 500, System.Threading.Timeout.Infinite);
+    }
+
+    private async Task OnFilterChanged()
+    {
+        if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+    }
+
 
     private void ShowCreateInvoice()
     {
@@ -525,8 +584,7 @@
         {
             _toastService.Notify(new(ToastType.Success, "Invoice created successfully."));
             _isCreateModalOpen = false;
-            _invoices = null;
-            await invoiceGrid.RefreshDataAsync();
+            if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
             
             // Also refresh payments just in case
             _payments = null; 
@@ -551,9 +609,8 @@
         if (success)
         {
             _toastService.Notify(new(ToastType.Success, $"Payment of ₹{invoice.Amount} recorded."));
-            _invoices = null;
             _payments = null;
-            await invoiceGrid.RefreshDataAsync();
+            if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
             await LoadData(); // Reload for stats and payment list
         }
     }
@@ -594,7 +651,6 @@
     private async Task OnPaymentProcessed(string paymentId)
     {
         _toastService.Notify(new(ToastType.Success, $"Payment successful! Transaction ID: {paymentId}"));
-        _invoices = null;
         _payments = null;
         if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
         await LoadData();
@@ -686,7 +742,8 @@
                 _toastService.Notify(new(ToastType.Success, result.Message));
                 _batchResult = null;
                 _activeTab = "invoices";
-                _invoices = null;
+                _payments = null;
+                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
                 await LoadData();
             }
         }

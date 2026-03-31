@@ -49,7 +49,17 @@ public class FinanceController : ControllerBase
 
     [HttpGet("invoices")]
     [Authorize(Policy = "RequireResident")]
-    public async Task<IActionResult> GetInvoices([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
+    public async Task<IActionResult> GetInvoices(
+        [FromQuery] int? associationId = null, 
+        [FromQuery] int? assetId = null,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string sortColumn = "CreatedDate",
+        [FromQuery] string sortDirection = "DESC")
     {
         var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
                               .Select(c => c.Value);
@@ -84,23 +94,38 @@ public class FinanceController : ControllerBase
                  }
                  else
                  {
-                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<Invoice>>.SuccessResponse(new List<Invoice>()));
-                     assetId = allowedAssetIds.First();
+                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
+                     assetId = allowedAssetIds.First(); // Residents only see their own invoices
                  }
              }
         }
 
-        IEnumerable<Invoice> invoices;
-        if (assetId.HasValue)
+        var criteria = new InvoiceSearchCriteria
         {
-            invoices = await _financeService.GetInvoicesByAssetIdAsync(assetId.Value, associationId);
-        }
-        else
-        {
-            invoices = await _financeService.GetAllInvoicesAsync(associationId);
-        }
-        return Ok(ApiResponse<IEnumerable<Invoice>>.SuccessResponse(invoices));
+            AssociationId = associationId,
+            AssetId = assetId,
+            SearchTerm = searchTerm,
+            Status = status,
+            StartDate = startDate,
+            EndDate = endDate,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            SortColumn = sortColumn,
+            SortDirection = sortDirection
+        };
+
+        var result = await _financeService.GetPagedInvoicesAsync(criteria);
+        return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(result));
     }
+
+    [HttpGet("summary")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetSummary([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
+    {
+        var (totalUnpaid, collected30Days) = await _financeService.GetFinanceSummaryAsync(associationId, assetId);
+        return Ok(ApiResponse<object>.SuccessResponse(new { totalUnpaid, collected30Days }));
+    }
+
 
     [HttpGet("invoices/{id}")]
     public async Task<IActionResult> GetInvoice(int id, [FromQuery] int? associationId = null)

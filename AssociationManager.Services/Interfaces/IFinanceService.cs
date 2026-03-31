@@ -11,6 +11,8 @@ public interface IFinanceService
     Task<Invoice?> GetInvoiceByIdAsync(int id, int? associationId = null);
     Task<IEnumerable<Invoice>> GetAllInvoicesAsync(int? associationId = null);
     Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId, int? associationId = null);
+    Task<PagedResult<Invoice>> GetPagedInvoicesAsync(InvoiceSearchCriteria criteria);
+    Task<(decimal TotalUnpaid, decimal Collected30Days)> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null);
     Task<int> CreateInvoiceAsync(Invoice invoice, IEnumerable<InvoiceLineItem>? lineItems = null);
     Task<bool> UpdateInvoiceStatusAsync(int id, string status, int? associationId = null);
     Task<bool> DeleteInvoiceAsync(int id, int? associationId = null);

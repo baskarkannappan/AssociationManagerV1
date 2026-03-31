@@ -1,4 +1,5 @@
-﻿CREATE   PROCEDURE assoc.sp_Elections_Insert
+﻿-- 3. Fix Elections Insert (Ensure 5 params)
+CREATE   PROCEDURE assoc.sp_Elections_Insert
     @AssociationId INT,
     @Title NVARCHAR(200),
     @StartDate DATETIME2,

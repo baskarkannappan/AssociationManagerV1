@@ -197,6 +197,57 @@ public class UserRepository : IUserRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<PagedResult<User>> GetPagedAsync(UserSearchCriteria criteria)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("@AssociationId", criteria.AssociationId);
+        parameters.Add("@TenantId", criteria.AssociationId == null ? (int?)null : (int?)null); // Placeholder if needed
+        parameters.Add("@SearchTerm", criteria.SearchTerm);
+        parameters.Add("@Role", criteria.Role);
+        parameters.Add("@PageNumber", criteria.PageNumber);
+        parameters.Add("@PageSize", criteria.PageSize);
+        parameters.Add("@SortColumn", criteria.SortColumn);
+        parameters.Add("@SortDirection", criteria.SortDirection);
+
+        var result = new PagedResult<User>
+        {
+            PageNumber = criteria.PageNumber,
+            PageSize = criteria.PageSize
+        };
+
+        var items = await connection.QueryAsync<dynamic>(
+            "assoc.sp_Users_GetPaged", 
+            parameters, 
+            commandType: CommandType.StoredProcedure);
+
+        var users = new List<User>();
+        foreach (var row in items)
+        {
+            if (result.TotalCount == 0)
+            {
+                result.TotalCount = row.TotalCount;
+            }
+
+            users.Add(new User
+            {
+                UserId = row.UserId,
+                Name = row.Name,
+                Email = row.Email,
+                PictureUrl = row.PictureUrl,
+                IsActive = row.IsActive,
+                CreatedDate = row.CreatedDate,
+                Role = row.Role // This is the role from UserTenantMapping
+            });
+        }
+        
+        result.Items = users;
+        result.FilteredCount = result.TotalCount;
+
+        return result;
+    }
+
+
     public async Task<IEnumerable<User>> GetAllAsync()
     {
         using var connection = _dbConnectionFactory.CreateConnection();

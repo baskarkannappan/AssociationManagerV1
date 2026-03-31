@@ -1,4 +1,6 @@
-﻿-- Fix Transaction Creation Procedure to match Repository
+﻿-- Script0062_FixGovernanceAndFinanceProcs.sql
+
+-- 1. Fix Transaction Creation Procedure to match Repository (ensure all 10 params are handled)
 CREATE   PROCEDURE assoc.sp_Transactions_Create
     @TenantId INT,
     @AssociationId INT,

@@ -9,6 +9,8 @@ public interface IInvoiceRepository
     Task<Invoice?> GetByIdAsync(int id, int tenantId, int? associationId);
     Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int? associationId);
     Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int? associationId);
+    Task<PagedResult<Invoice>> GetPagedAsync(int tenantId, InvoiceSearchCriteria criteria);
+    Task<(decimal TotalUnpaid, decimal Collected30Days)> GetSummaryStatsAsync(int tenantId, int? associationId, int? assetId);
     Task<int> CreateAsync(Invoice invoice);
     Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId);
     Task<bool> DeleteAsync(int id, int tenantId, int? associationId);

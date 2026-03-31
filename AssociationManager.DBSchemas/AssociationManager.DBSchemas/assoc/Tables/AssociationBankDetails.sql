@@ -1,0 +1,25 @@
+﻿CREATE TABLE [assoc].[AssociationBankDetails] (
+    [AssociationId]              INT             NOT NULL,
+    [TenantId]                   INT             NOT NULL,
+    [PrimaryAccountName]         NVARCHAR (255)  NULL,
+    [PrimaryAccountNumber]       NVARCHAR (50)   NULL,
+    [PrimaryIFSCCode]            NVARCHAR (20)   NULL,
+    [PrimaryBankName]            NVARCHAR (255)  NULL,
+    [PrimaryBranchName]          NVARCHAR (255)  NULL,
+    [PrimaryQRCode]              VARBINARY (MAX) NULL,
+    [PrimaryQRCodeContentType]   NVARCHAR (100)  NULL,
+    [SecondaryAccountName]       NVARCHAR (255)  NULL,
+    [SecondaryAccountNumber]     NVARCHAR (50)   NULL,
+    [SecondaryIFSCCode]          NVARCHAR (20)   NULL,
+    [SecondaryBankName]          NVARCHAR (255)  NULL,
+    [SecondaryBranchName]        NVARCHAR (255)  NULL,
+    [SecondaryQRCode]            VARBINARY (MAX) NULL,
+    [SecondaryQRCodeContentType] NVARCHAR (100)  NULL,
+    [CreatedBy]                  INT             NOT NULL,
+    [CreatedDate]                DATETIME        DEFAULT (getutcdate()) NOT NULL,
+    [LastUpdatedBy]              INT             NULL,
+    [LastUpdatedDate]            DATETIME        NULL,
+    PRIMARY KEY CLUSTERED ([AssociationId] ASC),
+    CONSTRAINT [FK_AssociationBankDetails_Association] FOREIGN KEY ([AssociationId]) REFERENCES [corp].[Associations] ([AssociationId])
+);
+

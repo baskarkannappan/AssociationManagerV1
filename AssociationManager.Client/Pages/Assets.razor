@@ -259,7 +259,8 @@
         
         // Fetch history
         _workOrders = await ApiService.GetAsync<List<WorkOrder>>($"api/operations/workorders?assetId={assetId}");
-        _invoices = await ApiService.GetAsync<List<Invoice>>($"api/finance/invoices?assetId={assetId}");
+        var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>($"api/finance/invoices?assetId={assetId}");
+        _invoices = invoiceResult?.Items;
     }
 
     private void CreateRootProperty()

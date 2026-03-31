@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj">
+  <Project Path="AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj" Id="3e2188ff-c5b8-45cb-9571-0d21b5dd28ec">
     <Build />
     <Deploy />
   </Project>

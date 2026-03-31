@@ -63,6 +63,18 @@ public class FinanceService : IFinanceService
         return invoices;
     }
 
+    public async Task<PagedResult<Invoice>> GetPagedInvoicesAsync(InvoiceSearchCriteria criteria)
+    {
+        if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
+        return await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
+    }
+
+    public async Task<(decimal TotalUnpaid, decimal Collected30Days)> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null)
+    {
+        return await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId);
+    }
+
+
     public async Task<int> CreateInvoiceAsync(Invoice invoice, IEnumerable<InvoiceLineItem>? lineItems = null)
     {
         invoice.TenantId = CurrentTenantId;

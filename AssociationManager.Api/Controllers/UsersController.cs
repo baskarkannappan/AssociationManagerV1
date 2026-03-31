@@ -26,17 +26,30 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetUsers([FromQuery] int? associationId = null)
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] int? associationId = null,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? role = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string sortColumn = "Name",
+        [FromQuery] string sortDirection = "ASC")
     {
-        if (associationId.HasValue)
+        var criteria = new UserSearchCriteria
         {
-            var users = await _userRepository.GetByAssociationIdAsync(associationId.Value);
-            return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(users));
-        }
+            AssociationId = associationId ?? _tenantContext.AssociationId,
+            SearchTerm = searchTerm,
+            Role = role,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            SortColumn = sortColumn,
+            SortDirection = sortDirection
+        };
 
-        var tenantUsers = await _userRepository.GetByTenantIdAsync(_tenantContext.AssociationId);
-        return Ok(ApiResponse<IEnumerable<User>>.SuccessResponse(tenantUsers));
+        var result = await _userRepository.GetPagedAsync(criteria);
+        return Ok(ApiResponse<PagedResult<User>>.SuccessResponse(result));
     }
+
 
     [HttpPut("{userId}/role")]
     [Authorize(Policy = "RequireAssociationAdmin")]

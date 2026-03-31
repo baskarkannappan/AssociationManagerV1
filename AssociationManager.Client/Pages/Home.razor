@@ -445,7 +445,8 @@
                 _isPrimaryOwner = primary.IsPrimaryContact || primary.OccupancyType == OccupancyType.Owner;
                 _myUnit = await ApiService.GetAsync<Asset>($"api/assets/{primary.AssetId}");
                 _myBalance = await ApiService.GetAsync<decimal>($"api/finance/balance/asset/{primary.AssetId}");
-                _myInvoices = (await ApiService.GetAsync<IEnumerable<Invoice>>($"api/finance/invoices?assetId={primary.AssetId}"))?.ToList();
+                var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>($"api/finance/invoices?assetId={primary.AssetId}");
+                _myInvoices = invoiceResult?.Items?.ToList();
                 _residentMetrics = await ApiService.GetAsync<ResidentDashboardMetrics>($"api/dashboard/resident/metrics?assetId={primary.AssetId}");
             }
         }

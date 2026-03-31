@@ -46,6 +46,77 @@ public class InvoiceRepository : IInvoiceRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<PagedResult<Invoice>> GetPagedAsync(int tenantId, InvoiceSearchCriteria criteria)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("@TenantId", tenantId);
+        parameters.Add("@AssociationId", criteria.AssociationId);
+        parameters.Add("@AssetId", criteria.AssetId);
+        parameters.Add("@SearchTerm", criteria.SearchTerm);
+        parameters.Add("@Status", criteria.Status);
+        parameters.Add("@StartDate", criteria.StartDate);
+        parameters.Add("@EndDate", criteria.EndDate);
+        parameters.Add("@PageNumber", criteria.PageNumber);
+        parameters.Add("@PageSize", criteria.PageSize);
+        parameters.Add("@SortColumn", criteria.SortColumn);
+        parameters.Add("@SortDirection", criteria.SortDirection);
+
+        var result = new PagedResult<Invoice>
+        {
+            PageNumber = criteria.PageNumber,
+            PageSize = criteria.PageSize
+        };
+
+        // Execution
+        var items = await connection.QueryAsync<dynamic>(
+            "assoc.sp_Invoices_GetPaged", 
+            parameters, 
+            commandType: CommandType.StoredProcedure);
+
+        var invoices = new List<Invoice>();
+        foreach (var row in items)
+        {
+            if (result.TotalCount == 0)
+            {
+                result.TotalCount = row.TotalCount;
+                result.TotalUnpaid = row.TotalUnpaid;
+            }
+
+            invoices.Add(new Invoice
+            {
+                InvoiceId = row.InvoiceId,
+                TenantId = row.TenantId,
+                AssociationId = row.AssociationId,
+                AssetId = row.AssetId,
+                AssetName = row.AssetName,
+                Title = row.Title,
+                Description = row.Description,
+                Amount = row.Amount,
+                DueDate = row.DueDate,
+                Status = row.Status,
+                CreatedDate = row.CreatedDate
+            });
+        }
+        
+        result.Items = invoices;
+        result.FilteredCount = result.TotalCount; // SP currently returns total count for the filtered set
+
+        return result;
+    }
+
+    public async Task<(decimal TotalUnpaid, decimal Collected30Days)> GetSummaryStatsAsync(int tenantId, int? associationId, int? assetId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var stats = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            "assoc.sp_Finance_GetSummaryStats",
+            new { TenantId = tenantId, AssociationId = associationId, AssetId = assetId },
+            commandType: CommandType.StoredProcedure);
+
+        return (stats?.TotalUnpaid ?? 0, stats?.Collected30Days ?? 0);
+    }
+
+
     public async Task<int> CreateAsync(Invoice invoice)
     {
         invoice.TenantId = _tenantContext.TenantId;

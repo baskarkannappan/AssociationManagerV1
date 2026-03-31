@@ -16,14 +16,6 @@
                 <i class="bi bi-people-fill me-2 opacity-50"></i>
                 @(_scope == "tenant" ? "Corporate Users & Roles" : "Association Users & Roles")
             </h1>
-            <div class="ms-4 btn-group btn-group-sm">
-                <button class="btn @(_viewMode == ViewMode.List ? "btn-vscode" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.List">
-                    <i class="bi bi-list-ul me-1"></i>List
-                </button>
-                <button class="btn @(_viewMode == ViewMode.Hierarchy ? "btn-vscode" : "btn-vscode-secondary")" @onclick="() => _viewMode = ViewMode.Hierarchy">
-                    <i class="bi bi-diagram-3 me-1"></i>Hierarchy
-                </button>
-            </div>
         </div>
         <div class="header-right">
             @if (_scope == "association")
@@ -45,71 +37,69 @@
 <div class="vscode-content custom-scrollbar p-4">
     <div class="container-fluid" style="max-width: 1000px;">
 
-        @if (_viewMode == ViewMode.List)
-        {
-            <div class="compact-card p-0 overflow-hidden mb-4">
-                <div class="premium-card-header">
-                    <h6 class="premium-card-title">Association Members</h6>
+        <div class="compact-card p-0 overflow-hidden mb-4">
+            <div class="premium-card-header d-flex justify-content-between align-items-center">
+                <h6 class="premium-card-title m-0">Association Members</h6>
+                <div class="d-flex gap-2">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search py-1"></i></span>
+                        <input type="text" class="form-control border-start-0" placeholder="Search by Name or Email..." 
+                               @bind="_searchTerm" @bind:event="oninput" @onkeyup="HandleSearchKeyUp" />
+                    </div>
                 </div>
-                <Grid @ref="grid" TItem="User"
-                      Class="table table-hover table-bordered table-striped vscode-table"
-                      DataProvider="UsersDataProvider"
-                      Responsive="true"
-                      AllowPaging="true"
-                      PageSize="10"
-                      AllowSorting="true">
+            </div>
+            <Grid @ref="grid" TItem="User"
+                  Class="table table-hover table-bordered table-striped vscode-table"
+                  DataProvider="UsersDataProvider"
+                  Responsive="true"
+                  AllowPaging="true"
+                  PageSize="10"
+                  AllowSorting="true">
 
-                    <GridColumn TItem="User" HeaderText="User" PropertyName="Name" SortKeySelector="item => item.Name">
-                        <div class="d-flex align-items-center gap-3">
-                            @if (!string.IsNullOrEmpty(context.PictureUrl))
-                            {
-                                <img src="@context.PictureUrl" class="rounded-circle shadow-sm" style="width: 32px; height: 32px;" alt="@context.Name" />
-                            }
-                            else
-                            {
-                                <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center border" style="width: 32px; height: 32px; font-size: 12px;">
-                                    @GetInitials(context.Name)
-                                </div>
-                            }
-                            <div>
-                                <div class="fw-semibold">@context.Name</div>
-                                @if (!context.IsActive)
-                                {
-                                    <span class="badge bg-danger-subtle text-danger" style="font-size: 10px;">Inactive</span>
-                                }
+                <GridColumn TItem="User" HeaderText="User" PropertyName="Name" SortKeySelector="item => item.Name">
+                    <div class="d-flex align-items-center gap-3">
+                        @if (!string.IsNullOrEmpty(context.PictureUrl))
+                        {
+                            <img src="@context.PictureUrl" class="rounded-circle shadow-sm" style="width: 32px; height: 32px;" alt="@context.Name" />
+                        }
+                        else
+                        {
+                            <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center border" style="width: 32px; height: 32px; font-size: 12px;">
+                                @GetInitials(context.Name)
                             </div>
-                        </div>
-                    </GridColumn>
-
-                    <GridColumn TItem="User" HeaderText="Email" PropertyName="Email" SortKeySelector="item => item.Email">
-                        @context.Email
-                    </GridColumn>
-
-                    <GridColumn TItem="User" HeaderText="Current Role" PropertyName="Role" SortKeySelector="item => item.Role">
-                        <select class="form-select form-select-sm" style="width: 180px;" 
-                                value="@context.Role" 
-                                @onchange="(e) => HandleRoleChange(context.UserId, e.Value?.ToString())">
-                            @foreach (var role in AppRole.AssociationRolesArray)
+                        }
+                        <div>
+                            <div class="fw-semibold">@context.Name</div>
+                            @if (!context.IsActive)
                             {
-                                <option value="@role">@role</option>
+                                <span class="badge bg-danger-subtle text-danger" style="font-size: 10px;">Inactive</span>
                             }
-                        </select>
-                    </GridColumn>
+                        </div>
+                    </div>
+                </GridColumn>
 
-                    <GridColumn TItem="User" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                        <button class="btn btn-sm btn-link text-danger p-0 ms-2" title="Remove from Association" @onclick="() => ConfirmRemove(context)">
-                            <i class="bi bi-person-dash"></i>
-                        </button>
-                    </GridColumn>
-                </Grid>
-            </div>
-        }
-        else
-        {
-            <div class="mb-4">
-                <UserHierarchy Users="_users" Visible="@(_viewMode == ViewMode.Hierarchy)" />
-            </div>
-        }
+                <GridColumn TItem="User" HeaderText="Email" PropertyName="Email" SortKeySelector="item => item.Email">
+                    @context.Email
+                </GridColumn>
+
+                <GridColumn TItem="User" HeaderText="Current Role" PropertyName="Role" SortKeySelector="item => item.Role">
+                    <select class="form-select form-select-sm" style="width: 180px;" 
+                            value="@context.Role" 
+                            @onchange="(e) => HandleRoleChange(context.UserId, e.Value?.ToString())">
+                        @foreach (var role in AppRole.AssociationRolesArray)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                </GridColumn>
+
+                <GridColumn TItem="User" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                    <button class="btn btn-sm btn-link text-danger p-0 ms-2" title="Remove from Association" @onclick="() => ConfirmRemove(context)">
+                        <i class="bi bi-person-dash"></i>
+                    </button>
+                </GridColumn>
+            </Grid>
+        </div>
 
         <div class="compact-card p-4 bg-light-subtle opacity-75">
             <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Role Capabilities</h6>
@@ -196,31 +186,28 @@
 
 @code {
     private Grid<User> grid = default!;
-    private List<User>? _users;
     private User? _userToRemove;
     private bool _showAddModal;
     private string _newMemberEmail = "";
     private string _newMemberRole = AppRole.Resident;
     private bool _isAdding;
-    private ViewMode _viewMode = ViewMode.List;
     private string _scope = "tenant";
     private int _associationId;
+    private string? _searchTerm;
+    private System.Threading.Timer? _searchTimer;
 
-    public enum ViewMode { List, Hierarchy }
+
 
     protected override async Task OnInitializedAsync()
     {
         ParseQueryParameters();
-        await LoadUsers();
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        // Re-parse when query string changes (e.g. clicking another link)
         if (ParseQueryParameters())
         {
-            _users = null;
-            await LoadUsers();
+            if (grid != null) await grid.RefreshDataAsync();
         }
     }
 
@@ -240,29 +227,50 @@
 
     private async Task<GridDataProviderResult<User>> UsersDataProvider(GridDataProviderRequest<User> request)
     {
-        if (_users == null) await LoadUsers();
-        return request.ApplyTo(_users ?? new List<User>());
-    }
-
-    private async Task LoadUsers()
-    {
         const string baseUrl = "api/users";
-        string url = baseUrl;
+        var filters = new List<string>();
 
+        // Paging Parameters
+        filters.Add($"pageNumber={request.PageNumber}");
+        filters.Add($"pageSize={request.PageSize}");
+
+        // Sorting
+        var sort = request.Sorting.FirstOrDefault();
+        if (sort != null)
+        {
+            filters.Add($"sortColumn={sort.SortString}");
+            filters.Add($"sortDirection={(sort.SortDirection == SortDirection.Ascending ? "ASC" : "DESC")}");
+        }
+
+        // Scope/Association
         if (_scope == "association")
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var aid = authState.User.FindFirst("AssociationId")?.Value;
             if (int.TryParse(aid, out int associationId) && associationId != 0)
             {
-                url = $"{baseUrl}?associationId={associationId}";
+                filters.Add($"associationId={associationId}");
                 _associationId = associationId;
             }
         }
 
-        var users = await Api.GetAsync<IEnumerable<User>>(url);
-        _users = users?.ToList();
+        // Search Term
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            filters.Add($"searchTerm={Uri.EscapeDataString(_searchTerm)}");
+        }
+
+        string url = $"{baseUrl}?{string.Join("&", filters)}";
+        var response = await Api.GetAsync<PagedResult<User>>(url);
+
+        return new GridDataProviderResult<User> 
+        { 
+            Data = response?.Items ?? new List<User>(), 
+            TotalCount = response?.TotalCount ?? 0 
+        };
     }
+
+
 
     private async Task HandleRoleChange(int userId, string? newRole)
     {
@@ -271,8 +279,7 @@
         var success = await Api.PutAsync($"api/users/{userId}/role", new UpdateRoleRequest(newRole));
         if (success) {
             _toastService.Notify(new(ToastType.Success, "User role updated successfully."));
-            _users = null;
-            await grid.RefreshDataAsync();
+            if (grid != null) await grid.RefreshDataAsync();
         } else {
             _toastService.Notify(new(ToastType.Danger, "Failed to update user role."));
         }
@@ -301,8 +308,7 @@
             if (success) {
                 _toastService.Notify(new(ToastType.Success, "Member added successfully."));
                 _showAddModal = false;
-                _users = null;
-                await grid.RefreshDataAsync();
+                if (grid != null) await grid.RefreshDataAsync();
             } else {
                 _toastService.Notify(new(ToastType.Danger, "Failed to add member. Ensure email is correct."));
             }
@@ -330,12 +336,24 @@
         var success = await Api.DeleteAsync($"api/users/{_userToRemove.UserId}");
         if (success) {
             _toastService.Notify(new(ToastType.Warning, "User removed from association."));
-            _users = null;
-            await grid.RefreshDataAsync();
+            if (grid != null) await grid.RefreshDataAsync();
         } else {
             _toastService.Notify(new(ToastType.Danger, "Failed to remove user."));
         }
         _userToRemove = null;
+    }
+
+    private void HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        _searchTimer?.Dispose();
+        _searchTimer = new System.Threading.Timer(async _ => 
+        {
+            await InvokeAsync(async () => 
+            {
+                if (grid != null) await grid.RefreshDataAsync();
+                StateHasChanged();
+            });
+        }, null, 500, System.Threading.Timeout.Infinite);
     }
 
     private string GetInitials(string name)
