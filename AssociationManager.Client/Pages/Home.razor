@@ -170,6 +170,13 @@
                                 </div>
                             </div>
                         </AuthorizeView>
+
+                        @if (_isPrimaryOwner && _myUnit != null)
+                        {
+                            <div class="col-lg-12 mt-4 animate-fade-in">
+                                <UnitRegistry AssetId="_myUnit.AssetId" />
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -379,6 +386,7 @@
 
     private bool _isResident;
     private bool _isSystemAdmin;
+    private bool _isPrimaryOwner;
     private Asset? _myUnit;
     private decimal _myBalance;
     private List<Invoice>? _myInvoices;
@@ -429,11 +437,12 @@
     {
         try
         {
-            var occupancies = await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy");
-            var primary = occupancies?.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies?.FirstOrDefault();
+            var occupancies = (await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy"))?.ToList() ?? new();
+            var primary = occupancies.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies.FirstOrDefault();
             
             if (primary != null)
             {
+                _isPrimaryOwner = primary.IsPrimaryContact || primary.OccupancyType == OccupancyType.Owner;
                 _myUnit = await ApiService.GetAsync<Asset>($"api/assets/{primary.AssetId}");
                 _myBalance = await ApiService.GetAsync<decimal>($"api/finance/balance/asset/{primary.AssetId}");
                 _myInvoices = (await ApiService.GetAsync<IEnumerable<Invoice>>($"api/finance/invoices?assetId={primary.AssetId}"))?.ToList();

@@ -131,6 +131,26 @@ public class OccupancyRepository : IOccupancyRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<bool> UpdateAsync(Occupancy occupancy)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "assoc.sp_Occupancy_Update", 
+            new 
+            { 
+                occupancy.OccupancyId,
+                occupancy.AssetId, 
+                occupancy.PersonId, 
+                occupancy.TenantId, 
+                occupancy.AssociationId, 
+                occupancy.OccupancyType, 
+                occupancy.StartDate, 
+                occupancy.EndDate, 
+                occupancy.IsPrimaryContact 
+            },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
+
     public async Task<bool> DeleteAsync(int id, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();

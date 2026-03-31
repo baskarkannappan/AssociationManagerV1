@@ -17,6 +17,7 @@ public interface IPeopleService
     Task<IEnumerable<Occupancy>> GetOccupancyByUserIdAsync(int userId);
     Task<Occupancy?> GetOccupancyByIdAsync(int id);
     Task<int> AddOccupantAsync(Occupancy occupancy);
+    Task<bool> UpdateOccupantAsync(Occupancy occupancy);
     Task<bool> RemoveOccupantAsync(int occupancyId, int? associationId = null);
 
     // Unit Assets

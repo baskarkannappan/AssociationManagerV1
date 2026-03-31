@@ -92,6 +92,13 @@ public class PeopleService : IPeopleService
 
         return id;
     }
+
+    public async Task<bool> UpdateOccupantAsync(Occupancy occupancy)
+    {
+        occupancy.TenantId = CurrentTenantId;
+        occupancy.AssociationId = CurrentAssociationId;
+        return await _occupancyRepository.UpdateAsync(occupancy);
+    }
     public async Task<bool> RemoveOccupantAsync(int occupancyId, int? associationId = null) => await _occupancyRepository.DeleteAsync(occupancyId, CurrentTenantId, associationId ?? CurrentAssociationId);
 
     // Vehicles

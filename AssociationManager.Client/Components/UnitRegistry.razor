@@ -1,0 +1,128 @@
+@using AssociationManager.Shared.Models
+@inject AssociationManager.Client.Services.ApiService ApiService
+@inject ToastService _toastService
+
+<div class="unit-registry shadow-sm border rounded bg-white overflow-hidden">
+    <div class="premium-card-header d-flex justify-content-between align-items-center bg-light border-bottom px-4 py-3">
+        <h5 class="mb-0 fw-bold text-primary">
+            <i class="bi bi-person-rolodex me-2"></i>Unit Registry Details
+        </h5>
+        <div class="small text-muted">Manage your unit's occupants, vehicles, and pets.</div>
+    </div>
+
+    <div class="p-0">
+        <Tabs @ref="tabs" EnableFadeEffect="true" NavStyle="NavStyle.Tabs" Class="premium-tabs">
+            <Tab Title="Occupants" IsActive="true">
+                <Content>
+                    <div class="p-4">
+                        <OccupancyList 
+                            AssetId="AssetId" 
+                            Occupants="Occupants" 
+                            OnDelete="HandleDeleteOccupant" 
+                            OnDataChanged="RefreshData" />
+                    </div>
+                </Content>
+            </Tab>
+            <Tab Title="Vehicles">
+                <Content>
+                    <div class="p-4">
+                        <VehicleList 
+                            AssetId="AssetId" 
+                            Vehicles="Vehicles" 
+                            OnDelete="HandleDeleteVehicle" 
+                            OnDataChanged="RefreshData" />
+                    </div>
+                </Content>
+            </Tab>
+            <Tab Title="Pets">
+                <Content>
+                    <div class="p-4">
+                        <PetList 
+                            AssetId="AssetId" 
+                            Pets="Pets" 
+                            OnDelete="HandleDeletePet" 
+                            OnDataChanged="RefreshData" />
+                    </div>
+                </Content>
+            </Tab>
+        </Tabs>
+    </div>
+</div>
+
+<style>
+    .premium-tabs .nav-link {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        color: #64748b;
+        border: none;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+    .premium-tabs .nav-link.active {
+        color: var(--vscode-accent);
+        border-bottom-color: var(--vscode-accent);
+        background: transparent;
+    }
+    .unit-registry .grid {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+</style>
+
+@code {
+    [Parameter] public int AssetId { get; set; }
+    
+    private List<Occupancy>? Occupants { get; set; }
+    private List<Vehicle>? Vehicles { get; set; }
+    private List<Pet>? Pets { get; set; }
+    
+    private Tabs tabs = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        try
+        {
+            Occupants = (await ApiService.GetAsync<IEnumerable<Occupancy>>($"api/people/unit/{AssetId}/occupants"))?.ToList();
+            Vehicles = (await ApiService.GetAsync<IEnumerable<Vehicle>>($"api/people/unit/{AssetId}/vehicles"))?.ToList();
+            Pets = (await ApiService.GetAsync<IEnumerable<Pet>>($"api/people/unit/{AssetId}/pets"))?.ToList();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing unit registry: {ex.Message}");
+        }
+    }
+
+    private async Task HandleDeleteOccupant(int id)
+    {
+        if (await ApiService.DeleteAsync($"api/people/occupancy/{id}"))
+        {
+            _toastService.Notify(new(ToastType.Success, "Occupant removed."));
+            await RefreshData();
+        }
+    }
+
+    private async Task HandleDeleteVehicle(int id)
+    {
+        if (await ApiService.DeleteAsync($"api/people/vehicles/{id}"))
+        {
+            _toastService.Notify(new(ToastType.Success, "Vehicle removed."));
+            await RefreshData();
+        }
+    }
+
+    private async Task HandleDeletePet(int id)
+    {
+        if (await ApiService.DeleteAsync($"api/people/pets/{id}"))
+        {
+            _toastService.Notify(new(ToastType.Success, "Pet removed."));
+            await RefreshData();
+        }
+    }
+}

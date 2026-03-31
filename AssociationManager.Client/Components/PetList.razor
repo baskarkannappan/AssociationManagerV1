@@ -9,23 +9,23 @@
         <AuthorizeView Context="petAuthContext">
             @if (_canManage)
             {
-                <button class="btn btn-sm btn-vscode" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+                <button class="btn btn-sm btn-vscode" @onclick='() => { _showAddForm = true; _newPet = new(); }'><i class="bi bi-plus"></i> Add</button>
             }
         </AuthorizeView>
     </div>
 
     @if (_showAddForm)
     {
-        <div class="bg-light p-2 mb-3 border compact-form">
-            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Pet</h6>
-            <div class="row g-1">
+        <div class="bg-light p-3 mb-3 border compact-form rounded shadow-sm">
+            <h6 class="fw-bold mb-3" style="font-size: 11px;">@(_newPet.PetId > 0 ? "Edit" : "Add") Pet</h6>
+            <div class="row g-2">
                 <div class="col-4"><input @bind="_newPet.Name" class="form-control" placeholder="Pet Name" /></div>
                 <div class="col-4"><input @bind="_newPet.Species" class="form-control" placeholder="Species (Dog...)" /></div>
                 <div class="col-4"><input @bind="_newPet.TagNumber" class="form-control" placeholder="Tag #" /></div>
             </div>
-            <div class="mt-2 text-end">
+            <div class="mt-3 text-end">
                 <button class="btn btn-sm btn-vscode-secondary" @onclick='() => _showAddForm = false'>Cancel</button>
-                <button class="btn btn-sm btn-vscode px-3" @onclick="SavePet">Add Pet</button>
+                <button class="btn btn-sm btn-vscode px-3" @onclick="SavePet">@(_newPet.PetId > 0 ? "Save Changes" : "Add Pet")</button>
             </div>
         </div>
     }
@@ -55,6 +55,9 @@
                 <AuthorizeView Context="petAuthContext">
                     @if (_canManage)
                     {
+                        <button class="btn btn-sm btn-vscode-secondary" @onclick="() => EditPet(context)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         <button class="btn btn-sm btn-vscode-danger ms-2" @onclick="() => OnDelete.InvokeAsync(context.PetId)">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -87,18 +90,49 @@
     private bool _showAddForm;
     private Pet _newPet = new();
 
+    private void EditPet(Pet p)
+    {
+        _newPet = new Pet
+        {
+            PetId = p.PetId,
+            AssetId = p.AssetId,
+            TenantId = p.TenantId,
+            AssociationId = p.AssociationId,
+            Name = p.Name,
+            Species = p.Species,
+            Breed = p.Breed,
+            TagNumber = p.TagNumber,
+            IsActive = p.IsActive
+        };
+        _showAddForm = true;
+    }
+
     private async Task SavePet()
     {
         _newPet.AssetId = AssetId;
-        var success = await ApiService.PostAsync("api/people/pets", _newPet);
+        bool success;
+        
+        if (_newPet.PetId > 0)
+        {
+            success = await ApiService.PutAsync($"api/people/pets/{_newPet.PetId}", _newPet);
+        }
+        else
+        {
+            success = await ApiService.PostAsync("api/people/pets", _newPet);
+        }
+
         if (success)
         {
-            _toastService.Notify(new(ToastType.Success, "Pet record added."));
+            _toastService.Notify(new(ToastType.Success, _newPet.PetId > 0 ? "Pet record updated." : "Pet record added."));
             _newPet = new();
             _showAddForm = false;
             
             await OnDataChanged.InvokeAsync();
             await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to save pet details."));
         }
     }
 }

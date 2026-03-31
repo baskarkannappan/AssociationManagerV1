@@ -19,5 +19,6 @@ public interface IOccupancyRepository
     Task<IEnumerable<Occupancy>> GetByUserIdAsync(int userId, int tenantId, int associationId);
     Task<Occupancy?> GetByIdAsync(int id, int tenantId, int associationId);
     Task<int> CreateAsync(Occupancy occupancy);
+    Task<bool> UpdateAsync(Occupancy occupancy);
     Task<bool> DeleteAsync(int id, int tenantId, int? associationId);
 }

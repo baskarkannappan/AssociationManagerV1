@@ -137,6 +137,22 @@ public class PeopleController : ControllerBase
         return Ok(ApiResponse.SuccessResponse("Occupancy removed."));
     }
 
+    [HttpPut("occupancy/{id}")]
+    public async Task<IActionResult> UpdateOccupant(int id, [FromBody] Occupancy occupancy)
+    {
+        if (!await IsAuthorizedForAsset(occupancy.AssetId))
+        {
+            return Forbid();
+        }
+
+        occupancy.OccupancyId = id;
+        var success = await _peopleService.UpdateOccupantAsync(occupancy);
+        if (!success) return NotFound();
+        
+        await _auditService.LogAsync("Update Occupant", "Occupancy", id);
+        return Ok(ApiResponse.SuccessResponse("Occupancy updated."));
+    }
+
     [HttpGet("unit/{unitId}/vehicles")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetVehicles(int unitId)
@@ -174,6 +190,26 @@ public class PeopleController : ControllerBase
         return Ok(ApiResponse.SuccessResponse("Vehicle removed."));
     }
 
+    [HttpPut("vehicles/{id}")]
+    public async Task<IActionResult> UpdateVehicle(int id, [FromBody] Vehicle vehicle)
+    {
+        var existing = await _peopleService.GetVehicleByIdAsync(id);
+        if (existing == null) return NotFound();
+
+        if (!await IsAuthorizedForAsset(existing.AssetId))
+        {
+            return Forbid();
+        }
+
+        vehicle.VehicleId = id;
+        vehicle.AssetId = existing.AssetId; // Ensure asset remains the same
+        var success = await _peopleService.UpdateVehicleAsync(vehicle);
+        if (!success) return NotFound();
+
+        await _auditService.LogAsync("Update Vehicle", "Vehicle", id);
+        return Ok(ApiResponse.SuccessResponse("Vehicle updated."));
+    }
+
     [HttpGet("unit/{unitId}/pets")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetPets(int unitId)
@@ -209,5 +245,25 @@ public class PeopleController : ControllerBase
         await _peopleService.RemovePetAsync(id);
         await _auditService.LogAsync("Remove Pet", "Pet", id);
         return Ok(ApiResponse.SuccessResponse("Pet removed."));
+    }
+
+    [HttpPut("pets/{id}")]
+    public async Task<IActionResult> UpdatePet(int id, [FromBody] Pet pet)
+    {
+        var existing = await _peopleService.GetPetByIdAsync(id);
+        if (existing == null) return NotFound();
+
+        if (!await IsAuthorizedForAsset(existing.AssetId))
+        {
+            return Forbid();
+        }
+
+        pet.PetId = id;
+        pet.AssetId = existing.AssetId; // Ensure asset remains the same
+        var success = await _peopleService.UpdatePetAsync(pet);
+        if (!success) return NotFound();
+
+        await _auditService.LogAsync("Update Pet", "Pet", id);
+        return Ok(ApiResponse.SuccessResponse("Pet updated."));
     }
 }

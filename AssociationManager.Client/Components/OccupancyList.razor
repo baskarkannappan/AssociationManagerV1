@@ -10,16 +10,16 @@
         <AuthorizeView Context="occupancyAuthContext">
             @if (_canManage)
             {
-                <button class="btn btn-sm btn-vscode" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+                <button class="btn btn-sm btn-vscode" @onclick='() => { _showAddForm = true; _newPerson = new(); _newOccupancy = new(); }'><i class="bi bi-plus"></i> Add</button>
             }
         </AuthorizeView>
     </div>
 
     @if (_showAddForm)
     {
-        <div class="bg-light p-2 mb-3 border compact-form">
-            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Resident/Occupant</h6>
-            <div class="row g-1">
+        <div class="bg-light p-3 mb-3 border compact-form rounded shadow-sm">
+            <h6 class="fw-bold mb-3" style="font-size: 11px;">@(_newOccupancy.OccupancyId > 0 ? "Edit" : "Add") Resident/Occupant</h6>
+            <div class="row g-2">
                 <div class="col-6"><input @bind="_newPerson.FirstName" class="form-control" placeholder="First Name" /></div>
                 <div class="col-6"><input @bind="_newPerson.LastName" class="form-control" placeholder="Last Name" /></div>
                 <div class="col-12"><input @bind="_newPerson.Email" class="form-control" placeholder="Email" /></div>
@@ -35,9 +35,9 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2 text-end">
+            <div class="mt-3 text-end">
                 <button class="btn btn-sm btn-vscode-secondary" @onclick='() => _showAddForm = false'>Cancel</button>
-                <button class="btn btn-sm btn-vscode px-3" @onclick="SaveOccupant">Add Occupant</button>
+                <button class="btn btn-sm btn-vscode px-3" @onclick="SaveOccupant">@(_newOccupancy.OccupancyId > 0 ? "Save Changes" : "Add Occupant")</button>
             </div>
         </div>
     }
@@ -68,6 +68,9 @@
                 <AuthorizeView Context="occupancyAuthContext">
                     @if (_canManage)
                     {
+                        <button class="btn btn-sm btn-vscode-secondary" @onclick="() => EditOccupant(context)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         <button class="btn btn-sm btn-vscode-danger ms-2" @onclick="() => OnDelete.InvokeAsync(context.OccupancyId)">
                             <i class="bi bi-x-circle"></i>
                         </button>
@@ -101,37 +104,66 @@
     private Person _newPerson = new();
     private Occupancy _newOccupancy = new();
 
+    private void EditOccupant(Occupancy occ)
+    {
+        _newOccupancy = new Occupancy
+        {
+            OccupancyId = occ.OccupancyId,
+            AssetId = occ.AssetId,
+            PersonId = occ.PersonId,
+            TenantId = occ.TenantId,
+            AssociationId = occ.AssociationId,
+            OccupancyType = occ.OccupancyType,
+            StartDate = occ.StartDate,
+            EndDate = occ.EndDate,
+            IsPrimaryContact = occ.IsPrimaryContact
+        };
+        
+        _newPerson = new Person
+        {
+            PersonId = occ.PersonId,
+            FirstName = occ.PersonName?.Split(' ').FirstOrDefault() ?? "",
+            LastName = occ.PersonName?.Contains(' ') == true ? occ.PersonName?.Split(' ').LastOrDefault() ?? "" : "",
+            Email = occ.Email
+        };
+        
+        _showAddForm = true;
+    }
+
     private async Task SaveOccupant()
     {
-        var personId = await ApiService.PostAsync<Person, int>("api/people", _newPerson);
-        if (personId > 0)
+        bool success = false;
+        
+        // 1. Update/Create Person
+        if (_newOccupancy.OccupancyId > 0)
         {
-            _newOccupancy.PersonId = personId;
-            _newOccupancy.AssetId = AssetId;
-            var success = await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
-            
-            if (success)
-            {
-                _toastService.Notify(new(ToastType.Success, "Occupant added."));
-                _newPerson = new();
-                _newOccupancy = new();
-                _showAddForm = false;
-                
-                // NOTIFY PARENT FIRST to get new data
-                await OnDataChanged.InvokeAsync();
-                
-                // Then refresh grid
-                await grid.RefreshDataAsync();
-            }
-            else
-            {
-                _toastService.Notify(new(ToastType.Danger, "Failed to add occupant."));
-                await OnDataChanged.InvokeAsync();
-            }
+            await ApiService.PutAsync($"api/people/{_newPerson.PersonId}", _newPerson);
+            success = await ApiService.PutAsync($"api/people/occupancy/{_newOccupancy.OccupancyId}", _newOccupancy);
         }
         else
         {
-            _toastService.Notify(new(ToastType.Danger, "Failed to create person record."));
+            var personId = await ApiService.PostAsync<Person, int>("api/people", _newPerson);
+            if (personId > 0)
+            {
+                _newOccupancy.PersonId = personId;
+                _newOccupancy.AssetId = AssetId;
+                success = await ApiService.PostAsync("api/people/occupancy", _newOccupancy);
+            }
+        }
+        
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, _newOccupancy.OccupancyId > 0 ? "Occupant updated." : "Occupant added."));
+            _newPerson = new();
+            _newOccupancy = new();
+            _showAddForm = false;
+            
+            await OnDataChanged.InvokeAsync();
+            await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to save occupant."));
         }
     }
 }

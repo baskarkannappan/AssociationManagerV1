@@ -9,24 +9,24 @@
         <AuthorizeView Context="vehicleAuthContext">
             @if (_canManage)
             {
-                <button class="btn btn-sm btn-vscode" @onclick='() => _showAddForm = true'><i class="bi bi-plus"></i> Add</button>
+                <button class="btn btn-sm btn-vscode" @onclick='() => { _showAddForm = true; _newVehicle = new(); }'><i class="bi bi-plus"></i> Add</button>
             }
         </AuthorizeView>
     </div>
 
     @if (_showAddForm)
     {
-        <div class="bg-light p-2 mb-3 border compact-form">
-            <h6 class="fw-bold mb-2" style="font-size: 11px;">Add Vehicle</h6>
-            <div class="row g-1">
+        <div class="bg-light p-3 mb-3 border compact-form rounded shadow-sm">
+            <h6 class="fw-bold mb-3" style="font-size: 11px;">@(_newVehicle.VehicleId > 0 ? "Edit" : "Add") Vehicle</h6>
+            <div class="row g-2">
                 <div class="col-4"><input @bind="_newVehicle.LicensePlate" class="form-control" placeholder="Plate #" /></div>
                 <div class="col-4"><input @bind="_newVehicle.Make" class="form-control" placeholder="Make" /></div>
                 <div class="col-4"><input @bind="_newVehicle.Model" class="form-control" placeholder="Model" /></div>
                 <div class="col-12 mt-1"><input @bind="_newVehicle.ParkingSlot" class="form-control" placeholder="Parking Slot (Optional)" /></div>
             </div>
-            <div class="mt-2 text-end">
+            <div class="mt-3 text-end">
                 <button class="btn btn-sm btn-vscode-secondary" @onclick='() => _showAddForm = false'>Cancel</button>
-                <button class="btn btn-sm btn-vscode px-3" @onclick="SaveVehicle">Add Vehicle</button>
+                <button class="btn btn-sm btn-vscode px-3" @onclick="SaveVehicle">@(_newVehicle.VehicleId > 0 ? "Save Changes" : "Add Vehicle")</button>
             </div>
         </div>
     }
@@ -56,6 +56,9 @@
                 <AuthorizeView Context="vehicleAuthContext">
                     @if (_canManage)
                     {
+                        <button class="btn btn-sm btn-vscode-secondary" @onclick="() => EditVehicle(context)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         <button class="btn btn-sm btn-vscode-danger ms-2" @onclick="() => OnDelete.InvokeAsync(context.VehicleId)">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -88,18 +91,50 @@
     private bool _showAddForm;
     private Vehicle _newVehicle = new();
 
+    private void EditVehicle(Vehicle v)
+    {
+        _newVehicle = new Vehicle
+        {
+            VehicleId = v.VehicleId,
+            AssetId = v.AssetId,
+            TenantId = v.TenantId,
+            AssociationId = v.AssociationId,
+            Make = v.Make,
+            Model = v.Model,
+            LicensePlate = v.LicensePlate,
+            Color = v.Color,
+            ParkingSlot = v.ParkingSlot,
+            IsActive = v.IsActive
+        };
+        _showAddForm = true;
+    }
+
     private async Task SaveVehicle()
     {
         _newVehicle.AssetId = AssetId;
-        var success = await ApiService.PostAsync("api/people/vehicles", _newVehicle);
+        bool success;
+        
+        if (_newVehicle.VehicleId > 0)
+        {
+            success = await ApiService.PutAsync($"api/people/vehicles/{_newVehicle.VehicleId}", _newVehicle);
+        }
+        else
+        {
+            success = await ApiService.PostAsync("api/people/vehicles", _newVehicle);
+        }
+
         if (success)
         {
-            _toastService.Notify(new(ToastType.Success, "Vehicle registered."));
+            _toastService.Notify(new(ToastType.Success, _newVehicle.VehicleId > 0 ? "Vehicle updated." : "Vehicle registered."));
             _newVehicle = new();
             _showAddForm = false;
             
             await OnDataChanged.InvokeAsync();
             await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to save vehicle details."));
         }
     }
 }
