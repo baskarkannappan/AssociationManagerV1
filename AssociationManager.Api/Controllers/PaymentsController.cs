@@ -63,12 +63,16 @@ public class PaymentsController : ControllerBase
             var payload = await reader.ReadToEndAsync();
             var signature = Request.Headers["X-Razorpay-Signature"].ToString();
 
+            // Process fulfillment
+            // Note: Returning Ok() immediately is recommended for webhooks. 
+            // In a production environment, this would be offloaded to a background job.
             await _paymentService.ProcessWebhookAsync(payload, signature);
             return Ok();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return Ok(); 
+            Console.WriteLine($"Razorpay Webhook exception: {ex.Message}");
+            return Ok(); // Still return Ok to avoid retries for problematic payloads
         }
     }
 

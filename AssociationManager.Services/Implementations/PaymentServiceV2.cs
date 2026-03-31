@@ -88,82 +88,8 @@ public class PaymentServiceV2 : IPaymentServiceV2
         
         if (isValid)
         {
-            // IDEMPOTENCY CHECK: Ensure we don't duplicate logs
-            if (await _repository.TransactionExistsAsync(request.RazorpayPaymentId, _tenantContext.TenantId))
-            {
-                return true; // Already processed
-            }
-
-            var dbOrder = await _repository.GetOrderByRazorpayIdAsync(request.RazorpayOrderId, _tenantContext.TenantId);
-            
-            // Snapshot Association Bank Details
-            var bankDetails = await _financeService.GetBankDetailsAsync(_tenantContext.AssociationId);
-
-            // Fetch detailed info from Razorpay to capture fees, tax, and RRN
-            string? method = null, bank = null, rrn = null, cardNetwork = null;
-            decimal? fee = null, tax = null;
-            string rawResponse = "Verified via frontend";
-
-            try
-            {
-                var details = await _razorpayClient.GetPaymentDetailsAsync(request.RazorpayPaymentId, config.RazorpayKeyId, config.RazorpayKeySecret);
-                rawResponse = details.GetRawText();
-                
-                method = details.TryGetProperty("method", out var m) ? m.GetString() : null;
-                bank = details.TryGetProperty("bank", out var b) ? b.GetString() : null;
-                fee = details.TryGetProperty("fee", out var f) && f.ValueKind == System.Text.Json.JsonValueKind.Number ? f.GetInt32() / 100m : null;
-                tax = details.TryGetProperty("tax", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.Number ? t.GetInt32() / 100m : null;
-
-                // Extract RRN or Network reference
-                if (details.TryGetProperty("acquirer_data", out var ad))
-                {
-                    if (ad.TryGetProperty("bank_transaction_id", out var btid)) rrn = btid.GetString();
-                    else if (ad.TryGetProperty("rrn", out var r)) rrn = r.GetString();
-                    else if (ad.TryGetProperty("upi_transaction_id", out var utid)) rrn = utid.GetString();
-                }
-
-                if (details.TryGetProperty("card", out var card) && card.TryGetProperty("network", out var net))
-                {
-                    cardNetwork = net.GetString();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error fetching detailed payment info: {ex.Message}");
-            }
-
-            var transaction = new PaymentTransaction
-            {
-                TenantId = _tenantContext.TenantId,
-                AssociationId = _tenantContext.AssociationId,
-                PaymentOrderId = dbOrder?.Id,
-                RazorpayPaymentId = request.RazorpayPaymentId,
-                RazorpayOrderId = request.RazorpayOrderId,
-                RazorpaySignature = request.RazorpaySignature,
-                Status = "Captured",
-                Amount = dbOrder?.Amount ?? 0,
-                RawResponse = rawResponse,
-                PrimaryAccountName = bankDetails?.PrimaryAccountName,
-                PrimaryAccountNumber = bankDetails?.PrimaryAccountNumber,
-                PaymentMethod = method,
-                BankName = bank,
-                BankRrn = rrn,
-                CardNetwork = cardNetwork,
-                GatewayFee = fee,
-                GatewayTax = tax
-            };
-
-            await _repository.CreateTransactionAsync(transaction);
-            await _repository.UpdateOrderStatusAsync(request.RazorpayOrderId, "Paid", _tenantContext.TenantId);
-
-            // Update Invoice Status if linked
-            if (dbOrder?.InvoiceId.HasValue == true)
-            {
-                await _financeService.UpdateInvoiceStatusAsync(dbOrder.InvoiceId.Value, "Paid", dbOrder.AssociationId);
-            }
-
-            // Notify UI
-            await _hubContext.Clients.Group($"Tenant_{_tenantContext.TenantId}").SendAsync("ReceiveNotification", $"Payment successful for Order {request.RazorpayOrderId}");
+            // FULFILL VIA UNIFIED PATH (Safe and Idempotent)
+            await CompletePaymentAsync(request.RazorpayPaymentId, request.RazorpayOrderId, request.RazorpaySignature, _tenantContext.TenantId);
         }
 
         return isValid;
@@ -174,51 +100,42 @@ public class PaymentServiceV2 : IPaymentServiceV2
         int? tenantId = null;
         string eventType = "webhook_received";
         string? razorpayOrderId = null;
+        string? razorpayPaymentId = null;
 
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(payload);
+            using var doc = JsonDocument.Parse(payload);
             var root = doc.RootElement;
 
-            // Extract Event Type
+            // 1. Extract Event Type
             if (root.TryGetProperty("event", out var eventProperty))
-            {
                 eventType = eventProperty.GetString() ?? eventType;
-            }
 
-            // Extract OrderId and Metadata
+            // 2. Extract Data from Payload
             if (root.TryGetProperty("payload", out var payloadNode))
             {
-                var targetNode = payloadNode.TryGetProperty("payment", out var p) ? p : 
-                                 payloadNode.TryGetProperty("order", out var o) ? o : default;
-
-                if (targetNode.ValueKind != System.Text.Json.JsonValueKind.Undefined &&
-                    targetNode.TryGetProperty("entity", out var entity))
+                // payment.captured gives back payment entity
+                if (payloadNode.TryGetProperty("payment", out var pNode))
                 {
-                    // Get Order Id
+                    var entity = pNode.GetProperty("entity");
+                    if (entity.TryGetProperty("id", out var pid)) razorpayPaymentId = pid.GetString();
                     if (entity.TryGetProperty("order_id", out var oid)) razorpayOrderId = oid.GetString();
-                    else if (entity.TryGetProperty("id", out var eid) && eventType.StartsWith("order.")) razorpayOrderId = eid.GetString();
-
-                    // Get Tenant Id from notes
-                    if (entity.TryGetProperty("notes", out var notes) &&
-                        notes.TryGetProperty("tenant_id", out var tId))
+                    
+                    // Extract Tenant Id from notes stored in the payment
+                    if (entity.TryGetProperty("notes", out var notes) && notes.TryGetProperty("tenant_id", out var tId))
                     {
-                        if (tId.ValueKind == System.Text.Json.JsonValueKind.Number) tenantId = tId.GetInt32();
-                        else if (tId.ValueKind == System.Text.Json.JsonValueKind.String && int.TryParse(tId.GetString(), out int parsed)) tenantId = parsed;
+                        if (tId.ValueKind == JsonValueKind.Number) tenantId = tId.GetInt32();
+                        else if (tId.ValueKind == JsonValueKind.String && int.TryParse(tId.GetString(), out int parsed)) tenantId = parsed;
                     }
+                }
+                // order.paid gives back order entity
+                else if (payloadNode.TryGetProperty("order", out var oNode) && oNode.TryGetProperty("entity", out var entity))
+                {
+                    if (entity.TryGetProperty("id", out var oid)) razorpayOrderId = oid.GetString();
                 }
             }
 
-            // FALLBACK IDENTIFICATION: If notes are missing, use OrderId lookup
-            if (!tenantId.HasValue && !string.IsNullOrEmpty(razorpayOrderId))
-            {
-                // Note: We need a cross-tenant order lookup. Assuming our database design is robust.
-                // For now, we attempt to find the order by checking all available tenants (simplified approach for POC)
-                // In production, you'd want a lookup table optimized for OrderId -> TenantId
-                // ... logic to find tenantId from order ...
-            }
-
-            // WEBHOOK SECURITY: Verify signature if secret is configured
+            // 3. SECURITY: Verify signature if secret is configured (MANDATORY if configured)
             if (tenantId.HasValue)
             {
                 var config = await _repository.GetPaymentConfigAsync(tenantId.Value);
@@ -228,25 +145,149 @@ public class PaymentServiceV2 : IPaymentServiceV2
                     if (!isWebhookValid)
                     {
                         Console.WriteLine($"SECURITY ALERT: Invalid Razorpay Webhook Signature for Tenant {tenantId}");
-                        return; // Drop invalid webhooks
+                        return; // REJECT
                     }
                 }
+            }
+
+            // 4. BUSINESS LOGIC (Switch based on Event Type)
+            switch (eventType)
+            {
+                case "payment.captured":
+                    if (tenantId.HasValue && !string.IsNullOrEmpty(razorpayPaymentId) && !string.IsNullOrEmpty(razorpayOrderId))
+                    {
+                        // Process Fulfillment
+                        await CompletePaymentAsync(razorpayPaymentId, razorpayOrderId, "WEBHOOK_VERIFIED", tenantId.Value);
+                    }
+                    break;
+
+                case "payment.failed":
+                    if (tenantId.HasValue && !string.IsNullOrEmpty(razorpayOrderId))
+                    {
+                        await _repository.UpdateOrderStatusAsync(razorpayOrderId, "Failed", tenantId.Value);
+                        // Notify UI
+                        await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"Payment failed for Order {razorpayOrderId}");
+                    }
+                    break;
+
+                default:
+                    Console.WriteLine($"Webhook received but not processed: {eventType}");
+                    break;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error parsing Razorpay webhook payload: {ex.Message}");
+            Console.WriteLine($"Error processing Razorpay webhook: {ex.Message}");
         }
 
+        // 5. Always log the webhook for auditing
         var log = new PaymentWebhookLog
         {
             TenantId = tenantId,
             EventType = eventType,
             RawPayload = payload,
             Signature = signature,
-            IsProcessed = false
+            IsProcessed = true // Marked processed as we handled it in the switch
         };
         await _repository.CreateWebhookLogAsync(log);
+    }
+
+    /// <summary>
+    /// UNIFIED FULFILLMENT PATH
+    /// Ensures payment processing is idempotent, secure, and preserves event ordering.
+    /// </summary>
+    private async Task CompletePaymentAsync(string paymentId, string orderId, string signature, int tenantId)
+    {
+        // 1. IDEMPOTENCY CHECK
+        if (await _repository.TransactionExistsAsync(paymentId, tenantId))
+        {
+            return; // Already processed
+        }
+
+        // 2. FETCH ORDER DETAILS
+        var dbOrder = await _repository.GetOrderByRazorpayIdAsync(orderId, tenantId);
+        if (dbOrder == null)
+        {
+            Console.WriteLine($"FULFILLMENT ERROR: Order {orderId} not found in database for Tenant {tenantId}");
+            return;
+        }
+
+        // 3. EVENT ORDERING PROTECTION: Prevent overwriting success if already paid
+        if (dbOrder.Status == "Paid")
+        {
+            return; // Already marked paid
+        }
+
+        // 4. RECOVERY CONFIG (Tenant context might be missing in webhook)
+        var config = await _repository.GetPaymentConfigAsync(tenantId);
+        if (config == null) return;
+
+        // 5. PREPARE TRANSACTION DATA
+        var bankDetails = await _financeService.GetBankDetailsAsync(dbOrder.AssociationId);
+        string? method = null, bank = null, rrn = null, cardNetwork = null;
+        decimal? fee = null, tax = null;
+        string rawResponse = "Processing fulfillment";
+
+        try
+        {
+            // Always fetch fresh details from Razorpay during fulfillment
+            var details = await _razorpayClient.GetPaymentDetailsAsync(paymentId, config.RazorpayKeyId, config.RazorpayKeySecret);
+            rawResponse = details.GetRawText();
+            
+            method = details.TryGetProperty("method", out var m) ? m.GetString() : null;
+            bank = details.TryGetProperty("bank", out var b) ? b.GetString() : null;
+            fee = details.TryGetProperty("fee", out var f) && f.ValueKind == JsonValueKind.Number ? f.GetInt32() / 100m : null;
+            tax = details.TryGetProperty("tax", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() / 100m : null;
+
+            // Extract Reference numbers
+            if (details.TryGetProperty("acquirer_data", out var ad))
+            {
+                if (ad.TryGetProperty("bank_transaction_id", out var btid)) rrn = btid.GetString();
+                else if (ad.TryGetProperty("rrn", out var r)) rrn = r.GetString();
+                else if (ad.TryGetProperty("upi_transaction_id", out var utid)) rrn = utid.GetString();
+            }
+
+            if (details.TryGetProperty("card", out var card) && card.TryGetProperty("network", out var net))
+                cardNetwork = net.GetString();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not fetch detailed payment info from Razorpay for {paymentId}: {ex.Message}");
+        }
+
+        // 6. RECORD TRANSACTION
+        var transaction = new PaymentTransaction
+        {
+            TenantId = tenantId,
+            AssociationId = dbOrder.AssociationId,
+            PaymentOrderId = dbOrder.Id,
+            RazorpayPaymentId = paymentId,
+            RazorpayOrderId = orderId,
+            RazorpaySignature = signature,
+            Status = "Captured",
+            Amount = dbOrder.Amount,
+            RawResponse = rawResponse,
+            PrimaryAccountName = bankDetails?.PrimaryAccountName,
+            PrimaryAccountNumber = bankDetails?.PrimaryAccountNumber,
+            PaymentMethod = method,
+            BankName = bank,
+            BankRrn = rrn,
+            CardNetwork = cardNetwork,
+            GatewayFee = fee,
+            GatewayTax = tax
+        };
+
+        await _repository.CreateTransactionAsync(transaction);
+        await _repository.UpdateOrderStatusAsync(orderId, "Paid", tenantId);
+
+        // 7. FINALIZE INVOICE
+        if (dbOrder.InvoiceId.HasValue)
+        {
+            await _financeService.UpdateInvoiceStatusAsync(dbOrder.InvoiceId.Value, "Paid", dbOrder.AssociationId);
+        }
+
+        // 8. NOTIFY UI
+        await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"Payment completed successfully for Order {orderId}");
     }
 
     public async Task<object> GetPaymentHistoryAsync(int invoiceId)
