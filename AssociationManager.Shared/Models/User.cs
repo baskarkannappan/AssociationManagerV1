@@ -15,4 +15,5 @@ public class User
     public bool IsActive { get; set; } = true;
     public string Role { get; set; } = "User";
     public int? AssociationId { get; set; }
+    public decimal Balance { get; set; }
 }

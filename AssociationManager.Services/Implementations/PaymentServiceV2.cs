@@ -61,6 +61,7 @@ public class PaymentServiceV2 : IPaymentServiceV2
             Amount = request.Amount,
             Currency = request.Currency,
             InvoiceId = request.InvoiceId,
+            AssetId = request.AssetId,
             Receipt = receipt,
             Status = "Created",
             PrimaryAccountName = bankDetails?.PrimaryAccountName,
@@ -280,11 +281,18 @@ public class PaymentServiceV2 : IPaymentServiceV2
         await _repository.CreateTransactionAsync(transaction);
         await _repository.UpdateOrderStatusAsync(orderId, "Paid", tenantId);
 
-        // 7. FINALIZE INVOICE
-        if (dbOrder.InvoiceId.HasValue)
+        // 7. FINALIZE ACCOUNTING LEDGER (Unified Financial Record)
+        await _financeService.CreatePaymentAsync(new Payment
         {
-            await _financeService.UpdateInvoiceStatusAsync(dbOrder.InvoiceId.Value, "Paid", dbOrder.AssociationId);
-        }
+            AssetId = dbOrder.AssetId,
+            InvoiceId = dbOrder.InvoiceId,
+            Amount = dbOrder.Amount,
+            Currency = dbOrder.Currency,
+            Status = "Completed",
+            UserId = dbOrder.UserId,
+            Notes = dbOrder.InvoiceId.HasValue ? $"Payment for Invoice #{dbOrder.InvoiceId}" : "Advance Payment",
+            GatewayReference = paymentId
+        });
 
         // 8. NOTIFY UI
         await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"Payment completed successfully for Order {orderId}");

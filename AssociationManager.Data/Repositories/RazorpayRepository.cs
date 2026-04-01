@@ -39,6 +39,7 @@ public class RazorpayRepository : IRazorpayRepository
                 order.Amount,
                 order.Currency,
                 order.InvoiceId,
+                order.AssetId,
                 order.Receipt,
                 order.PrimaryAccountName,
                 order.PrimaryAccountNumber

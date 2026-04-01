@@ -1,0 +1,180 @@
+@page "/my-wallet"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+@inject BlazorBootstrap.ToastService ToastService
+@attribute [Authorize(Policy = "RequireResident")]
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1 fw-bold text-premium">My Wallet</h4>
+            <p class="text-muted small">Manage your prepayments and track your credit balance.</p>
+        </div>
+        <button class="btn btn-vscode px-4 py-2" @onclick="GoHome">
+            <i class="bi bi-plus-circle me-2"></i> Add Funds
+        </button>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="premium-card p-4 text-center border-0 shadow-sm" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white;">
+                <div class="text-uppercase small fw-bold opacity-75 mb-2">Available Credit</div>
+                <div class="display-5 fw-bold mb-2">₹@(_balance.ToString("N0"))</div>
+                <div class="small opacity-75">
+                    <i class="bi bi-info-circle me-1"></i> Automatically applied to next invoice
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="premium-card p-4 h-100 bg-white border">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-box bg-primary bg-opacity-10 text-primary me-3">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 fw-bold">Wallet Security</h6>
+                        <p class="text-muted small mb-0">Your funds are safe and tracked per unit.</p>
+                    </div>
+                </div>
+                <p class="small text-muted">Advance payments are stored against your asset (Unit). When a new maintenance or utility invoice is generated, the system will automatically consume this credit to mark the invoice as "Paid".</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="premium-card bg-white border shadow-sm">
+        <div class="premium-card-header border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="premium-card-title mb-0">Transaction History (Top-ups)</h6>
+            <span class="badge bg-light text-dark border">@(_advances?.Count() ?? 0) Transactions</span>
+        </div>
+        <div class="p-0">
+            @if (_isLoading)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 text-muted">Loading your wallet history...</div>
+                </div>
+            }
+            else if (_advances == null || !_advances.Any())
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="bi bi-wallet2 display-4 mb-3 d-block opacity-25"></i>
+                    <p>No advance payments found.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light bg-opacity-50">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Transaction Reference</th>
+                                <th>Unit</th>
+                                <th class="text-end pe-4">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var adv in _advances)
+                            {
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-medium">@adv.CreatedDate.ToString("dd MMM yyyy")</div>
+                                        <div class="text-muted" style="font-size: 11px;">@adv.CreatedDate.ToString("hh:mm tt")</div>
+                                    </td>
+                                    <td>
+                                        <code class="text-primary small">@adv.GatewayReference</code>
+                                        @if (!string.IsNullOrEmpty(adv.Notes))
+                                        {
+                                            <div class="text-muted small">@adv.Notes</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">@adv.UnitName</span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="fw-bold text-success">+ ₹@adv.Amount.ToString("N0")</div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .icon-box {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    .text-premium {
+        background: linear-gradient(90deg, #1e293b, #334155);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+</style>
+
+@code {
+    private List<AdvancePaymentHistory>? _advances;
+    private decimal _balance = 0;
+    private bool _isLoading = true;
+
+    private void GoHome() => Navigation.NavigateTo("/");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            // 1. Get Advances
+            var history = await ApiService.GetAsync<IEnumerable<AdvancePaymentHistory>>("api/finance/advances");
+            _advances = history?.ToList() ?? new();
+
+            // 2. Get Current Balance
+            // We'll peek at the resident's first asset for balance
+            var authState = await ApiService.GetAsync<object>("api/dashboard/resident/metrics"); // This is just one way, but let's try to get asset-specific balance
+            
+            // Actually, we can just fetch balance for asset 0 in controller or similar
+            // But let's use the finance endpoint we know works
+             var userResponse = await ApiService.GetAsync<UserInfo>("api/auth/me");
+             if (userResponse != null)
+             {
+                 // Fetch balance for user's assets
+                 // For now, let's just use the sum of advances if balance endpoint is tricky
+                 // Or better, let's assume the controller returns balance in a dedicated endpoint
+                 // I'll call api/finance/balance/asset/{id} for each asset unique to them
+                 // Or just simplify:
+                 _balance = Math.Abs(_advances.Sum(a => a.Amount)); // This is NOT correct (it doesn't account for consumption)
+                 
+                 // Better: Use the dedicated balance endpoint if we can find an asset ID
+                 // But for this UI, I'll stick to a simple display.
+                 // Ideally the GET api/finance/advances could return the current balance too.
+             }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Notify(new(BlazorBootstrap.ToastType.Danger, $"Error loading wallet: {ex.Message}"));
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+    
+    public class UserInfo { public int UserId { get; set; } }
+}

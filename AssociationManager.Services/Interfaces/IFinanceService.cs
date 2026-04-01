@@ -29,4 +29,10 @@ public interface IFinanceService
     // Bank Account Configuration
     Task<AssociationBankDetails?> GetBankDetailsAsync(int associationId);
     Task<bool> UpdateBankDetailsAsync(AssociationBankDetails details);
+
+    // Auto-Settlement
+    Task<bool> AutoSettleInvoicesAsync(int assetId, int? associationId = null);
+    
+    Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId);
+    Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null);
 }

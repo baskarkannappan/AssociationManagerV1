@@ -13,6 +13,7 @@ public class PaymentOrder
     public string Currency { get; set; } = "INR";
     public string Status { get; set; } = "Created"; // Created, Attempted, Paid, Failed
     public int? InvoiceId { get; set; }
+    public int? AssetId { get; set; }
     public string? Receipt { get; set; }
     public string? PrimaryAccountName { get; set; }
     public string? PrimaryAccountNumber { get; set; }

@@ -7,6 +7,7 @@ public class RazorpayOrderRequest
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "INR";
     public int? InvoiceId { get; set; }
+    public int? AssetId { get; set; } // Required for Ledger tracking
     public string? Receipt { get; set; }
     public string? Description { get; set; }
 }

@@ -103,6 +103,9 @@ public class FinanceService : IFinanceService
                 Category = "Billing",
                 Description = $"Invoice Generated: {invoice.Title}"
             });
+
+            // AUTO-SETTLE: Check if user has advance credit to pay this new invoice
+            await AutoSettleInvoicesAsync(invoice.AssetId.Value);
         }
 
         return id;
@@ -142,8 +145,14 @@ public class FinanceService : IFinanceService
                 Type = "Credit",
                 Amount = payment.Amount,
                 Category = "Payment",
-                Description = payment.Notes ?? "Payment Received"
+                Description = payment.Notes ?? (payment.InvoiceId.HasValue ? "Invoice Payment" : "Advance Payment")
             });
+
+            // If this is an advance payment (no InvoiceId), attempt to settle any existing unpaid invoices
+            if (!payment.InvoiceId.HasValue)
+            {
+                await AutoSettleInvoicesAsync(payment.AssetId.Value);
+            }
         }
 
         // If Payment is linked to an Invoice, update invoice status
@@ -165,6 +174,11 @@ public class FinanceService : IFinanceService
         return await _ledgerService.GetAssetBalanceAsync(assetId);
     }
 
+    public async Task<bool> AutoSettleInvoicesAsync(int assetId, int? associationId = null)
+    {
+        return await _paymentRepository.AutoSettleAsync(assetId, CurrentTenantId, associationId ?? CurrentAssociationId, _tenantContext.UserId);
+    }
+
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
     {
         return await _ledgerService.GetTenantTransactionsAsync(start, end);
@@ -179,5 +193,15 @@ public class FinanceService : IFinanceService
     {
         details.TenantId = CurrentTenantId;
         return await _associationRepository.UpsertBankDetailsAsync(details);
+    }
+
+    public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
+    {
+        return await _paymentRepository.GetAssociationSummaryAsync(tenantId, associationId);
+    }
+
+    public async Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null)
+    {
+        return await _paymentRepository.GetAdvancesAsync(tenantId, associationId, userId, assetId);
     }
 }

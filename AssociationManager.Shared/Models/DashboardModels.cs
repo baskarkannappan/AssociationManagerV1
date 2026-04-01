@@ -8,6 +8,8 @@ public class AssociationDashboardMetrics
     public int TotalMembers { get; set; }
     public decimal TotalRevenueCollected { get; set; }
     public decimal TotalOutstanding { get; set; }
+    public decimal TotalAdvanceCredits { get; set; }
+    public int UnitsWithCredit { get; set; }
     public int PendingWorkOrders { get; set; }
     public List<AuditLog> RecentActivity { get; set; } = new();
 }

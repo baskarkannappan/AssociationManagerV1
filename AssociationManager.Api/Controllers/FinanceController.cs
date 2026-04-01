@@ -212,6 +212,47 @@ public class FinanceController : ControllerBase
 
         return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(payments));
     }
+    
+    [HttpGet("advances")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetAdvances([FromQuery] int? assetId = null)
+    {
+        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                              .Select(c => c.Value);
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", roles),
+            UserLevel = AppRole.GetMaxLevel(User.Claims),
+            AssociationId = _tenantContext.AssociationId,
+            Action = "View",
+            Resource = "Payment"
+        };
+
+        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        int? userId = null;
+        
+        if (!isStaff)
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int uid))
+            {
+                userId = uid;
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(uid);
+                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
+                
+                if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
+                {
+                    return Forbid();
+                }
+                
+                // If they didn't specify an asset, we'll return all for their user
+            }
+        }
+
+        var advances = await _financeService.GetAdvancesAsync(_tenantContext.AssociationId, _tenantContext.TenantId, userId, assetId);
+        return Ok(ApiResponse<IEnumerable<AdvancePaymentHistory>>.SuccessResponse(advances));
+    }
 
     [HttpPost("payments")]
     public async Task<IActionResult> CreatePayment([FromBody] Payment payment)

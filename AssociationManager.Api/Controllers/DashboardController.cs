@@ -1,4 +1,5 @@
 using AssociationManager.Data.Interfaces;
+using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
@@ -21,6 +22,7 @@ public class DashboardController : ControllerBase
     private readonly IPaymentRepository _paymentRepository;
     private readonly IWorkOrderRepository _workOrderRepository;
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly IFinanceService _financeService;
     private readonly ITenantContext _tenantContext;
 
     public DashboardController(
@@ -29,6 +31,7 @@ public class DashboardController : ControllerBase
         IPaymentRepository paymentRepository,
         IWorkOrderRepository workOrderRepository,
         IAuditLogRepository auditLogRepository,
+        IFinanceService financeService,
         ITenantContext tenantContext)
     {
         _personRepository = personRepository;
@@ -36,6 +39,7 @@ public class DashboardController : ControllerBase
         _paymentRepository = paymentRepository;
         _workOrderRepository = workOrderRepository;
         _auditLogRepository = auditLogRepository;
+        _financeService = financeService;
         _tenantContext = tenantContext;
     }
 
@@ -51,12 +55,15 @@ public class DashboardController : ControllerBase
         var payments = await _paymentRepository.GetByTenantIdAsync(tenantId, associationId);
         var workOrders = await _workOrderRepository.GetAllAsync(tenantId, associationId);
         var activity = await _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
+        var finSummary = await _financeService.GetAssociationFinanceSummaryAsync(associationId, tenantId);
 
         var metrics = new AssociationDashboardMetrics
         {
             TotalMembers = members.Count(),
             TotalRevenueCollected = payments.Where(p => p.CreatedDate > DateTime.UtcNow.AddDays(-30)).Sum(p => p.Amount),
-            TotalOutstanding = invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount),
+            TotalOutstanding = finSummary.TotalOutstanding,
+            TotalAdvanceCredits = finSummary.TotalCredits,
+            UnitsWithCredit = finSummary.UnitsWithCredit,
             PendingWorkOrders = workOrders.Count(w => w.Status != "Completed" && w.Status != "Closed"),
             RecentActivity = activity.OrderByDescending(a => a.Timestamp).Take(5).ToList()
         };
