@@ -12,10 +12,14 @@
     [CreatedDate]          DATETIME        DEFAULT (getutcdate()) NOT NULL,
     [PrimaryAccountName]   NVARCHAR (200)  NULL,
     [PrimaryAccountNumber] NVARCHAR (100)  NULL,
+    [AssetId]              INT             NULL,
     PRIMARY KEY CLUSTERED ([Id] ASC),
+    CONSTRAINT [FK_PaymentOrders_Assets] FOREIGN KEY ([AssetId]) REFERENCES [assoc].[Assets] ([AssetId]),
     CONSTRAINT [FK_PaymentOrders_Invoice] FOREIGN KEY ([InvoiceId]) REFERENCES [assoc].[Invoices] ([InvoiceId]),
     UNIQUE NONCLUSTERED ([RazorpayOrderId] ASC)
 );
+
+
 
 
 GO

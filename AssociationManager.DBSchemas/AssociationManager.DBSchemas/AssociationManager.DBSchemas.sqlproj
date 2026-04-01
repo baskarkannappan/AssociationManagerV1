@@ -333,5 +333,11 @@
     <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_CheckExists.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvancesPaged.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvances.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_AutoSettleInvoices.sql" />
   </ItemGroup>
 </Project>

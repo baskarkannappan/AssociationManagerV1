@@ -204,4 +204,11 @@ public class FinanceService : IFinanceService
     {
         return await _paymentRepository.GetAdvancesAsync(tenantId, associationId, userId, assetId);
     }
+
+    public async Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria)
+    {
+        if (criteria.TenantId == null) criteria.TenantId = CurrentTenantId;
+        if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
+        return await _paymentRepository.GetAdvancesPagedAsync(criteria);
+    }
 }

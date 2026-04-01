@@ -108,4 +108,57 @@ public class PaymentRepository : IPaymentRepository
             new { TenantId = tenantId, AssociationId = associationId, UserId = userId, AssetId = assetId },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<PagedResult<AdvancePaymentHistory>> GetAdvancesPagedAsync(AdvanceSearchCriteria criteria)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("@TenantId", criteria.TenantId);
+        parameters.Add("@AssociationId", criteria.AssociationId);
+        parameters.Add("@UserId", criteria.UserId);
+        parameters.Add("@AssetId", criteria.AssetId);
+        parameters.Add("@SearchTerm", criteria.SearchTerm);
+        parameters.Add("@Status", criteria.Status);
+        parameters.Add("@StartDate", criteria.StartDate);
+        parameters.Add("@EndDate", criteria.EndDate);
+        parameters.Add("@PageNumber", criteria.PageNumber);
+        parameters.Add("@PageSize", criteria.PageSize);
+        parameters.Add("@SortColumn", criteria.SortColumn);
+        parameters.Add("@SortDirection", criteria.SortDirection);
+
+        var result = new PagedResult<AdvancePaymentHistory>
+        {
+            PageNumber = criteria.PageNumber,
+            PageSize = criteria.PageSize
+        };
+
+        var items = await connection.QueryAsync<dynamic>(
+            "assoc.sp_Payments_GetAdvancesPaged", 
+            parameters, 
+            commandType: CommandType.StoredProcedure);
+
+        var history = new List<AdvancePaymentHistory>();
+        foreach (var row in items)
+        {
+            if (result.TotalCount == 0)
+            {
+                result.TotalCount = row.TotalCount;
+            }
+
+            history.Add(new AdvancePaymentHistory
+            {
+                Amount = row.Amount,
+                Date = row.Date,
+                Status = row.Status,
+                ReferenceId = row.ReferenceId,
+                ResidentName = row.ResidentName,
+                UnitName = row.UnitName
+            });
+        }
+        
+        result.Items = history;
+        result.FilteredCount = result.TotalCount;
+
+        return result;
+    }
 }

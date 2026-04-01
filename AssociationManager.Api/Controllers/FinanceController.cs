@@ -215,7 +215,16 @@ public class FinanceController : ControllerBase
     
     [HttpGet("advances")]
     [Authorize(Policy = "RequireResident")]
-    public async Task<IActionResult> GetAdvances([FromQuery] int? assetId = null)
+    public async Task<IActionResult> GetAdvances(
+        [FromQuery] int? assetId = null,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string sortColumn = "Date",
+        [FromQuery] string sortDirection = "DESC")
     {
         var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
                               .Select(c => c.Value);
@@ -245,13 +254,26 @@ public class FinanceController : ControllerBase
                 {
                     return Forbid();
                 }
-                
-                // If they didn't specify an asset, we'll return all for their user
             }
         }
 
-        var advances = await _financeService.GetAdvancesAsync(_tenantContext.AssociationId, _tenantContext.TenantId, userId, assetId);
-        return Ok(ApiResponse<IEnumerable<AdvancePaymentHistory>>.SuccessResponse(advances));
+        var criteria = new AdvanceSearchCriteria
+        {
+            AssociationId = _tenantContext.AssociationId,
+            UserId = userId,
+            AssetId = assetId,
+            SearchTerm = searchTerm,
+            Status = status,
+            StartDate = startDate,
+            EndDate = endDate,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            SortColumn = sortColumn,
+            SortDirection = sortDirection
+        };
+
+        var result = await _financeService.GetPagedAdvancesAsync(criteria);
+        return Ok(ApiResponse<PagedResult<AdvancePaymentHistory>>.SuccessResponse(result));
     }
 
     [HttpPost("payments")]
