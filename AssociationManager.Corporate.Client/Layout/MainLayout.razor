@@ -121,6 +121,7 @@
     [Inject] private ApiService ApiService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private ITenantContext TenantContext { get; set; } = default!;
     [Inject] private ToastService _toastService { get; set; } = default!;
 
     private IEnumerable<Association>? _userTenants;
@@ -159,17 +160,11 @@
         var user = authState.User;
         if (user.Identity?.IsAuthenticated == true)
         {
-            var tenantClaim = user.FindFirst("TenantId")?.Value;
-            if (int.TryParse(tenantClaim, out int tid))
-            {
-                _currentTenantId = tid;
-            }
-
-            var assocClaim = user.FindFirst("AssociationId")?.Value;
-            if (int.TryParse(assocClaim, out int aid))
-            {
-                _currentAssociationId = aid;
-            }
+            // Sync with restored context from AuthProvider
+            _currentTenantId = TenantContext.TenantId;
+            _currentAssociationId = TenantContext.AssociationId;
+            
+            Console.WriteLine($"[CorporateLayout] Initialized with TenantId: {_currentTenantId}, AssociationId: {_currentAssociationId}");
 
             var contextRole = user.FindFirst(c => c.Type.Equals("ContextRole", StringComparison.OrdinalIgnoreCase))?.Value;
             var displayRole = !string.IsNullOrEmpty(contextRole) ? contextRole : AppRole.GetHighestRole(user.Claims);
@@ -182,6 +177,7 @@
             try 
             {
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("associations/my-tenants");
+                Console.WriteLine($"[CorporateLayout] Loaded {(_userTenants?.Count() ?? 0)} tenants.");
             }
             catch (Exception ex)
             {

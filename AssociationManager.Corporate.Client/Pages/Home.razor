@@ -9,13 +9,15 @@
 <AuthorizeView Context="authContext">
     <Authorized>
         @{
+            var tidClaim = authContext.User.FindFirst("TenantId")?.Value;
             var assocIdClaim = authContext.User.FindFirst("AssociationId")?.Value;
+            bool hasTenant = !string.IsNullOrEmpty(tidClaim) && tidClaim != "0";
             bool hasAssociation = !string.IsNullOrEmpty(assocIdClaim) && assocIdClaim != "0";
             bool isSystemAdmin = _isSystemAdmin; // Evaluated in OnInitializedAsync
-            bool isPending = !isSystemAdmin && !hasAssociation;
+            bool isPending = !isSystemAdmin && !hasTenant;
         }
 
-        @if (!hasAssociation && !isSystemAdmin)
+        @if (!hasTenant && !isSystemAdmin)
         {
             @if (isPending)
             {
@@ -221,6 +223,8 @@
     private string? _errorMessage;
     private bool _isSystemAdmin;
 
+    [Inject] private ITenantContext TenantContext { get; set; } = default!;
+
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
@@ -228,6 +232,15 @@
     {
         var authState = await AuthStateTask;
         _isSystemAdmin = await AuthService.HasLevelAsync(authState.User, 90);
+        
+        Console.WriteLine($"[CorporateHome] Initializing. TenantId: {TenantContext.TenantId}");
+        
+        if (TenantContext.TenantId == 0 && !_isSystemAdmin)
+        {
+            Console.WriteLine("[CorporateHome] No Tenant context. Waiting for synchronization...");
+            return;
+        }
+
         await LoadDashboardMetrics();
     }
 

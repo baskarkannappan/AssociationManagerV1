@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 using System.Text.Json;
+using AssociationManager.Shared.Interfaces;
 using AssociationManager.Corporate.Client.Services;
 using System.Net.Http.Headers;
 
@@ -9,11 +10,13 @@ namespace AssociationManager.Corporate.Client.Services;
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
     private readonly TokenService _tokenService;
+    private readonly ITenantContext _tenantContext;
     private readonly ClaimsPrincipal _anonymous = new(new ClaimsIdentity());
 
-    public CustomAuthenticationStateProvider(TokenService tokenService)
+    public CustomAuthenticationStateProvider(TokenService tokenService, ITenantContext tenantContext)
     {
         _tokenService = tokenService;
+        _tenantContext = tenantContext;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -24,14 +27,53 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             return new AuthenticationState(_anonymous);
         }
 
-        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt", "name", "role")));
+        var claims = ParseClaimsFromJwt(token);
+        UpdateTenantContext(claims);
+        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt", "name", "role")));
     }
 
     public void NotifyUserAuthentication(string token)
     {
-        var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt", "name", "role"));
+        var claims = ParseClaimsFromJwt(token);
+        UpdateTenantContext(claims);
+        var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt", "name", "role"));
         var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
         NotifyAuthenticationStateChanged(authState);
+    }
+
+    private void UpdateTenantContext(IEnumerable<Claim> claims)
+    {
+        if (_tenantContext is ClientTenantContext context)
+        {
+            // Robust parsing for Corporate/Tenant ID restoration
+            var tidClaim = claims.FirstOrDefault(c => 
+                c.Type.Equals("TenantId", StringComparison.OrdinalIgnoreCase) || 
+                c.Type.Equals("tenant_id", StringComparison.OrdinalIgnoreCase) ||
+                c.Type.Equals("tid", StringComparison.OrdinalIgnoreCase))?.Value;
+            if (int.TryParse(tidClaim, out int tid)) context.TenantId = tid;
+
+            var aidClaim = claims.FirstOrDefault(c => 
+                c.Type.Equals("AssociationId", StringComparison.OrdinalIgnoreCase) || 
+                c.Type.Equals("association_id", StringComparison.OrdinalIgnoreCase) ||
+                c.Type.Equals("aid", StringComparison.OrdinalIgnoreCase))?.Value;
+            if (int.TryParse(aidClaim, out int aid)) context.AssociationId = aid;
+
+            var uidClaim = claims.FirstOrDefault(c => 
+                c.Type.Equals("UserId", StringComparison.OrdinalIgnoreCase) || 
+                c.Type.Equals("user_id", StringComparison.OrdinalIgnoreCase) ||
+                c.Type.Equals("uid", StringComparison.OrdinalIgnoreCase))?.Value;
+            if (int.TryParse(uidClaim, out int uid)) context.UserId = uid;
+
+            context.Email = claims.FirstOrDefault(c => 
+                c.Type.Equals("email", StringComparison.OrdinalIgnoreCase) ||
+                c.Type.Equals(ClaimTypes.Email, StringComparison.OrdinalIgnoreCase))?.Value;
+            
+            var roles = claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet();
+            context.IsPlatformAdmin = roles.Contains("PlatformAdmin");
+            context.IsSystemAdmin = roles.Contains("SystemAdmin");
+
+            Console.WriteLine($"[CorporateAuth] Session Restored - User: {context.Email}, TenantId: {context.TenantId}, AssociationId: {context.AssociationId}");
+        }
     }
 
     public void NotifyUserLogout()
