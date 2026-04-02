@@ -13,8 +13,8 @@
     --vscode-tab-bg: #ececec;
     --vscode-top-header-bg: #ffffff;
     --vscode-top-header-text: #333333;
-    --vscode-font-size: 13px;
-    --vscode-font-size-sm: 11px;
+    --vscode-font-size: 11.5px;
+    --vscode-font-size-sm: 10px;
     --transition-base: none; /* Instant transitions for that crisp IDE feel */
 }
 
@@ -127,7 +127,7 @@ body {
 }
 
 .sidebar-wrapper {
-    width: 260px;
+    width: 230px;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -138,7 +138,7 @@ body {
 
 /* EXPLORER */
 .vscode-explorer {
-    width: 260px;
+    width: 230px;
     background: var(--vscode-explorer-bg);
     border-right: 1px solid var(--vscode-border);
     display: flex;
@@ -193,15 +193,15 @@ body {
 }
 
 .vscode-tabs {
-    height: 35px;
+    height: 32px;
     background: #f3f3f3;
     display: flex;
     align-items: flex-end;
 }
 
 .vscode-tab {
-    padding: 0 12px;
-    height: 35px;
+    padding: 0 10px;
+    height: 32px;
     display: flex;
     align-items: center;
     background: #ececec;
@@ -235,7 +235,7 @@ body {
 
 /* PAGE HEADERS */
 .vscode-page-header {
-    padding: 10px 20px;
+    padding: 8px 16px;
     background: #ffffff;
     border-bottom: 1px solid #eeeeee;
     display: flex;
@@ -248,8 +248,8 @@ body {
     border: 1px solid #e1e1e1 !important;
     border-radius: 2px !important;
     box-shadow: none !important;
-    padding: 15px !important;
-    margin-bottom: 15px;
+    padding: 12px !important;
+    margin-bottom: 12px;
 }
 
 .compact-table {
@@ -264,8 +264,8 @@ body {
 }
 
 .compact-table td, .compact-table th {
-    padding: 6px 12px !important;
-    font-size: 13px;
+    padding: 4px 10px !important;
+    font-size: 11.5px;
     border-right: 1px solid #f5f5f5;
 }
 
@@ -324,13 +324,13 @@ body {
 
 /* TOP HEADER */
 .vscode-top-header {
-    height: 40px;
+    height: 36px;
     background: var(--vscode-top-header-bg);
     color: var(--vscode-top-header-text);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 15px;
+    padding: 0 12px;
     font-size: 13px;
     border-bottom: 1px solid #eeeeee;
     z-index: 1001;
