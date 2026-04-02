@@ -1,11 +1,8 @@
-﻿-- Script0061_PaginatedInvoices.sql
--- High-performance Server-Side Paging for Invoices
-
--- 1. Create Paginated Invoices Procedure
-CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
+﻿CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
+    @AssetIds NVARCHAR(MAX) = NULL, -- NEW: Comma-separated list of Asset IDs
     @SearchTerm NVARCHAR(255) = NULL,
     @Status NVARCHAR(50) = NULL,
     @StartDate DATETIME = NULL,
@@ -33,13 +30,15 @@ BEGIN
         SELECT 
             i.*,
             a.Name AS AssetName,
-            COUNT(*) OVER() as TotalCount,
-            SUM(CASE WHEN i.Status = 'Unpaid' THEN i.Amount ELSE 0 END) OVER() as TotalUnpaid
+            CAST(CASE WHEN EXISTS (SELECT 1 FROM assoc.Payments p WHERE p.InvoiceId = i.InvoiceId AND p.Notes LIKE '%Advance%') THEN 1 ELSE 0 END AS BIT) AS IsAdvancePaid,
+            CAST(COUNT(*) OVER() AS INT) as TotalCount,
+            CAST(SUM(CASE WHEN i.Status = 'Unpaid' THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
         FROM assoc.Invoices i
         LEFT JOIN assoc.Assets a ON i.AssetId = a.AssetId
         WHERE i.TenantId = @TenantId
         AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId)
         AND (@AssetId IS NULL OR i.AssetId = @AssetId)
+        AND (@AssetIds IS NULL OR i.AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
         AND (@Status IS NULL OR i.Status = @Status)
         AND (@SearchTerm IS NULL OR i.Title LIKE '%' + @SearchTerm + '%' OR a.Name LIKE '%' + @SearchTerm + '%')
         AND (@StartDate IS NULL OR i.CreatedDate >= @StartDate)
