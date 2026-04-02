@@ -154,8 +154,32 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetSummary([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
     {
-        var (totalUnpaid, collected30Days) = await _financeService.GetFinanceSummaryAsync(associationId, assetId);
-        return Ok(ApiResponse<object>.SuccessResponse(new { totalUnpaid, collected30Days }));
+        IEnumerable<int>? assetIds = null;
+        if (!assetId.HasValue)
+        {
+            var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
+                                  .Select(c => c.Value);
+            var securityContext = new SecurityContext
+            {
+                UserRole = string.Join(",", roles),
+                UserLevel = AppRole.GetMaxLevel(User.Claims),
+                AssociationId = _tenantContext.AssociationId
+            };
+
+            bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+            if (!isStaff)
+            {
+                var userIdStr = User.FindFirst("UserId")?.Value;
+                if (int.TryParse(userIdStr, out int userId))
+                {
+                    var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+                    assetIds = occupancies.Select(o => o.AssetId).ToList();
+                }
+            }
+        }
+
+        var summary = await _financeService.GetFinanceSummaryAsync(associationId, assetId, assetIds);
+        return Ok(ApiResponse<FinanceSummary>.SuccessResponse(summary));
     }
 
 

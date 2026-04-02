@@ -48,6 +48,8 @@
 <div class="vscode-content custom-scrollbar">
     <div class="container-fluid py-4">
         <!-- Dashboard Stats -->
+        @* 
+        Dashboard Stats hidden per user request
         <div class="row g-3 mb-4">
             <div class="col-md-3">
                 <div class="compact-card text-center">
@@ -62,6 +64,7 @@
                 </div>
             </div>
         </div>
+        *@
 
         <div class="row">
             <div class="col-12">
@@ -432,8 +435,6 @@
     private InvoiceBatchRequest _batchRequest = new() { Month = DateTime.Today.Month, Year = DateTime.Today.Year, DueDate = DateTime.Today.AddDays(15) };
     private InvoiceBatchResult? _batchResult;
     private bool _isProcessingBatch;
-    private decimal _totalUnpaid;
-    private decimal _collected30Days;
     private string? _searchTerm;
     private string? _statusFilter;
     private System.Threading.Timer? _searchTimer;
@@ -514,9 +515,6 @@
 
         if (response != null)
         {
-            // Sync Header Stats from Metadata
-            _totalUnpaid = response.TotalUnpaid;
-            // Note: Collected30Days might need a separate call or specific metadata handling
             return new GridDataProviderResult<Invoice> { Data = response.Items, TotalCount = response.TotalCount };
         }
 
@@ -541,13 +539,15 @@
                 }
             }
 
-            // Summary Stats
-            var summary = await Api.GetAsync<dynamic>(summaryUrl);
+            /* 
+            Summary stats fetch disabled for this UI scope as cards are hidden
+            var summary = await Api.GetAsync<FinanceSummary>(summaryUrl);
             if (summary != null)
             {
-                _totalUnpaid = summary.totalUnpaid ?? 0;
-                _collected30Days = summary.collected30Days ?? 0;
+                _totalUnpaid = summary.TotalUnpaid;
+                _collected30Days = summary.Collected30Days;
             }
+            */
             
             var payments = await Api.GetAsync<IEnumerable<Payment>>(paymentsUrl);
             _payments = payments?.ToList();

@@ -69,9 +69,10 @@ public class FinanceService : IFinanceService
         return await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
     }
 
-    public async Task<(decimal TotalUnpaid, decimal Collected30Days)> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null)
+    public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null)
     {
-        return await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId);
+        var (unpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
+        return new FinanceSummary { TotalUnpaid = unpaid, Collected30Days = collected };
     }
 
 

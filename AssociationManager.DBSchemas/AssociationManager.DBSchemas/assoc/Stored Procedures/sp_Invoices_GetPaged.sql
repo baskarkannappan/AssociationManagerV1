@@ -1,8 +1,9 @@
-﻿CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
+﻿-- 2. Update GetPaged with robust status for TotalUnpaid metadata
+CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
-    @AssetIds NVARCHAR(MAX) = NULL, -- NEW: Comma-separated list of Asset IDs
+    @AssetIds NVARCHAR(MAX) = NULL,
     @SearchTerm NVARCHAR(255) = NULL,
     @Status NVARCHAR(50) = NULL,
     @StartDate DATETIME = NULL,
@@ -15,24 +16,21 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    -- Calculate Offset
     DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
     
-    -- Sorting Safety
     IF @SortColumn NOT IN ('Title', 'Amount', 'DueDate', 'Status', 'CreatedDate', 'AssetName')
         SET @SortColumn = 'CreatedDate';
     
     IF @SortDirection NOT IN ('ASC', 'DESC')
         SET @SortDirection = 'DESC';
 
-    -- CTE for Filtering and Paging
     ;WITH FilteredInvoices AS (
         SELECT 
             i.*,
             a.Name AS AssetName,
             CAST(CASE WHEN EXISTS (SELECT 1 FROM assoc.Payments p WHERE p.InvoiceId = i.InvoiceId AND p.Notes LIKE '%Advance%') THEN 1 ELSE 0 END AS BIT) AS IsAdvancePaid,
             CAST(COUNT(*) OVER() AS INT) as TotalCount,
-            CAST(SUM(CASE WHEN i.Status = 'Unpaid' THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
+            CAST(SUM(CASE WHEN LTRIM(RTRIM(i.Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial') THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
         FROM assoc.Invoices i
         LEFT JOIN assoc.Assets a ON i.AssetId = a.AssetId
         WHERE i.TenantId = @TenantId

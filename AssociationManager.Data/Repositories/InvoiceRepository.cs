@@ -107,12 +107,18 @@ public class InvoiceRepository : IInvoiceRepository
         return result;
     }
 
-    public async Task<(decimal TotalUnpaid, decimal Collected30Days)> GetSummaryStatsAsync(int tenantId, int? associationId, int? assetId)
+    public async Task<(decimal TotalUnpaid, decimal Collected30Days)> GetSummaryStatsAsync(int tenantId, int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         var stats = await connection.QueryFirstOrDefaultAsync<dynamic>(
             "assoc.sp_Finance_GetSummaryStats",
-            new { TenantId = tenantId, AssociationId = associationId, AssetId = assetId },
+            new 
+            { 
+                TenantId = tenantId, 
+                AssociationId = associationId, 
+                AssetId = assetId,
+                AssetIds = assetIds != null && assetIds.Any() ? string.Join(",", assetIds) : null 
+            },
             commandType: CommandType.StoredProcedure);
 
         return (stats?.TotalUnpaid ?? 0, stats?.Collected30Days ?? 0);

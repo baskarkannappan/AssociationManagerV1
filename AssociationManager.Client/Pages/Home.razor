@@ -543,7 +543,7 @@
             
             // Consolidated Metrics (aggregated by Backend because assetId is null)
             _myBalance = await ApiService.GetAsync<decimal>("api/finance/balance/asset");
-            var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>("api/finance/invoices");
+            var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>("api/finance/invoices?pageSize=50");
             _myInvoices = invoiceResult?.Items?.ToList();
             _residentMetrics = await ApiService.GetAsync<ResidentDashboardMetrics>("api/dashboard/resident/metrics");
 
