@@ -162,6 +162,12 @@ public class FinanceService : IFinanceService
             await _invoiceRepository.UpdateStatusAsync(payment.InvoiceId.Value, "Paid", CurrentTenantId, CurrentAssociationId);
         }
 
+        // ALWAYS attempt to settle any other unpaid invoices for this asset if a surplus exists
+        if (payment.AssetId.HasValue)
+        {
+            await AutoSettleInvoicesAsync(payment.AssetId.Value);
+        }
+
         return id;
     }
 
