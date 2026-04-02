@@ -62,12 +62,7 @@
                      }
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Operations" Context="opsMenuContext">
-                    <NavLink href="maintenance" class="vscode-tree-item text-decoration-none">
-                        <i class="bi bi-tools text-dark"></i>
-                        <span>Operations</span>
-                    </NavLink>
-                </AuthorizeView>
+                @* Removed as requested: ShowMenu_Operations *@
 
                 <AuthorizeView Policy="ShowMenu_Broadcasts" Context="broadcastMenuContext">
                     <NavLink href="broadcasts?scope=association" class="vscode-tree-item text-decoration-none">

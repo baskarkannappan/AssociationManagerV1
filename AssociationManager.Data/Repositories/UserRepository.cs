@@ -237,7 +237,8 @@ public class UserRepository : IUserRepository
                 PictureUrl = row.PictureUrl,
                 IsActive = row.IsActive,
                 CreatedDate = row.CreatedDate,
-                Role = row.Role // This is the role from UserTenantMapping
+                Role = row.Role, // This is the role from UserTenantMapping
+                Balance = row.Balance ?? 0m
             });
         }
         

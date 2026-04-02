@@ -18,7 +18,7 @@
                             <i class="bi bi-diagram-3 me-2"></i> Asset Registry
                         </h1>
                     </div>
-                    @if (_canManageAssets)
+                    @if (_canAddGlobalAssets)
                     {
                         <div class="actions d-flex gap-2">
                             <button class="btn-vscode" @onclick="() => _bulkModal.ShowAsync()">
@@ -187,6 +187,7 @@
     private BroadcastList? _assetBroadcastList;
     private BulkCreateModal _bulkModal = default!;
     private bool _canManageAssets;
+    private bool _canAddGlobalAssets;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
@@ -194,8 +195,9 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateTask;
-        _canManageAssets = await AuthService.HasLevelAsync(authState.User, AppRole.LevelAssociationAdmin);
-        _isResident = !_canManageAssets;
+        _canAddGlobalAssets = await AuthService.HasLevelAsync(authState.User, AppRole.LevelAssociationAdmin);
+        _canManageAssets = _canAddGlobalAssets; // Default until a unit is selected
+        _isResident = !_canAddGlobalAssets;
 
         if (authState.User.Identity?.IsAuthenticated == true)
         {
