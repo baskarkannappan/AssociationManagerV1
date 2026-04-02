@@ -83,27 +83,32 @@ public class FinanceController : ControllerBase
                  var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
                  var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
                  
-                 if (assetId.HasValue)
-                 {
-                     securityContext.AssetId = assetId.Value;
-                     securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
-                     if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
-                     {
-                         return Forbid();
-                     }
-                 }
-                 else
-                 {
-                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
-                     assetId = allowedAssetIds.First(); // Residents only see their own invoices
-                 }
+                if (assetId.HasValue)
+                {
+                    securityContext.AssetId = assetId.Value;
+                    securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
+                    if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
+                    {
+                        return Forbid();
+                    }
+                }
+                else
+                {
+                    // No specific assetId, default to ALL user assets
+                    if (!allowedAssetIds.Any()) return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
+                    // The criteria uses this assetId further down. 
+                    // I will modify the criteria logic later or loop here.
+                    // Actually, I'll pass multiple IDs if needed or update the service.
+                }
+                // Update criteria to handle null AssetId for residents
+                // by using allowedAssetIds if assetId is null
+                var residentAssetIds = assetId.HasValue ? new List<int> { assetId.Value } : allowedAssetIds;
              }
         }
 
         var criteria = new InvoiceSearchCriteria
         {
             AssociationId = associationId,
-            AssetId = assetId,
             SearchTerm = searchTerm,
             Status = status,
             StartDate = startDate,
@@ -114,8 +119,35 @@ public class FinanceController : ControllerBase
             SortDirection = sortDirection
         };
 
-        var result = await _financeService.GetPagedInvoicesAsync(criteria);
-        return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(result));
+        if (assetId.HasValue)
+        {
+            criteria.AssetId = assetId.Value;
+            var result = await _financeService.GetPagedInvoicesAsync(criteria);
+            return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(result));
+        }
+        else
+        {
+            // Gather userId to find all assets for multi-asset residents
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (!isStaff && int.TryParse(userIdStr, out int userId))
+            {
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
+
+                if (!allowedAssetIds.Any())
+                {
+                    return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
+                }
+
+                criteria.AssetIds = allowedAssetIds;
+                var result = await _financeService.GetPagedInvoicesAsync(criteria);
+                return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(result));
+            }
+        }
+
+        // Default or staff view without specified assetId
+        var defaultResult = await _financeService.GetPagedInvoicesAsync(criteria);
+        return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(defaultResult));
     }
 
     [HttpGet("summary")]
@@ -292,12 +324,38 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<IEnumerable<Transaction>>.SuccessResponse(transactions));
     }
 
-    [HttpGet("balance/asset/{assetId}")]
-    public async Task<IActionResult> GetAssetBalance(int assetId)
+    [HttpGet("balance/asset")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetAssetBalance([FromQuery] int? assetId = null)
     {
-        if (!await IsAuthorizedForAsset(assetId, "View")) return Forbid();
-        var balance = await _financeService.GetAssetBalanceAsync(assetId);
-        return Ok(ApiResponse<decimal>.SuccessResponse(balance));
+        var tenantId = _tenantContext.TenantId;
+        var associationId = _tenantContext.AssociationId;
+        var assetIds = new List<int>();
+
+        if (assetId.HasValue)
+        {
+            if (!await IsAuthorizedForAsset(assetId.Value, "View")) return Forbid();
+            assetIds.Add(assetId.Value);
+        }
+        else
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+                assetIds.AddRange(occupancies.Select(o => o.AssetId));
+            }
+        }
+
+        if (!assetIds.Any()) return Ok(ApiResponse<decimal>.SuccessResponse(0));
+
+        decimal totalBalance = 0;
+        foreach (var aid in assetIds)
+        {
+            totalBalance += await _financeService.GetAssetBalanceAsync(aid);
+        }
+
+        return Ok(ApiResponse<decimal>.SuccessResponse(totalBalance));
     }
 
     private async Task<bool> IsAuthorizedForAsset(int assetId, string action = "View")

@@ -33,6 +33,7 @@ public class Occupancy
     // Enriched properties for display
     public string? PersonName { get; set; }
     public string? Email { get; set; }
+    public string? AssetName { get; set; }
 }
 
 public enum OccupancyType

@@ -53,6 +53,7 @@ public class InvoiceRepository : IInvoiceRepository
         parameters.Add("@TenantId", tenantId);
         parameters.Add("@AssociationId", criteria.AssociationId);
         parameters.Add("@AssetId", criteria.AssetId);
+        parameters.Add("@AssetIds", criteria.AssetIds != null && criteria.AssetIds.Any() ? string.Join(",", criteria.AssetIds) : null);
         parameters.Add("@SearchTerm", criteria.SearchTerm);
         parameters.Add("@Status", criteria.Status);
         parameters.Add("@StartDate", criteria.StartDate);

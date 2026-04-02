@@ -84,9 +84,13 @@
                         <!-- Financial Summary -->
                         <AuthorizeView Policy="ShowWidget_FinancialSummary" Context="widgetContext">
                             <div class="col-lg-4">
-                                <div class="compact-card bg-white border h-100 p-4 d-flex flex-column justify-content-center align-items-center">
-                                    <div class="text-muted small text-uppercase fw-bold mb-2">@(_myBalance < 0 ? "Credit Available" : "Current Balance Due")</div>
-                                    <div class="display-5 fw-bold @(_myBalance > 0 ? "text-danger" : "text-success")">₹@(Math.Abs(_myBalance))</div>
+                                <div class="compact-card bg-white border h-100 p-4 d-flex flex-column justify-content-center align-items-center text-center">
+                                    <div class="text-muted small text-uppercase fw-bold mb-2">
+                                        @if (_myBalance < 0) { <span class="text-success"><i class="bi bi-wallet2 me-1"></i> Credit Available</span> }
+                                        else if (_myBalance == 0) { <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> No Dues</span> }
+                                        else { <span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i> Current Balance Due</span> }
+                                    </div>
+                                    <div class="display-5 fw-bold @(_myBalance > 0 ? "text-danger" : "text-success")">₹@(Math.Abs(_myBalance).ToString("N2"))</div>
                                     <div class="mt-3 w-100 d-grid gap-2">
                                         <button class="btn btn-vscode w-100 py-2 fw-bold" disabled="@(_myBalance <= 0)" @onclick="QuickPay">
                                             <i class="bi bi-credit-card me-2"></i> Quick Pay
@@ -103,15 +107,28 @@
                         <div class="col-lg-8">
                             <div class="row g-2">
                                 <AuthorizeView Policy="ShowWidget_FinancialSummary" Context="widgetContext">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <div class="compact-card bg-white border p-3">
                                             <div class="d-flex align-items-center gap-3">
                                                 <div class="activity-icon bg-info bg-opacity-10 text-info">
                                                     <i class="bi bi-receipt"></i>
                                                 </div>
                                                 <div>
-                                                    <div class="small text-muted fw-bold text-uppercase">Pending Invoices</div>
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending Invoices</div>
                                                     <div class="h5 mb-0 fw-bold">@(_myInvoices?.Count(i => i.Status != "Paid") ?? 0)</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="compact-card bg-white border p-3">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="activity-icon bg-danger bg-opacity-10 text-danger">
+                                                    <i class="bi bi-cash-stack"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending Amount</div>
+                                                    <div class="h5 mb-0 fw-bold text-danger">₹@(_residentMetrics?.BalanceDue.ToString("N0") ?? "0")</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -119,14 +136,14 @@
                                 </AuthorizeView>
 
                                 <AuthorizeView Policy="ShowWidget_ActiveRequests" Context="widgetContext">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <div class="compact-card bg-white border p-3">
                                             <div class="d-flex align-items-center gap-3">
                                                 <div class="activity-icon bg-warning bg-opacity-10 text-warning">
                                                     <i class="bi bi-tools"></i>
                                                 </div>
                                                 <div>
-                                                    <div class="small text-muted fw-bold text-uppercase">Active Requests</div>
+                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Active Requests</div>
                                                     <div class="h5 mb-0 fw-bold">@(_residentMetrics?.ActiveWorkOrders ?? 0)</div>
                                                 </div>
                                             </div>
@@ -168,7 +185,17 @@
                                 <div class="border bg-white shadow-sm">
                                     <div class="premium-card-header d-flex justify-content-between align-items-center">
                                         <h6 class="premium-card-title"><i class="bi bi-bank me-2 text-primary"></i>My Financial History</h6>
-                                        <span class="small text-muted">Showing all invoices for your unit</span>
+                                        <span class="small text-muted">
+                                            @if (_occupancies != null && _occupancies.Count > 1)
+                                            {
+                                                var assetList = string.Join(", ", _occupancies.Select(o => o.AssetName ?? $"Unit {o.AssetId}"));
+                                                <i class="bi bi-info-circle me-1"></i><span>Consolidated view for: @assetList</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Showing all invoices for your unit</span>
+                                            }
+                                        </span>
                                     </div>
                                     <div class="p-3">
                                         <InvoiceList Invoices="_myInvoices" />
@@ -234,16 +261,16 @@
                     <div class="row g-2 mb-3">
                         <div class="col-md-3">
                             <div class="compact-card h-100 bg-white border">
-                                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Total Members</div>
+                                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Total Members</div>
                                 <div class="h4 mb-1 fw-bold">@(_adminMetrics?.TotalMembers ?? 0)</div>
                                 <div class="small text-success" style="font-size: 11px;">
-                                    <i class="bi bi-people-fill"></i> Association Community
+                                    <i class="bi bi-people-fill"></i> Community Portfolio
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="compact-card h-100 bg-white border border-start-0 border-primary" style="border-left: 2px solid var(--vscode-accent) !important;">
-                                <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Committee Members</div>
+                            <div class="compact-card h-100 bg-white border border-start-0" style="border-left: 3px solid var(--vscode-accent) !important;">
+                                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Committee Members</div>
                                 <div class="h4 mb-1 fw-bold">@(_committee?.Count ?? 0)</div>
                                 <div class="small text-muted" style="font-size: 11px;">Active Governance</div>
                             </div>
@@ -251,28 +278,28 @@
                         <AuthorizeView Policy="ShowWidget_Outstanding" Context="widgetContext">
                             <div class="col-md-3">
                                 <div class="compact-card h-100 bg-white border">
-                                    <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Total Revenue (30d)</div>
-                                    <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);"> ₹@(_adminMetrics?.TotalRevenueCollected.ToString("N0") ?? "0") </div>
+                                    <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Total Revenue (30d)</div>
+                                    <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);">₹@(_adminMetrics?.TotalRevenueCollected.ToString("N0") ?? "0")</div>
                                     <div class="small text-success" style="font-size: 11px;">
-                                        <i class="bi bi-caret-up-fill"></i> Collected
+                                        <i class="bi bi-graph-up-arrow"></i> Collections
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="compact-card h-100 bg-white border">
-                                    <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Net Outstanding</div>
+                                    <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Net Outstanding</div>
                                     <div class="h4 mb-1 fw-bold @(_adminMetrics?.TotalOutstanding > 0 ? "text-danger" : "text-success")">₹@(_adminMetrics?.TotalOutstanding.ToString("N0") ?? "0")</div>
                                     <div class="d-flex align-items-center gap-1 small text-muted" style="font-size: 11px;">
-                                        To be collected
+                                        <i class="bi bi-hourglass-split"></i> To be collected
                                     </div>
                                 </div>
                             </div>
-                             <div class="col-md-3">
+                             <div class="col-lg-3 col-md-6">
                                 <div class="compact-card h-100 bg-white border border-success border-opacity-25" style="border-left: 3px solid #10b981 !important;">
-                                    <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Held Advance Money</div>
+                                    <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Held Advance Money</div>
                                     <div class="h4 mb-1 fw-bold text-success">₹@(_adminMetrics?.TotalAdvanceCredits.ToString("N0") ?? "0")</div>
                                     <div class="d-flex align-items-center gap-1 small text-muted" style="font-size: 11px;">
-                                        <i class="bi bi-wallet2 text-success"></i> Prepaid by @(_adminMetrics?.UnitsWithCredit ?? 0) units
+                                        <i class="bi bi-piggy-bank-fill text-success"></i> Prepaid by @(_adminMetrics?.UnitsWithCredit ?? 0) units
                                     </div>
                                 </div>
                             </div>
@@ -437,6 +464,7 @@
     private Asset? _myUnit;
     private decimal _myBalance;
     private List<Invoice>? _myInvoices;
+    private List<Occupancy>? _occupancies;
     
     private RazorpayCheckout _razorpayCheckout = default!;
     private bool _isAdvanceModalOpen;
@@ -510,17 +538,18 @@
     {
         try
         {
-            var occupancies = (await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy"))?.ToList() ?? new();
-            var primary = occupancies.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies.FirstOrDefault();
+            _occupancies = (await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy"))?.ToList() ?? new();
+            _isPrimaryOwner = _occupancies.Any(o => o.IsPrimaryContact || o.OccupancyType == OccupancyType.Owner);
             
-            if (primary != null)
+            // Consolidated Metrics (aggregated by Backend because assetId is null)
+            _myBalance = await ApiService.GetAsync<decimal>("api/finance/balance/asset");
+            var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>("api/finance/invoices");
+            _myInvoices = invoiceResult?.Items?.ToList();
+            _residentMetrics = await ApiService.GetAsync<ResidentDashboardMetrics>("api/dashboard/resident/metrics");
+
+            if (_occupancies.Count == 1)
             {
-                _isPrimaryOwner = primary.IsPrimaryContact || primary.OccupancyType == OccupancyType.Owner;
-                _myUnit = await ApiService.GetAsync<Asset>($"api/assets/{primary.AssetId}");
-                _myBalance = await ApiService.GetAsync<decimal>($"api/finance/balance/asset/{primary.AssetId}");
-                var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>($"api/finance/invoices?assetId={primary.AssetId}");
-                _myInvoices = invoiceResult?.Items?.ToList();
-                _residentMetrics = await ApiService.GetAsync<ResidentDashboardMetrics>($"api/dashboard/resident/metrics?assetId={primary.AssetId}");
+                _myUnit = await ApiService.GetAsync<Asset>($"api/assets/{_occupancies[0].AssetId}");
             }
         }
         catch (Exception ex)
@@ -542,7 +571,7 @@
         var oldestUnpaid = _myInvoices?.Where(i => i.Status != "Paid").OrderBy(i => i.DueDate).FirstOrDefault();
         if (oldestUnpaid != null)
         {
-            await InitiateRazorpay(oldestUnpaid.Amount, oldestUnpaid.InvoiceId, $"Invoice #{oldestUnpaid.InvoiceId}");
+            await InitiateRazorpay(oldestUnpaid.Amount, oldestUnpaid.InvoiceId, oldestUnpaid.AssetId, $"Invoice #{oldestUnpaid.InvoiceId}");
         }
     }
 
@@ -550,10 +579,14 @@
     {
         if (_advanceAmount <= 0) return;
         _isAdvanceModalOpen = false;
-        await InitiateRazorpay(_advanceAmount, null, "Advance Payment / Wallet Top-up");
+        // For advances, if multiple assets exist, we'd ideally need a picker. 
+        // For now, use the first asset or primary.
+        var occupancies = (await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy"))?.ToList();
+        var targetAssetId = occupancies?.FirstOrDefault()?.AssetId;
+        await InitiateRazorpay(_advanceAmount, null, targetAssetId, "Advance Payment / Wallet Top-up");
     }
 
-    private async Task InitiateRazorpay(decimal amount, int? invoiceId, string description)
+    private async Task InitiateRazorpay(decimal amount, int? invoiceId, int? assetId, string description)
     {
         try
         {
@@ -562,7 +595,7 @@
                 Amount = amount,
                 Currency = "INR",
                 InvoiceId = invoiceId,
-                AssetId = _myUnit?.AssetId,
+                AssetId = assetId,
                 Description = description
             };
 
