@@ -17,7 +17,7 @@ public class TenantContext : ITenantContext
     {
         get
         {
-            var claim = GetClaim("TenantId", "tenant_id", "tid");
+            var claim = GetClaim("TenantId", "tenant_id", "tid", "tenantid");
             return int.TryParse(claim, out int id) ? id : 0;
         }
     }
@@ -26,7 +26,7 @@ public class TenantContext : ITenantContext
     {
         get
         {
-            var claim = GetClaim("AssociationId", "association_id", "aid");
+            var claim = GetClaim("AssociationId", "association_id", "aid", "associationid");
             return int.TryParse(claim, out int id) ? id : 0;
         }
     }

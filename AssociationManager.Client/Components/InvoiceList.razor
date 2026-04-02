@@ -38,7 +38,16 @@
             </GridColumn>
 
             <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
-                <span class="badge @GetStatusClass(context.Status)" style="font-size: 10px; border-radius: 2px;">@context.Status</span>
+                @if (context.Status == "Paid" && context.IsAdvancePaid)
+                {
+                    <span class="badge bg-advance-paid text-advance-paid" style="font-size: 10px; border-radius: 2px;">
+                        <i class="bi bi-wallet2 me-1"></i> Paid (Advance)
+                    </span>
+                }
+                else
+                {
+                    <span class="badge @GetStatusClass(context.Status)" style="font-size: 10px; border-radius: 2px;">@context.Status</span>
+                }
             </GridColumn>
 
             <GridColumn TItem="Invoice" HeaderText="Actions">

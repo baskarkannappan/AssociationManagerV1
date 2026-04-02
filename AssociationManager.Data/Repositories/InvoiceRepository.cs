@@ -79,23 +79,24 @@ public class InvoiceRepository : IInvoiceRepository
         {
             if (result.TotalCount == 0)
             {
-                result.TotalCount = row.TotalCount;
-                result.TotalUnpaid = row.TotalUnpaid;
+                result.TotalCount = Convert.ToInt32(row.TotalCount ?? 0);
+                result.TotalUnpaid = Convert.ToDecimal(row.TotalUnpaid ?? 0m);
             }
 
             invoices.Add(new Invoice
             {
-                InvoiceId = row.InvoiceId,
-                TenantId = row.TenantId,
-                AssociationId = row.AssociationId,
-                AssetId = row.AssetId,
-                AssetName = row.AssetName,
-                Title = row.Title,
-                Description = row.Description,
-                Amount = row.Amount,
-                DueDate = row.DueDate,
-                Status = row.Status,
-                CreatedDate = row.CreatedDate
+                InvoiceId = Convert.ToInt32(row.InvoiceId),
+                TenantId = Convert.ToInt32(row.TenantId),
+                AssociationId = Convert.ToInt32(row.AssociationId),
+                AssetId = row.AssetId != null ? Convert.ToInt32(row.AssetId) : null,
+                AssetName = row.AssetName?.ToString(),
+                Title = row.Title?.ToString() ?? string.Empty,
+                Description = row.Description?.ToString(),
+                Amount = Convert.ToDecimal(row.Amount),
+                DueDate = Convert.ToDateTime(row.DueDate),
+                Status = row.Status?.ToString() ?? "Unpaid",
+                CreatedDate = Convert.ToDateTime(row.CreatedDate),
+                IsAdvancePaid = Convert.ToBoolean(row.IsAdvancePaid ?? 0)
             });
         }
         

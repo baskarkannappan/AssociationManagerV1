@@ -136,6 +136,7 @@
     [Inject] private ApiService ApiService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private ITenantContext TenantContext { get; set; } = default!;
     [Inject] private ToastService _toastService { get; set; } = default!;
 
     private IEnumerable<Association>? _userTenants;
@@ -184,18 +185,8 @@
             var user = authState.User;
             if (user.Identity?.IsAuthenticated == true)
             {
-                // Case-insensitive claim lookup
-                var tenantClaim = user.FindFirst(c => c.Type.Equals("TenantId", StringComparison.OrdinalIgnoreCase))?.Value;
-                if (int.TryParse(tenantClaim, out int tid))
-                {
-                    _currentTenantId = tid;
-                }
-
-                var assocClaim = user.FindFirst(c => c.Type.Equals("AssociationId", StringComparison.OrdinalIgnoreCase))?.Value;
-                if (int.TryParse(assocClaim, out int aid))
-                {
-                    _currentAssociationId = aid;
-                }
+                _currentTenantId = TenantContext.TenantId;
+                _currentAssociationId = TenantContext.AssociationId;
 
                 var contextRole = user.FindFirst(c => c.Type.Equals("ContextRole", StringComparison.OrdinalIgnoreCase))?.Value;
                 var displayRole = !string.IsNullOrEmpty(contextRole) ? contextRole : AppRole.GetHighestRole(user.Claims);
@@ -207,16 +198,19 @@
                 }
                 
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");
+                Console.WriteLine($"[Layout] Loaded {_userTenants?.Count() ?? 0} tenants for User.");
                 
                 // Auto-select first association if none selected AND we aren't currently switching
                 if (_currentAssociationId == 0 && _userTenants != null && _userTenants.Any())
                 {
                     var firstAssoc = _userTenants.First();
+                    Console.WriteLine($"[Layout] No AssociationId in session. Auto-selecting First: {firstAssoc.Name} (ID: {firstAssoc.AssociationId})");
                     
                     // Trigger automatic switch to set session context
                     var response = await AuthService.SwitchTenant(firstAssoc.TenantId, firstAssoc.AssociationId);
                     if (response?.Success == true)
                     {
+                        Console.WriteLine($"[Layout] SwitchTenant successful. Forcing reload to apply context...");
                         // Update local State immediately to stop loop
                         _currentAssociationId = firstAssoc.AssociationId;
                         _currentTenantId = firstAssoc.TenantId;
@@ -224,6 +218,10 @@
                         // Force load once to refresh all components with new context
                         Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
                     }
+                }
+                else if (_currentAssociationId != 0)
+                {
+                    Console.WriteLine($"[Layout] Active AssociationId: {_currentAssociationId}. No auto-select needed.");
                 }
             }
             else

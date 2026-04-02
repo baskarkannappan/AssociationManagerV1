@@ -474,6 +474,15 @@
         _isResident = await RuleEngine.EvaluateRuleAsync("IsResident", securityContext);
         _isSystemAdmin = await RuleEngine.EvaluateRuleAsync("RequireAdmin", securityContext);
 
+        Console.WriteLine($"[Home] Initializing. Context AssociationId: {TenantContext.AssociationId}");
+
+        if (TenantContext.AssociationId == 0 && !_isSystemAdmin)
+        {
+            Console.WriteLine("[Home] No Association context yet. Waiting for Layout to resolve...");
+            // We skip loading data here. MainLayout will likely trigger a SwitchTenant and Reload.
+            return;
+        }
+
         if (isManagement)
         {
             await LoadAdminData();

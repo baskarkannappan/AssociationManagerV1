@@ -47,6 +47,9 @@ public class PaymentServiceV2 : IPaymentServiceV2
             description = request.Description ?? "Association Payment"
         };
 
+        if (string.IsNullOrEmpty(config.RazorpayKeyId) || string.IsNullOrEmpty(config.RazorpayKeySecret))
+            throw new Exception("Razorpay Key ID or Secret is not configured.");
+
         var razorpayOrderId = await _razorpayClient.CreateOrderAsync(request.Amount, request.Currency, receipt, config.RazorpayKeyId, config.RazorpayKeySecret, notes);
 
         // Snapshot Association Bank Details
@@ -84,6 +87,8 @@ public class PaymentServiceV2 : IPaymentServiceV2
     {
         var config = await _repository.GetPaymentConfigAsync(_tenantContext.TenantId);
         if (config == null) return false;
+
+        if (string.IsNullOrEmpty(config.RazorpayKeySecret)) return false;
 
         bool isValid = _razorpayClient.VerifySignature(request.RazorpayOrderId, request.RazorpayPaymentId, request.RazorpaySignature, config.RazorpayKeySecret);
         
@@ -231,6 +236,12 @@ public class PaymentServiceV2 : IPaymentServiceV2
 
         try
         {
+            if (string.IsNullOrEmpty(config.RazorpayKeyId) || string.IsNullOrEmpty(config.RazorpayKeySecret))
+            {
+                Console.WriteLine($"FULFILLMENT ERROR: Razorpay keys missing for Tenant {tenantId}");
+                return;
+            }
+
             // Always fetch fresh details from Razorpay during fulfillment
             var details = await _razorpayClient.GetPaymentDetailsAsync(paymentId, config.RazorpayKeyId, config.RazorpayKeySecret);
             rawResponse = details.GetRawText();

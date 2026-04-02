@@ -272,3 +272,13 @@ h6 { font-size: 1rem; font-weight: 600; line-height: 1.5; }
     font-family: var(--font-primary);
     font-weight: 500;
 }
+
+/* Financial Status Colors */
+.bg-advance-paid {
+    background-color: #e0e7ff !important; /* Indigo-50 */
+    color: #4338ca !important; /* Indigo-700 */
+    border: 1px solid rgba(67, 56, 202, 0.2);
+}
+.text-advance-paid {
+    color: #4338ca !important;
+}
