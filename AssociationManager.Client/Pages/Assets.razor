@@ -19,8 +19,14 @@
             <div class="premium-page-header border-bottom px-4 py-3 mb-0">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h1 class="premium-page-title mb-0">
-                            <i class="bi bi-diagram-3 me-2"></i> Asset Registry
+                        <h1 class="premium-page-title mb-0 d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-light border p-1 d-flex align-items-center justify-content-center" 
+                                    style="width: 28px; height: 28px; border-radius: 4px; color: #64748b;"
+                                    title="@(_isSidebarCollapsed ? "Show Explorer" : "Hide Explorer")"
+                                    @onclick="() => _isSidebarCollapsed = !_isSidebarCollapsed">
+                                <i class="bi @(_isSidebarCollapsed ? "bi-layout-sidebar-inset" : "bi-layout-sidebar-inset-reverse")"></i>
+                            </button>
+                            <i class="bi bi-diagram-3 me-1"></i> Asset Registry
                         </h1>
                     </div>
                     @if (_canAddGlobalAssets)
@@ -39,11 +45,13 @@
 
             <div class="flex-grow-1 d-flex overflow-hidden">
                 <!-- Asset Tree Pane -->
-                <AssetTree Hierarchy="_hierarchy" 
-                           SelectedAsset="_selectedAsset" 
-                           ExpandedIds="_expandedIds" 
-                           OnSelected="HandleAssetSelected" 
-                           OnToggleExpand="HandleToggleExpand" />
+                <div class="sidebar-wrapper @(_isSidebarCollapsed ? "collapsed" : "")">
+                    <AssetTree Hierarchy="_hierarchy" 
+                               SelectedAsset="_selectedAsset" 
+                               ExpandedIds="_expandedIds" 
+                               OnSelected="HandleAssetSelected" 
+                               OnToggleExpand="HandleToggleExpand" />
+                </div>
 
                 <!-- Detail/Editor Pane -->
                 <div class="detail-pane flex-grow-1 p-4 custom-scrollbar forced-text-dark" style="background: #fdfdfd;">
@@ -173,8 +181,21 @@
                  OnSubmit="HandleBulkSubmit" />
 
 <style>
-    .detail-pane { overflow-y: auto; height: 100%; }
+    .detail-pane { overflow-y: auto; height: 100%; transition: all 0.3s ease; }
     .vscode-tabs .vscode-tab:hover { background: #e8e8e8; }
+    
+    .sidebar-wrapper {
+        width: 280px;
+        transition: width 0.3s ease, margin-left 0.3s ease;
+        overflow: hidden;
+        background: #f1f5f9;
+        flex-shrink: 0;
+    }
+    
+    .sidebar-wrapper.collapsed {
+        width: 0;
+        margin-left: -1px;
+    }
 </style>
 
 @code {
@@ -183,6 +204,7 @@
     private bool _isNew;
     private bool _isResident;
     private string _activeTab = "details";
+    private bool _isSidebarCollapsed;
     private HashSet<int> _expandedIds = new();
 
     // Reusable Data

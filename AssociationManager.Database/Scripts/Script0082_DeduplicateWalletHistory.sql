@@ -1,4 +1,8 @@
-CREATE   PROCEDURE assoc.sp_Payments_GetAdvancesPaged
+-- Script0082_DeduplicateWalletHistory.sql
+-- Fix: Deduplicating wallet history by only including 'Debit' transactions from the ledger.
+-- This ensures only the money leaving the wallet is visible, excluding the corresponding invoice credit.
+
+CREATE OR ALTER PROCEDURE assoc.sp_Payments_GetAdvancesPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @UserId INT = NULL,
