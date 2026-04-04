@@ -17,6 +17,8 @@ public class AssociationDashboardMetrics
 public class ResidentDashboardMetrics
 {
     public decimal BalanceDue { get; set; }
+    public decimal WalletBalance { get; set; } // Gross Prepaid Surplus (Payments - Settlements)
+    public decimal NetPosition { get; set; }   // True Wallet - Debt
     public int PendingInvoices { get; set; }
     public int ActiveWorkOrders { get; set; }
     public List<AuditLog> MyRecentActivity { get; set; } = new();

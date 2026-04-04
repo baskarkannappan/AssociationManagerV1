@@ -92,7 +92,11 @@ public class DashboardController : ControllerBase
             if (int.TryParse(userIdStr, out int userId))
             {
                 var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                assetIds.AddRange(occupancies.Select(o => o.AssetId));
+                // SCOPE: Only include assets in the current association
+                var currentAssocOccupancies = occupancies
+                    .Where(o => associationId == 0 || o.AssociationId == associationId)
+                    .Select(o => o.AssetId);
+                assetIds.AddRange(currentAssocOccupancies);
             }
         }
 
@@ -113,15 +117,21 @@ public class DashboardController : ControllerBase
             workOrders.AddRange(assetWorkOrders);
         }
 
-        decimal totalBalance = 0;
+        decimal totalCredit = 0;
         foreach (var aid in assetIds)
         {
-            totalBalance += await _financeService.GetAssetBalanceAsync(aid);
+            // 1. Calculate Gross Wallet (What I TOPPED UP - What I SPENT)
+            var transactions = await _financeService.GetAssetTransactionsAsync(aid);
+            var advances = transactions.Where(t => t.Type == "Credit" && (t.Category == "Payment" || t.Category == "Advance Payment") && !t.InvoiceId.HasValue).Sum(t => t.Amount);
+            var settlements = transactions.Where(t => t.Type == "Debit" && (t.Category == "Credit Settlement" || t.Category == "Internal Credit Transfer")).Sum(t => t.Amount);
+            totalCredit += (advances - settlements);
         }
 
         var metrics = new ResidentDashboardMetrics
         {
-            BalanceDue = Math.Max(0, totalBalance), // Only positive balances are "Due"
+            BalanceDue = invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount),
+            WalletBalance = totalCredit,
+            NetPosition = totalCredit - invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount),
             PendingInvoices = invoices.Count(i => i.Status != "Paid"),
             ActiveWorkOrders = workOrders.Count(w => w.Status != "Completed" && w.Status != "Closed")
         };

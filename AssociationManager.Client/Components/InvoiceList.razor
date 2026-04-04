@@ -17,7 +17,7 @@
     }
     else
     {
-        <Grid TItem="Invoice"
+        <Grid @ref="_grid" TItem="Invoice"
               Class="table table-hover table-bordered table-striped compact-table"
               DataProvider="InvoicesDataProvider"
               Responsive="true"
@@ -34,7 +34,7 @@
             </GridColumn>
 
             <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
-                <span class="fw-bold">₹@context.Amount</span>
+                <span class="fw-bold">₹@context.Amount.ToString("N0")</span>
             </GridColumn>
 
             <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
@@ -57,6 +57,13 @@
                     </button>
                     @if (context.Status != "Paid")
                     {
+                        @if (WalletBalance >= context.Amount)
+                        {
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" style="font-size: 10px;" title="Pay using your advance credit">
+                                <i class="bi bi-wallet2 pe-1"></i> Pay with Advance
+                            </button>
+                        }
+                        
                         <button class="btn btn-sm btn-vscode py-0 px-2" @onclick="() => StartPayment(context)" style="font-size: 10px;">
                             <i class="bi bi-credit-card pe-1"></i> Pay Now
                         </button>
@@ -96,7 +103,7 @@
                                     <div class="row g-0 border-bottom border-secondary border-opacity-10 py-1">
                                         <div class="col-6">@line.ChargeName</div>
                                         <div class="col-3 text-end text-muted small">₹@line.Rate</div>
-                                        <div class="col-3 text-end fw-bold">₹@line.Amount</div>
+                                        <div class="col-3 text-end fw-bold">₹@line.Amount.ToString("N0")</div>
                                     </div>
                                     <div class="text-muted" style="font-size: 10px; margin-top: -2px; margin-bottom: 4px;">@line.Description</div>
                                 }
@@ -114,7 +121,7 @@
                             }
                             <div class="d-flex justify-content-between pt-2 mt-1 fw-bold text-primary">
                                 <span>Total Amount</span>
-                                <span>₹@_selectedInvoice.Amount</span>
+                                <span>₹@_selectedInvoice.Amount.ToString("N0")</span>
                             </div>
                         </div>
                     </div>
@@ -129,9 +136,22 @@
 
 @code {
     [Parameter] public IEnumerable<Invoice>? Invoices { get; set; }
+    [Parameter] public decimal WalletBalance { get; set; }
+    [Parameter] public EventCallback<Invoice> OnPayNow { get; set; }
+    [Parameter] public EventCallback<Invoice> OnPayWithAdvance { get; set; }
     [Inject] private ToastService _toastService { get; set; } = default!;
 
+    private Grid<Invoice> _grid = default!;
     private Invoice? _selectedInvoice;
+
+    public async Task RefreshAsync()
+    {
+        if (_grid != null)
+        {
+            await _grid.RefreshDataAsync();
+        }
+        StateHasChanged();
+    }
 
     private async Task<GridDataProviderResult<Invoice>> InvoicesDataProvider(GridDataProviderRequest<Invoice> request)
     {
@@ -143,16 +163,23 @@
         _selectedInvoice = invoice;
     }
 
-    private void StartPayment(Invoice invoice)
+    private async Task StartPayment(Invoice invoice)
     {
-        _toastService.Notify(new(ToastType.Info, $"Redirecting to payment gateway for invoice: {invoice.Title}... (Mock Interaction)"));
+        if (OnPayNow.HasDelegate)
+        {
+            await OnPayNow.InvokeAsync(invoice);
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Info, $"Redirecting to payment gateway for invoice: {invoice.Title}... (Mock Interaction)"));
+        }
     }
 
     private string GetStatusClass(string status) => status switch
     {
         "Paid" => "bg-success-subtle text-success",
         "Unpaid" => "bg-danger-subtle text-danger",
-        "Partial" => "bg-warning-subtle text-warning",
+        "Failed" => "bg-danger text-white",
         _ => "bg-secondary-subtle text-secondary"
     };
 }
