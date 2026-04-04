@@ -20,12 +20,6 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h1 class="premium-page-title mb-0 d-flex align-items-center gap-2">
-                            <button class="btn btn-sm btn-light border p-1 d-flex align-items-center justify-content-center" 
-                                    style="width: 28px; height: 28px; border-radius: 4px; color: #64748b;"
-                                    title="@(_isSidebarCollapsed ? "Show Explorer" : "Hide Explorer")"
-                                    @onclick="() => _isSidebarCollapsed = !_isSidebarCollapsed">
-                                <i class="bi @(_isSidebarCollapsed ? "bi-layout-sidebar-inset" : "bi-layout-sidebar-inset-reverse")"></i>
-                            </button>
                             <i class="bi bi-diagram-3 me-1"></i> Asset Registry
                         </h1>
                     </div>
@@ -50,11 +44,22 @@
                                SelectedAsset="_selectedAsset" 
                                ExpandedIds="_expandedIds" 
                                OnSelected="HandleAssetSelected" 
-                               OnToggleExpand="HandleToggleExpand" />
+                               OnToggleExpand="HandleToggleExpand"
+                               OnCollapse="() => _isSidebarCollapsed = true" />
                 </div>
 
                 <!-- Detail/Editor Pane -->
                 <div class="detail-pane flex-grow-1 p-4 custom-scrollbar forced-text-dark" style="background: #fdfdfd;">
+                    @if (_isSidebarCollapsed)
+                    {
+                        <div class="mb-3">
+                            <button class="btn btn-sm btn-light border d-flex align-items-center gap-2 text-secondary" 
+                                    @onclick="() => _isSidebarCollapsed = false">
+                                <i class="bi bi-layout-sidebar-inset"></i>
+                                <span class="small font-monospace fw-bold" style="font-size: 10px;">EXPAND EXPLORER</span>
+                            </button>
+                        </div>
+                    }
                     @if (_selectedAsset != null)
                     {
                         <div class="premium-property-card mx-auto" style="max-width: 900px; border: 1px solid #e2e8f0;">

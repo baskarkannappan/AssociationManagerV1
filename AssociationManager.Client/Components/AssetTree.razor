@@ -1,8 +1,11 @@
 @using AssociationManager.Shared.Models
 
 <div class="asset-tree-pane custom-scrollbar">
-    <div class="tree-header">
+    <div class="tree-header d-flex justify-content-between align-items-center">
         <span class="header-text">EXPLORER</span>
+        <button class="btn btn-link p-0 text-secondary" style="font-size: 14px;" @onclick="OnCollapse">
+            <i class="bi bi-layout-sidebar-inset-reverse"></i>
+        </button>
     </div>
     
     <div class="tree-content">
@@ -75,4 +78,5 @@
     [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
     [Parameter] public EventCallback<Asset> OnSelected { get; set; }
     [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
+    [Parameter] public EventCallback OnCollapse { get; set; }
 }
