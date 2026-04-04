@@ -241,7 +241,10 @@ public class FinanceService : IFinanceService
 
     public async Task<decimal> GetAssetBalanceAsync(int assetId)
     {
-        return await _ledgerService.GetAssetBalanceAsync(assetId);
+        // USER REQ: Resident for each asset should display the asset specific pending amount. 
+        // It should not use wallet amount. Negative (-2000) should be 0.
+        var invoices = await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, CurrentAssociationId);
+        return invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount);
     }
 
     public async Task<bool> AutoSettleInvoicesAsync(int assetId, int? associationId = null)
