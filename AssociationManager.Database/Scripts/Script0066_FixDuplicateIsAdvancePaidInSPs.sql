@@ -1,4 +1,7 @@
-﻿CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
+-- Migration Script: Fix duplicate IsAdvancePaid in Stored Procedures
+PRINT 'Updating assoc.sp_Invoices_GetPaged...';
+GO
+CREATE OR ALTER PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -76,3 +79,38 @@ BEGIN
     OFFSET @Offset ROWS
     FETCH NEXT @PageSize ROWS ONLY;
 END;
+GO
+
+PRINT 'Updating assoc.sp_Invoices_GetById...';
+GO
+CREATE OR ALTER PROCEDURE assoc.sp_Invoices_GetById
+    @Id INT,
+    @TenantId INT,
+    @AssociationId INT
+AS
+BEGIN
+    SELECT i.*, a.Name as AssetName
+    FROM assoc.Invoices i
+    LEFT JOIN assoc.Assets a ON i.AssetId = a.AssetId
+    WHERE i.InvoiceId = @Id 
+      AND i.TenantId = @TenantId 
+      AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId);
+END
+GO
+
+PRINT 'Updating assoc.sp_Invoices_GetByAssetId...';
+GO
+CREATE OR ALTER PROCEDURE assoc.sp_Invoices_GetByAssetId
+    @AssetId INT,
+    @TenantId INT,
+    @AssociationId INT
+AS
+BEGIN
+    SELECT i.*
+    FROM assoc.Invoices i
+    WHERE i.AssetId = @AssetId 
+      AND i.TenantId = @TenantId 
+      AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId)
+    ORDER BY i.CreatedDate DESC;
+END
+GO

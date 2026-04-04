@@ -27,7 +27,7 @@ BEGIN
     AND LTRIM(RTRIM(Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial');
 
     -- Collected in last 30 days
-    -- Includes captured gateway payments and manual payments
+    -- Includes captured gateway payments and manual payments, excludes internal auto-settlements
     SELECT @Collected30Days = SUM(Amount)
     FROM assoc.Payments
     WHERE TenantId = @TenantId
@@ -35,6 +35,7 @@ BEGIN
     AND (@AssetId IS NULL OR AssetId = @AssetId)
     AND (@AssetIds IS NULL OR AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
     AND LTRIM(RTRIM(Status)) IN ('Paid', 'paid', 'Captured', 'captured', 'Completed', 'completed')
+    AND (Notes IS NULL OR Notes NOT LIKE 'Auto-Settled%')
     AND CreatedDate >= DATEADD(DAY, -30, GETDATE());
 
     SELECT 

@@ -10,12 +10,15 @@
     [CreatedDate]    DATETIME        DEFAULT (getdate()) NOT NULL,
     [AssociationId]  INT             NOT NULL,
     [BillingBatchId] INT             NULL,
+    [IsAdvancePaid]  BIT             DEFAULT ((0)) NOT NULL,
     PRIMARY KEY CLUSTERED ([InvoiceId] ASC),
     CONSTRAINT [FK_Invoices_Assets] FOREIGN KEY ([AssetId]) REFERENCES [assoc].[Assets] ([AssetId]),
     CONSTRAINT [FK_Invoices_Associations] FOREIGN KEY ([AssociationId]) REFERENCES [corp].[Associations] ([AssociationId]),
     CONSTRAINT [FK_Invoices_BillingBatches] FOREIGN KEY ([BillingBatchId]) REFERENCES [assoc].[BillingBatches] ([BillingBatchId]),
     CONSTRAINT [FK_Invoices_Tenants] FOREIGN KEY ([TenantId]) REFERENCES [corp].[Tenants] ([TenantId])
 );
+
+
 
 
 

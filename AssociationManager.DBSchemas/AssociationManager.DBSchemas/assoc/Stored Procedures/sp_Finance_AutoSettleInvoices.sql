@@ -1,4 +1,5 @@
-﻿-- 2. Auto-Settlement Procedure
+﻿
+-- 2. Auto-Settlement Procedure
 -- This checks if a Unit has credit and applies it to Unpaid Invoices
 CREATE   PROCEDURE assoc.sp_Finance_AutoSettleInvoices
     @AssetId INT,
@@ -16,7 +17,8 @@ BEGIN
     FROM assoc.Transactions
     WHERE AssetId = @AssetId 
     AND TenantId = @TenantId 
-    AND AssociationId = @AssociationId;
+    AND AssociationId = @AssociationId
+    AND Category != 'Credit Settlement';
 
     IF @AvailableCredit <= 0
         RETURN;
@@ -61,7 +63,7 @@ BEGIN
         IF @SettlementAmount >= @AmountDue
             UPDATE assoc.Invoices SET Status = 'Paid' WHERE InvoiceId = @InvoiceId;
         ELSE
-            UPDATE assoc.Invoices SET Status = 'Partial' WHERE InvoiceId = @InvoiceId;
+            UPDATE assoc.Invoices SET Status = 'Unpaid' WHERE InvoiceId = @InvoiceId;
 
         -- Reduce available credit for next iteration
         SET @AvailableCredit = @AvailableCredit - @SettlementAmount;

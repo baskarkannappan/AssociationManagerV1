@@ -64,7 +64,8 @@ BEGIN
     FROM assoc.Transactions
     WHERE AssetId = @AssetId 
     AND TenantId = @TenantId 
-    AND AssociationId = @AssociationId;
+    AND AssociationId = @AssociationId
+    AND Category != 'Credit Settlement';
 END;
 GO
 
@@ -86,7 +87,8 @@ BEGIN
     FROM assoc.Transactions
     WHERE AssetId = @AssetId 
     AND TenantId = @TenantId 
-    AND AssociationId = @AssociationId;
+    AND AssociationId = @AssociationId
+    AND Category != 'Credit Settlement';
 
     IF @AvailableCredit <= 0
         RETURN;
@@ -131,7 +133,7 @@ BEGIN
         IF @SettlementAmount >= @AmountDue
             UPDATE assoc.Invoices SET Status = 'Paid' WHERE InvoiceId = @InvoiceId;
         ELSE
-            UPDATE assoc.Invoices SET Status = 'Partial' WHERE InvoiceId = @InvoiceId;
+            UPDATE assoc.Invoices SET Status = 'Unpaid' WHERE InvoiceId = @InvoiceId;
 
         -- Reduce available credit for next iteration
         SET @AvailableCredit = @AvailableCredit - @SettlementAmount;

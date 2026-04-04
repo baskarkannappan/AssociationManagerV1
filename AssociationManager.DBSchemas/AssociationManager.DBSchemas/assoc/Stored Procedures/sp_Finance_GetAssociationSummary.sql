@@ -1,4 +1,5 @@
-﻿CREATE   PROCEDURE assoc.sp_Finance_GetAssociationSummary
+﻿
+CREATE   PROCEDURE assoc.sp_Finance_GetAssociationSummary
     @AssociationId INT,
     @TenantId INT
 AS
@@ -13,6 +14,7 @@ BEGIN
     SELECT AssetId, ISNULL(SUM(CASE WHEN Type = 'Debit' THEN Amount ELSE -Amount END), 0)
     FROM assoc.Transactions
     WHERE TenantId = @TenantId AND AssociationId = @AssociationId
+    AND Category != 'Credit Settlement'
     GROUP BY AssetId;
 
     -- Total Outstanding is the sum of all units that currently owe money
