@@ -57,7 +57,7 @@
 
     <div class="compact-card shadow-sm border-0">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="m-0 fw-semibold text-vscode-accent">Transaction History (Top-ups)</h6>
+            <h6 class="m-0 fw-semibold text-vscode-accent">Transaction History</h6>
             <div class="d-flex gap-2">
                 <div class="input-group input-group-sm" style="width: 250px;">
                     <span class="input-group-text bg-white border-end-0"><i class="bi bi-search py-1"></i></span>
@@ -96,7 +96,14 @@
             </GridColumn>
 
             <GridColumn TItem="AdvancePaymentHistory" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount" HeaderClass="text-end" Class="text-end">
-                <span class="fw-bold text-success">+₹@context.Amount.ToString("N0")</span>
+                @if (context.Amount >= 0)
+                {
+                    <span class="fw-bold text-success">+₹@context.Amount.ToString("N0")</span>
+                }
+                else
+                {
+                    <span class="fw-bold text-danger">-₹@Math.Abs(context.Amount).ToString("N0")</span>
+                }
             </GridColumn>
         </Grid>
     </div>
@@ -227,10 +234,10 @@
     {
         try 
         {
-            var summary = await ApiService.GetAsync<dynamic>("api/finance/summary");
+            var summary = await ApiService.GetAsync<FinanceSummary>("api/finance/summary");
             if (summary != null)
             {
-                _balance = (decimal)(summary.totalAdvanceCredits ?? 0m);
+                _balance = summary.TotalAdvanceCredits;
             }
         }
         catch { }
@@ -296,7 +303,7 @@
 
     private string GetStatusClass(string status) => status?.ToLower() switch
     {
-        "paid" or "completed" or "captured" => "bg-success-subtle text-success",
+        "paid" or "completed" or "captured" or "settled" => "bg-success-subtle text-success",
         "failed" => "bg-danger-subtle text-danger",
         _ => "bg-secondary-subtle text-secondary"
     };

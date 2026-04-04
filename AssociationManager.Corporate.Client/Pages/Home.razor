@@ -121,9 +121,10 @@
                         <div class="col-md-3">
                             <div class="compact-card h-100 bg-white border">
                                 <div class="text-muted small text-uppercase fw-medium mb-1" style="font-size: 10px;">Revenue (MTD)</div>
-                                <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);"> ₹42,500 </div>
-                                <div class="small text-success" style="font-size: 11px;">
-                                    <i class="bi bi-caret-up-fill"></i> Robust growth
+                                <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);">₹@((dashboardData?.RevenueMTD ?? 0).ToString("N0"))</div>
+                                <div class="small @(dashboardData?.MTDGrowth >= 0 ? "text-success" : "text-danger")" style="font-size: 11px;">
+                                    <i class="bi @(dashboardData?.MTDGrowth >= 0 ? "bi-caret-up-fill" : "bi-caret-down-fill")"></i>
+                                    @(dashboardData?.MTDGrowth == 0 ? "Steady performance" : (dashboardData?.MTDGrowth > 0 ? "Growth: " : "Decline: ") + Math.Abs(dashboardData?.MTDGrowth ?? 0).ToString("N1") + "%")
                                 </div>
                             </div>
                         </div>

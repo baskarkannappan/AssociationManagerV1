@@ -10,4 +10,5 @@ public interface IPlatformBillingRepository
     Task<IEnumerable<PlatformInvoice>> GetInvoicesByAssociationIdAsync(int associationId);
     Task<IEnumerable<PlatformInvoice>> GetAllInvoicesAsync();
     Task<int> RecordPaymentAsync(PlatformPayment payment);
+    Task<decimal> GetRevenueAsync(DateTime startDate, DateTime endDate);
 }

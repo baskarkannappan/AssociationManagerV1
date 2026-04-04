@@ -1,0 +1,193 @@
+@page "/razorpay-settings"
+@attribute [Authorize(Policy = "RequirePlatformAdmin")]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Corporate.Client.Services
+@inject ApiService ApiService
+@inject ToastService ToastService
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-gear-fill text-muted" style="font-size: 14px;"></i>
+        <span class="fw-medium">Razorpay API Configuration</span>
+    </div>
+    <button class="btn-vscode" @onclick="ShowCreateForm">
+        <i class="bi @(_isEditing ? "bi-dash" : "bi-plus")"></i>
+        @(_isEditing ? "Discard" : "New Configuration")
+    </button>
+</div>
+
+<div class="p-3">
+    @if (_isEditing)
+    {
+        <div class="compact-card mb-3 border-top-0 animate-fadeIn">
+            <div class="fw-bold mb-3 small text-uppercase text-muted">@(_config.Id == 0 ? "Add New Config" : "Edit Configuration")</div>
+            <div class="row g-3 compact-form">
+                <div class="col-md-4">
+                    <label>Tenant</label>
+                    <select @bind="_config.TenantId" class="form-select" disabled="@(_config.Id != 0)">
+                        <option value="0">Select Tenant...</option>
+                        @if (_tenants != null)
+                        {
+                            @foreach (var t in _tenants)
+                            {
+                                <option value="@t.TenantId">@t.Name (#@t.TenantId)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label>Razorpay Key ID</label>
+                    <input @bind="_config.RazorpayKeyId" class="form-control" placeholder="rzp_test_..." />
+                </div>
+                <div class="col-md-4">
+                    <label>Razorpay Secret</label>
+                    <input @bind="_config.RazorpayKeySecret" class="form-control" placeholder="Secret Key..." type="password" />
+                </div>
+                <div class="col-md-10">
+                    <label>Webhook Secret (Optional)</label>
+                    <input @bind="_config.RazorpayWebhookSecret" class="form-control" placeholder="Webhook verification secret..." />
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button @onclick="SaveConfig" class="btn-vscode w-100 justify-content-center bg-accent text-white">
+                        <i class="bi bi-save me-1"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_configs == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border spinner-border-sm text-muted mb-2" role="status"></div>
+            <p class="text-muted small">Accessing secure vaults...</p>
+        </div>
+    }
+    else if (!_configs.Any())
+    {
+        <div class="alert alert-info small border-0 bg-light">
+            <i class="bi bi-info-circle me-2"></i> No configurations found. Click "New Configuration" to get started.
+        </div>
+    }
+    else
+    {
+        <div class="border bg-white shadow-sm overflow-hidden rounded">
+            <table class="table table-hover table-bordered table-striped compact-table mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 80px;">ID</th>
+                        <th>Tenant</th>
+                        <th>Key ID</th>
+                        <th>Last Updated</th>
+                        <th class="text-center" style="width: 120px;">Status</th>
+                        <th class="text-end" style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _configs)
+                    {
+                        <tr>
+                            <td class="text-muted font-monospace small">#@item.Id</td>
+                            <td>
+                                <div class="fw-medium">@item.TenantId</div>
+                                <div class="text-muted smaller">Active Tenant</div>
+                            </td>
+                            <td>
+                                <span class="font-monospace text-accent px-2 py-1 bg-light rounded" style="font-size: 11px;">@item.RazorpayKeyId</span>
+                            </td>
+                            <td class="small text-muted">@item.LastUpdated.ToLocalTime().ToString("g")</td>
+                            <td class="text-center">
+                                <span class="badge @(item.IsActive ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger") border">
+                                    @(item.IsActive ? "Active" : "Disabled")
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button @onclick="() => EditConfig(item)" class="btn btn-link btn-sm text-secondary p-0 me-2" title="Edit Configuration">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button @onclick="() => DeleteConfig(item.Id)" class="btn btn-link btn-sm text-muted p-0 hover-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<TenantPaymentConfig>? _configs;
+    private List<Tenant>? _tenants;
+    private TenantPaymentConfig _config = new();
+    private bool _isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _configs = await ApiService.GetAsync<List<TenantPaymentConfig>>("PaymentConfig");
+        _tenants = await ApiService.GetAsync<List<Tenant>>("PaymentConfig/tenants");
+    }
+
+    private void ShowCreateForm()
+    {
+        _isEditing = !_isEditing;
+        if (_isEditing) _config = new() { TenantId = 0 };
+    }
+
+    private void EditConfig(TenantPaymentConfig item)
+    {
+        _config = new TenantPaymentConfig
+        {
+            Id = item.Id,
+            TenantId = item.TenantId,
+            RazorpayKeyId = item.RazorpayKeyId,
+            RazorpayKeySecret = item.RazorpayKeySecret,
+            RazorpayWebhookSecret = item.RazorpayWebhookSecret,
+            IsActive = item.IsActive
+        };
+        _isEditing = true;
+    }
+
+    private async Task SaveConfig()
+    {
+        if (_config.TenantId == 0)
+        {
+            ToastService.Notify(new(ToastType.Warning, "Please select a tenant."));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.RazorpayKeyId) || string.IsNullOrWhiteSpace(_config.RazorpayKeySecret))
+        {
+            ToastService.Notify(new(ToastType.Warning, "Key ID and Secret are required."));
+            return;
+        }
+
+        var success = await ApiService.PostAsync("PaymentConfig", _config);
+        if (success)
+        {
+            ToastService.Notify(new(ToastType.Success, "Configuration saved successfully."));
+            _isEditing = false;
+            await LoadData();
+        }
+        else
+        {
+            ToastService.Notify(new(ToastType.Danger, "Failed to save configuration."));
+        }
+    }
+
+    private async Task DeleteConfig(int id)
+    {
+        var success = await ApiService.DeleteAsync($"PaymentConfig/{id}");
+        if (success)
+        {
+            ToastService.Notify(new(ToastType.Warning, "Configuration removed."));
+            await LoadData();
+        }
+    }
+}

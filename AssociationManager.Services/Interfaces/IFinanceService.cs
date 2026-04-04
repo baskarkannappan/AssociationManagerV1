@@ -32,6 +32,10 @@ public interface IFinanceService
 
     // Auto-Settlement
     Task<bool> AutoSettleInvoicesAsync(int assetId, int? associationId = null);
+    Task<bool> AutoSettleUserInvoicesAsync(int userId, int? associationId = null);
+    
+    // Manual Settlement
+    Task<bool> SettleInvoiceWithAdvanceAsync(int invoiceId);
     
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId);
     Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null);

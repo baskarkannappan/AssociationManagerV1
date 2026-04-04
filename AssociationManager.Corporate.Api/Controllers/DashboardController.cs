@@ -16,15 +16,18 @@ public class DashboardController : ControllerBase
     private readonly IAssociationRepository _associationRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly IPlatformBillingRepository _platformBillingRepository;
 
     public DashboardController(
         IAssociationRepository associationRepository,
         IUserRepository userRepository,
-        IAuditLogRepository auditLogRepository)
+        IAuditLogRepository auditLogRepository,
+        IPlatformBillingRepository platformBillingRepository)
     {
         _associationRepository = associationRepository;
         _userRepository = userRepository;
         _auditLogRepository = auditLogRepository;
+        _platformBillingRepository = platformBillingRepository;
     }
 
     [HttpGet("metrics")]
@@ -46,6 +49,25 @@ public class DashboardController : ControllerBase
                 TotalUsers = users?.Count() ?? 0,
                 RecentActivities = topLogs
             };
+
+            // Calculate Revenue MTD
+            var now = DateTime.UtcNow;
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            metrics.RevenueMTD = await _platformBillingRepository.GetRevenueAsync(startOfMonth, now);
+
+            // Calculate Growth (vs Last Month)
+            var startOfLastMonth = startOfMonth.AddMonths(-1);
+            var endOfLastMonth = startOfMonth.AddDays(-1);
+            var lastMonthRevenue = await _platformBillingRepository.GetRevenueAsync(startOfLastMonth, endOfLastMonth);
+            
+            if (lastMonthRevenue > 0)
+            {
+                metrics.MTDGrowth = ((metrics.RevenueMTD - lastMonthRevenue) / lastMonthRevenue) * 100;
+            }
+            else if (metrics.RevenueMTD > 0)
+            {
+                metrics.MTDGrowth = 100; // 100% growth if we had nothing last month
+            }
 
             return Ok(ApiResponse<CorporateDashboardMetrics>.SuccessResponse(metrics));
         }

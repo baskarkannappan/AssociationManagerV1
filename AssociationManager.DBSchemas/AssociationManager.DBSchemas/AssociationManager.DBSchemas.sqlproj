@@ -330,14 +330,26 @@
     <Build Include="assoc\Stored Procedures\sp_PaymentOrders_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_Occupancy_Update.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
     <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_CheckExists.sql" />
     <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvancesPaged.sql" />
     <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvances.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_AutoSettleInvoices.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Finance_AutoSettleInvoices.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetAll.sql" />
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Delete.sql" />
+    <Build Include="corp\Stored Procedures\sp_Association_BulkDelete.sql" />
   </ItemGroup>
 </Project>

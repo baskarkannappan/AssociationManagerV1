@@ -148,12 +148,12 @@ public class InvoiceRepository : IInvoiceRepository
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId)
+    public async Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId, bool? isAdvancePaid = null)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
             "assoc.sp_Invoices_UpdateStatus", 
-            new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId },
+            new { Id = id, Status = status, TenantId = tenantId, AssociationId = associationId, IsAdvancePaid = isAdvancePaid },
             commandType: CommandType.StoredProcedure) > 0;
     }
 

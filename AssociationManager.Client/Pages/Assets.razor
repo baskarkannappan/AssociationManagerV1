@@ -7,6 +7,11 @@
 @inject ToastService _toastService
 @inject NavigationManager Navigation
 @inject IAppAuthorizationService AuthService
+@inject ITenantContext TenantContext
+@inject AuthenticationStateProvider AuthStateProvider
+@using AssociationManager.Shared.Interfaces
+
+<RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
 <AuthorizeView Context="assetAuthContext">
     <Authorized>
@@ -134,7 +139,10 @@
                                     </div>
                                     <div class="col-12 pt-3 border-top">
                                         <h6 class="fw-bold small mb-2">Billing History</h6>
-                                        <InvoiceList Invoices="_invoices" />
+                                        <InvoiceList Invoices="_invoices" 
+                                                     CreditAvailable="_assetMetrics?.CreditAvailable ?? 0"
+                                                     OnPayNow="OnInvoicePayNow" 
+                                                     OnPayWithAdvance="OnPayWithAdvance" />
                                     </div>
                                 </div>
                             }
@@ -183,9 +191,12 @@
     private List<Pet>? _pets;
     private IEnumerable<WorkOrder>? _workOrders;
     private IEnumerable<Invoice>? _invoices;
+    private ResidentDashboardMetrics? _assetMetrics;
 
     private BroadcastList? _assetBroadcastList;
     private BulkCreateModal _bulkModal = default!;
+    private RazorpayCheckout _razorpayCheckout = default!;
+    private int? _currentlyPayingInvoiceId;
     private bool _canManageAssets;
     private bool _canAddGlobalAssets;
 
@@ -263,6 +274,10 @@
         _workOrders = await ApiService.GetAsync<List<WorkOrder>>($"api/operations/workorders?assetId={assetId}");
         var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>($"api/finance/invoices?assetId={assetId}");
         _invoices = invoiceResult?.Items;
+
+        // Fetch metrics for credit available
+        var metricsResult = await ApiService.GetAsync<ResidentDashboardMetrics>($"api/dashboard/resident-metrics?assetId={assetId}");
+        _assetMetrics = metricsResult;
     }
 
     private void CreateRootProperty()
@@ -366,6 +381,90 @@
         if (success) {
             _toastService.Notify(new(ToastType.Warning, "Pet record removed."));
             if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        }
+    }
+
+    private async Task OnInvoicePayNow(Invoice invoice)
+    {
+        _currentlyPayingInvoiceId = invoice.InvoiceId;
+        await InitiateRazorpay(invoice.Amount, invoice.InvoiceId, invoice.AssetId, $"Payment for Invoice #{invoice.InvoiceId}");
+    }
+
+    private async Task InitiateRazorpay(decimal amount, int? invoiceId, int? assetId, string description)
+    {
+        try
+        {
+            var request = new RazorpayOrderRequest
+            {
+                Amount = amount,
+                Currency = "INR",
+                InvoiceId = invoiceId,
+                AssetId = assetId,
+                Description = description
+            };
+
+            var response = await ApiService.PostAsync<RazorpayOrderRequest, RazorpayOrderResponse>("api/payments/create-order", request);
+            if (response != null)
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                
+                await _razorpayCheckout.InitializePayment(
+                    response, 
+                    user.Identity?.Name ?? "Resident", 
+                    description, 
+                    user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", 
+                    ""
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Payment Failed: {ex.Message}"));
+        }
+    }
+
+    private async Task OnPaymentProcessed(string paymentId)
+    {
+        _toastService.Notify(new(ToastType.Success, $"Payment recorded successfully! ID: {paymentId}"));
+        _currentlyPayingInvoiceId = null;
+        if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+        StateHasChanged();
+    }
+
+    private async Task OnPaymentFailed()
+    {
+        _toastService.Notify(new(ToastType.Danger, "Payment failed or was cancelled."));
+        if (_currentlyPayingInvoiceId.HasValue)
+        {
+            var inv = _invoices?.FirstOrDefault(i => i.InvoiceId == _currentlyPayingInvoiceId.Value);
+            if (inv != null)
+            {
+                inv.Status = "Failed";
+            }
+        }
+        _currentlyPayingInvoiceId = null;
+        StateHasChanged();
+    }
+
+    private async Task OnPayWithAdvance(Invoice invoice)
+    {
+        try
+        {
+            var success = await ApiService.PostAsync($"api/finance/invoices/{invoice.InvoiceId}/settled-with-advance", new { });
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, $"Invoice #{invoice.InvoiceId} paid successfully using advance credit!"));
+                if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit. Please check your balance."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
         }
     }
 

@@ -76,7 +76,23 @@ public class FinanceService : IFinanceService
     public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null)
     {
         var (unpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
-        return new FinanceSummary { TotalUnpaid = unpaid, Collected30Days = collected };
+        
+        decimal totalWallet = 0;
+        var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
+        foreach (var aid in ids)
+        {
+            var txs = await GetAssetTransactionsAsync(aid);
+            var advances = txs.Where(t => t.Type == "Credit" && (t.Category == "Payment" || t.Category == "Advance Payment") && !t.InvoiceId.HasValue).Sum(t => t.Amount);
+            var settlements = txs.Where(t => t.Type == "Debit" && (t.Category == "Credit Settlement" || t.Category == "Internal Credit Transfer")).Sum(t => t.Amount);
+            totalWallet += (advances - settlements);
+        }
+
+        return new FinanceSummary 
+        { 
+            TotalUnpaid = unpaid, 
+            Collected30Days = collected,
+            TotalAdvanceCredits = totalWallet
+        };
     }
 
 

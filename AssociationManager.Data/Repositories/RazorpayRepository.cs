@@ -134,4 +134,38 @@ public class RazorpayRepository : IRazorpayRepository
             new { RazorpayPaymentId = razorpayPaymentId, TenantId = tenantId },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<IEnumerable<TenantPaymentConfig>> GetAllPaymentConfigsAsync()
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<TenantPaymentConfig>(
+            "corp.sp_TenantPaymentConfig_GetAll",
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<int> UpsertPaymentConfigAsync(TenantPaymentConfig config)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "corp.sp_TenantPaymentConfig_Upsert",
+            new
+            {
+                config.Id,
+                config.TenantId,
+                config.RazorpayKeyId,
+                config.RazorpayKeySecret,
+                config.RazorpayWebhookSecret,
+                config.IsActive
+            },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> DeletePaymentConfigAsync(int id)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "corp.sp_TenantPaymentConfig_Delete",
+            new { Id = id },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
 }

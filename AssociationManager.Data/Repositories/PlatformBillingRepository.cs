@@ -60,4 +60,12 @@ public class PlatformBillingRepository : IPlatformBillingRepository
             },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<decimal> GetRevenueAsync(DateTime startDate, DateTime endDate)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<decimal>(
+            "SELECT ISNULL(SUM(Amount), 0) FROM corp.PlatformPayments WHERE PaymentDate >= @startDate AND PaymentDate <= @endDate",
+            new { startDate, endDate });
+    }
 }

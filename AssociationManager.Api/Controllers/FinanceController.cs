@@ -200,16 +200,15 @@ public class FinanceController : ControllerBase
         return CreatedAtAction(nameof(GetInvoice), new { id }, ApiResponse<int>.SuccessResponse(id, "Invoice created successfully."));
     }
 
-    [HttpPut("invoices/{id}/status")]
-    [Authorize(Policy = "RequireFinanceManager")]
-    public async Task<IActionResult> UpdateInvoiceStatus(int id, [FromBody] string status)
+    [HttpPost("invoices/{id}/settled-with-advance")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> SettleInvoiceWithAdvance(int id)
     {
-        var invoice = await _financeService.GetInvoiceByIdAsync(id);
-        var success = await _financeService.UpdateInvoiceStatusAsync(id, status);
-        if (!success) return NotFound(ApiResponse.FailureResponse("Invoice not found for status update."));
+        var success = await _financeService.SettleInvoiceWithAdvanceAsync(id);
+        if (!success) return BadRequest(ApiResponse.FailureResponse("Unable to settle invoice with advance. Insufficient credit or invoice not found."));
         
-        await _auditService.LogAsync($"Update Invoice Status to {status}", "Invoice", id, assetId: invoice?.AssetId);
-        return Ok(ApiResponse.SuccessResponse("Invoice status updated."));
+        await _auditService.LogAsync("Manual Settlement via Advance", "Invoice", id);
+        return Ok(ApiResponse.SuccessResponse("Invoice settled using advance credit."));
     }
 
     [HttpGet("payments")]
@@ -349,17 +348,19 @@ public class FinanceController : ControllerBase
     }
 
     [HttpGet("balance/asset")]
+    [HttpGet("balance/asset/{assetId}")]
     [Authorize(Policy = "RequireResident")]
-    public async Task<IActionResult> GetAssetBalance([FromQuery] int? assetId = null)
+    public async Task<IActionResult> GetAssetBalance([FromQuery] int? assetId = null, [FromRoute] int? rAssetId = null)
     {
+        var idToUse = assetId ?? rAssetId;
         var tenantId = _tenantContext.TenantId;
         var associationId = _tenantContext.AssociationId;
         var assetIds = new List<int>();
 
-        if (assetId.HasValue)
+        if (idToUse.HasValue)
         {
-            if (!await IsAuthorizedForAsset(assetId.Value, "View")) return Forbid();
-            assetIds.Add(assetId.Value);
+            if (!await IsAuthorizedForAsset(idToUse.Value, "View")) return Forbid();
+            assetIds.Add(idToUse.Value);
         }
         else
         {

@@ -14,4 +14,9 @@ public interface IRazorpayRepository
     Task<IEnumerable<PaymentHistoryItem>> GetTransactionsByInvoiceIdAsync(int invoiceId, int tenantId);
     Task<IEnumerable<PaymentOrder>> GetOrdersByInvoiceIdAsync(int invoiceId, int tenantId);
     Task<bool> TransactionExistsAsync(string razorpayPaymentId, int tenantId);
+    
+    // Admin Config
+    Task<IEnumerable<TenantPaymentConfig>> GetAllPaymentConfigsAsync();
+    Task<int> UpsertPaymentConfigAsync(TenantPaymentConfig config);
+    Task<bool> DeletePaymentConfigAsync(int id);
 }

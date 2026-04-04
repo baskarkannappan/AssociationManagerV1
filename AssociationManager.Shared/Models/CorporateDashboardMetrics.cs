@@ -6,5 +6,7 @@ public class CorporateDashboardMetrics
 {
     public int TotalAssociations { get; set; }
     public int TotalUsers { get; set; }
+    public decimal RevenueMTD { get; set; }
+    public decimal MTDGrowth { get; set; }
     public IEnumerable<AuditLog> RecentActivities { get; set; } = new List<AuditLog>();
 }

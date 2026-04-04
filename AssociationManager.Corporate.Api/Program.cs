@@ -56,6 +56,7 @@ builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
+builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();

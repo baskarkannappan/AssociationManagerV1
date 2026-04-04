@@ -12,7 +12,7 @@ public interface IInvoiceRepository
     Task<PagedResult<Invoice>> GetPagedAsync(int tenantId, InvoiceSearchCriteria criteria);
     Task<(decimal TotalUnpaid, decimal Collected30Days)> GetSummaryStatsAsync(int tenantId, int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null);
     Task<int> CreateAsync(Invoice invoice);
-    Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId);
+    Task<bool> UpdateStatusAsync(int id, string status, int tenantId, int? associationId, bool? isAdvancePaid = null);
     Task<bool> DeleteAsync(int id, int tenantId, int? associationId);
     
     // Line Items
