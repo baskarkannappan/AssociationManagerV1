@@ -18,6 +18,7 @@ public class FinanceService : IFinanceService
     private readonly IAssociationRepository _associationRepository;
     private readonly IOccupancyRepository _occupancyRepository;
     private readonly IFineService _fineService;
+    private readonly IAssetRepository _assetRepository;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -26,7 +27,8 @@ public class FinanceService : IFinanceService
         ITenantContext tenantContext,
         IAssociationRepository associationRepository,
         IOccupancyRepository occupancyRepository,
-        IFineService fineService)
+        IFineService fineService,
+        IAssetRepository assetRepository)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -35,6 +37,7 @@ public class FinanceService : IFinanceService
         _associationRepository = associationRepository;
         _occupancyRepository = occupancyRepository;
         _fineService = fineService;
+        _assetRepository = assetRepository;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -106,13 +109,21 @@ public class FinanceService : IFinanceService
         }
     }
 
-    public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null)
+    public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null, int? userId = null)
     {
         // Get base stats from repository
         var (_, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
         
         // Calculate REAL unpaid balance including ONLY virtual dynamic fines (to avoid double-counting persisted maintenance items)
         IEnumerable<Invoice> unpaidInvoices;
+        
+        // If userId is provided, resolve their asset IDs first
+        if (userId.HasValue && (assetIds == null || !assetIds.Any()))
+        {
+            var occupancies = await _occupancyRepository.GetByUserIdAsync(userId.Value, CurrentTenantId, associationId ?? CurrentAssociationId);
+            assetIds = occupancies.Select(o => o.AssetId).ToList();
+        }
+
         if (assetId.HasValue)
         {
             unpaidInvoices = (await GetInvoicesByAssetIdAsync(assetId.Value, associationId)).Where(i => i.Status != "Paid");
@@ -381,10 +392,11 @@ public class FinanceService : IFinanceService
 
         if (totalWalletPower <= 0) return false;
         
-        // SMART TOTAL: Calculate real amount due including virtual fines
-        decimal totalAmountDue = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount);
+        // EXCLUSIVE TOTAL: For Advance Settlements, only settle the base amount + already-persisted items.
+        // We skip virtual (ID=0) fines here to avoid 'surprising' wallet deductions.
+        decimal totalAmountDue = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId > 0).Sum(li => li.Amount);
         
-        if (totalWalletPower < totalAmountDue) return false; // Insufficient global credit
+        if (totalWalletPower < totalAmountDue) return false;
 
         decimal remainingSettleAmount = totalAmountDue;
         decimal spendableWallet = totalWalletPower;
@@ -437,6 +449,7 @@ public class FinanceService : IFinanceService
         if (remainingSettleAmount <= 0)
         {
             // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
+            // We search for any line item with ID 0 that contains Fine/Penalty keywords
             var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
                                (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
             
@@ -471,11 +484,27 @@ public class FinanceService : IFinanceService
 
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
+        // 1. Unified Unpaid Invoices (including fines)
         var invoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
         var totalOutstanding = invoices.Sum(i => i.Amount + 
             i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
 
-        var (_, totalCredits, unitsWithCredit) = await _paymentRepository.GetAssociationSummaryAsync(tenantId, associationId);
+        // 2. Unified Advance Credits (Scan all units to match Resident logic)
+        // Note: associationId is passed for cross-tenant multi-asset support
+        var assets = await _assetRepository.GetHierarchyAsync(tenantId, associationId);
+        decimal totalCredits = 0;
+        int unitsWithCredit = 0;
+
+        foreach (var asset in assets)
+        {
+            var summary = await GetFinanceSummaryAsync(associationId, assetId: asset.AssetId);
+            if (summary.TotalAdvanceCredits > 0)
+            {
+                totalCredits += summary.TotalAdvanceCredits;
+                unitsWithCredit++;
+            }
+        }
+
         return (totalOutstanding, totalCredits, unitsWithCredit);
     }
 

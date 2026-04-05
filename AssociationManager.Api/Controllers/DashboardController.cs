@@ -25,6 +25,7 @@ public class DashboardController : ControllerBase
     private readonly IFinanceService _financeService;
     private readonly IPeopleService _peopleService;
     private readonly ITenantContext _tenantContext;
+    private readonly ITransactionRepository _transactionRepository;
 
     public DashboardController(
         IPersonRepository personRepository,
@@ -34,7 +35,8 @@ public class DashboardController : ControllerBase
         IAuditLogRepository auditLogRepository,
         IFinanceService financeService,
         IPeopleService peopleService,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        ITransactionRepository transactionRepository)
     {
         _personRepository = personRepository;
         _invoiceRepository = invoiceRepository;
@@ -44,6 +46,7 @@ public class DashboardController : ControllerBase
         _financeService = financeService;
         _peopleService = peopleService;
         _tenantContext = tenantContext;
+        _transactionRepository = transactionRepository;
     }
 
     [HttpGet("admin/metrics")]
@@ -117,15 +120,8 @@ public class DashboardController : ControllerBase
             workOrders.AddRange(assetWorkOrders);
         }
 
-        decimal totalCredit = 0;
-        foreach (var aid in assetIds)
-        {
-            // 1. Calculate Gross Wallet (What I TOPPED UP - What I SPENT)
-            var transactions = await _financeService.GetAssetTransactionsAsync(aid);
-            var advances = transactions.Where(t => t.Type == "Credit" && (t.Category == "Payment" || t.Category == "Advance Payment") && !t.InvoiceId.HasValue).Sum(t => t.Amount);
-            var settlements = transactions.Where(t => t.Type == "Debit" && (t.Category == "Credit Settlement" || t.Category == "Internal Credit Transfer")).Sum(t => t.Amount);
-            totalCredit += (advances - settlements);
-        }
+        var finSummary = await _financeService.GetFinanceSummaryAsync(associationId, assetIds: assetIds);
+        decimal totalCredit = finSummary.TotalAdvanceCredits;
 
         var unpaidInvoices = invoices.Where(i => i.Status != "Paid");
         // SMART SUM: Amount (Principal) + all Fine items + any virtual items

@@ -3,6 +3,8 @@ using AssociationManager.Data.Interfaces;
 using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
+using AssociationManager.Services.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -47,6 +49,16 @@ public class UsersController : ControllerBase
         };
 
         var result = await _userRepository.GetPagedAsync(criteria);
+        
+        // Enrich with unified financial balances
+        var financeService = HttpContext.RequestServices.GetRequiredService<IFinanceService>();
+        foreach (var user in result.Items)
+        {
+            var summary = await financeService.GetFinanceSummaryAsync(criteria.AssociationId ?? 0, userId: user.UserId);
+            // Balance = Unpaid Dues - Advance Credits (Positive = Due, Negative = Credit/CR)
+            user.Balance = summary.TotalUnpaid - summary.TotalAdvanceCredits;
+        }
+
         return Ok(ApiResponse<PagedResult<User>>.SuccessResponse(result));
     }
 
