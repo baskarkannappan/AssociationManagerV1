@@ -351,5 +351,9 @@
     <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetAll.sql" />
     <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Delete.sql" />
     <Build Include="corp\Stored Procedures\sp_Association_BulkDelete.sql" />
+    <Build Include="assoc\Tables\FineSettings.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformPayments_GetRevenue.sql" />
+    <Build Include="assoc\Stored Procedures\sp_FineSettings_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_FineSettings_Get.sql" />
   </ItemGroup>
 </Project>
