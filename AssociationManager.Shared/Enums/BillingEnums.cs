@@ -16,3 +16,12 @@ public enum CalculationType
     QuantityBased,
     Tiered
 }
+
+public enum FineStrategyType
+{
+    None,
+    Percentage,
+    FlatAmount,
+    OneTimeFlat,
+    OneTimePercentage
+}

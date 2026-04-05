@@ -584,7 +584,8 @@
     private async Task OnInvoicePayNow(Invoice invoice)
     {
         _currentlyPayingInvoiceId = invoice.InvoiceId;
-        await InitiateRazorpay(invoice.Amount, invoice.InvoiceId, invoice.AssetId, $"Payment for Invoice #{invoice.InvoiceId}");
+        var totalAmount = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount);
+        await InitiateRazorpay(totalAmount, invoice.InvoiceId, invoice.AssetId, $"Payment for Invoice #{invoice.InvoiceId}");
     }
 
     private async Task QuickPay()
@@ -592,7 +593,8 @@
         var oldestUnpaid = _myInvoices?.Where(i => i.Status != "Paid").OrderBy(i => i.DueDate).FirstOrDefault();
         if (oldestUnpaid != null)
         {
-            await InitiateRazorpay(oldestUnpaid.Amount, oldestUnpaid.InvoiceId, oldestUnpaid.AssetId, $"Invoice #{oldestUnpaid.InvoiceId}");
+            var totalAmount = oldestUnpaid.Amount + oldestUnpaid.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount);
+            await InitiateRazorpay(totalAmount, oldestUnpaid.InvoiceId, oldestUnpaid.AssetId, $"Invoice #{oldestUnpaid.InvoiceId}");
         }
     }
 

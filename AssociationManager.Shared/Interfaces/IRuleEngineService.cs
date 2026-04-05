@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace AssociationManager.Shared.Interfaces;
 
 public class SecurityContext
@@ -12,7 +14,18 @@ public class SecurityContext
     public int? AssetId { get; set; }
 }
 
+public class FineCalculationContext
+{
+    public decimal OriginalAmount { get; set; }
+    public int DaysLate { get; set; }
+    public int MonthsLate { get; set; }
+    public decimal Rate { get; set; }
+    public decimal FlatAmount { get; set; }
+    public bool IsCompounding { get; set; }
+}
+
 public interface IRuleEngineService
 {
     Task<bool> EvaluateRuleAsync(string workflowName, SecurityContext context);
+    Task<decimal> CalculateValueAsync(string workflowName, FineCalculationContext context);
 }

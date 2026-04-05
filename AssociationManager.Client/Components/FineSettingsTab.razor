@@ -1,0 +1,221 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject ApiService ApiService
+@inject ToastService ToastService
+
+<div class="fine-settings-module bg-white p-4 rounded-3 border">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div>
+            <h5 class="mb-1 fw-bold text-dark">Modular Fine Rules</h5>
+            <p class="text-muted small mb-0">Configure automated penalties for late invoice payments.</p>
+        </div>
+        <div class="strategy-badge">
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-20 px-3 py-2">
+                <i class="bi bi-shield-check me-1"></i> Rule Engine Active
+            </span>
+        </div>
+    </div>
+
+    @if (_settings == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading configuration...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-md-7">
+                <div class="settings-form pe-md-4 border-end">
+                    <!-- Strategy Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-secondary text-uppercase mb-2">Penalty Strategy</label>
+                        <select class="form-select form-select-lg border-2" @bind="_settings.StrategyType">
+                            <option value="None">No Fine (Disabled)</option>
+                            <option value="Percentage">Monthly Percentage (Cumulative)</option>
+                            <option value="FlatAmount">Monthly Flat Amount (Cumulative)</option>
+                            <option value="OneTimeFlat">One-time Flat Amount</option>
+                            <option value="OneTimePercentage">One-time Percentage</option>
+                        </select>
+                        <div class="form-text mt-2">
+                            @GetStrategyDescription(_settings.StrategyType)
+                        </div>
+                    </div>
+
+                    @if (_settings.StrategyType != "None")
+                    {
+                        <div class="row g-3 animate-fade-in">
+                            <!-- Value Input -->
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold">@(IsPercentage(_settings.StrategyType) ? "Rate (%)" : "Amount (₹)")</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">@(IsPercentage(_settings.StrategyType) ? "%" : "₹")</span>
+                                    <input type="number" class="form-control" @bind="_settings.FineValue" step="0.01" />
+                                </div>
+                            </div>
+
+                            <!-- Grace Period -->
+                            <div class="col-sm-6">
+                                <label class="form-label small fw-bold">Grace Period (Days)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" @bind="_settings.GracePeriodDays" />
+                                    <span class="input-group-text bg-light">days</span>
+                                </div>
+                            </div>
+
+                            <!-- Compounding Toggle -->
+                            @if (_settings.StrategyType == "Percentage")
+                            {
+                                <div class="col-12 mt-3">
+                                    <div class="form-check form-switch p-3 bg-light rounded border">
+                                        <input class="form-check-input ms-0 me-2" type="checkbox" id="compoundMode" @bind="_settings.IsCompounding">
+                                        <label class="form-check-label fw-bold text-dark" for="compoundMode">
+                                            Enable Compounding Logic
+                                        </label>
+                                        <div class="small text-muted mt-1 ps-4 ms-2">
+                                            Calculates percentage based on the Principal + Previous Fines (Standard for compound interest).
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="mt-5 pt-3">
+                        <button class="btn btn-primary px-4 py-2 fw-bold" @onclick="SaveSettings" disabled="@_isSaving">
+                            @if (_isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            <i class="bi bi-save2 me-2"></i> Save Rule Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preivew / Simulation Panel -->
+            <div class="col-md-5">
+                <div class="preview-panel h-100 bg-light p-4 rounded-3 border border-dashed">
+                    <h6 class="fw-bold text-uppercase small text-secondary mb-3">Live Simulation Preview</h6>
+                    
+                    @if (_settings.StrategyType == "None")
+                    {
+                        <div class="text-center py-5 opacity-50">
+                            <i class="bi bi-slash-circle mb-3 d-block" style="font-size: 3rem;"></i>
+                            <p>Select a strategy to see a preview of the calculation.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="simulation-table">
+                            <div class="d-flex justify-content-between mb-2 small text-muted">
+                                <span>Base Invoice:</span>
+                                <span class="fw-bold text-dark">₹1000.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2 small text-muted">
+                                <span>Grace Period:</span>
+                                <span class="fw-bold text-dark">@_settings.GracePeriodDays Days</span>
+                            </div>
+                            
+                            <hr />
+
+                            <div class="timeline mt-3">
+                                @for (int i = 1; i <= 3; i++)
+                                {
+                                    var fine = CalculatePreviewFine(1000m, i);
+                                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-white rounded border shadow-sm">
+                                        <div>
+                                            <div class="fw-bold small">Month @i Delay</div>
+                                            <div class="text-muted" style="font-size: 10px;">Cumulative Fine</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="text-danger fw-bold">+₹@fine.ToString("N2")</div>
+                                            <div class="text-success small fw-bold" style="font-size: 11px;">Total: ₹@((1000m + fine).ToString("N2"))</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="alert alert-info mt-4 mb-0 small border-0 py-2">
+                                <i class="bi bi-info-circle me-2"></i> This is a simulation for a ₹1000 invoice.
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .fine-settings-module { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .input-group-text { border-width: 2px; }
+    .form-control, .form-select { border-width: 2px; }
+    .form-control:focus, .form-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.1); }
+</style>
+
+@code {
+    [Parameter] public int AssociationId { get; set; }
+    private FineSettings? _settings;
+    private bool _isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        _settings = await ApiService.GetAsync<FineSettings>($"api/finance/fine-settings?associationId={AssociationId}");
+    }
+
+    private async Task SaveSettings()
+    {
+        if (_settings == null) return;
+        _isSaving = true;
+        try
+        {
+            var success = await ApiService.PostAsync<FineSettings, bool>("api/finance/fine-settings", _settings);
+            if (success)
+            {
+                ToastService.Notify(new(ToastType.Success, "Rule configuration saved successfully."));
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string GetStrategyDescription(string strategy) => strategy switch
+    {
+        "Percentage" => "Calculates a monthly fee based on a percentage of the overdue amount.",
+        "FlatAmount" => "Adds a fixed monthly fee (e.g. ₹10) regardless of the invoice amount.",
+        "OneTimeFlat" => "A fixed penalty added only once as soon as the debt becomes late.",
+        "OneTimePercentage" => "A one-time percentage charge applied once after the deadline.",
+        "None" => "No penalties will be applied to late invoices.",
+        _ => "Select a configuration above."
+    };
+
+    private bool IsPercentage(string strategy) => strategy.Contains("Percentage");
+
+    private decimal CalculatePreviewFine(decimal baseAmount, int months)
+    {
+        if (_settings == null || _settings.StrategyType == "None") return 0;
+
+        decimal rate = _settings.FineValue / 100;
+        
+        return _settings.StrategyType switch
+        {
+            "FlatAmount" => _settings.FineValue * months,
+            "OneTimeFlat" => _settings.FineValue,
+            "OneTimePercentage" => baseAmount * rate,
+            "Percentage" when _settings.IsCompounding => (decimal)Math.Pow((double)(1 + rate), months) * baseAmount - baseAmount,
+            "Percentage" when !_settings.IsCompounding => baseAmount * rate * months,
+            _ => 0
+        };
+    }
+}

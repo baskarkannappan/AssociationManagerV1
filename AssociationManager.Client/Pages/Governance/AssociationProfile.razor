@@ -22,7 +22,17 @@
     }
     else
     {
-        <div class="row g-4">
+        <div class="vscode-tabs mb-4 border-bottom">
+            <div class="vscode-tab @(_activeTab == "profile" ? "active" : "")" @onclick='() => _activeTab = "profile"'>General Profile</div>
+            @if (_isAdmin)
+            {
+                <div class="vscode-tab @(_activeTab == "fines" ? "active" : "")" @onclick='() => _activeTab = "fines"'>Financial Rules</div>
+            }
+        </div>
+
+        @if (_activeTab == "profile")
+        {
+            <div class="row g-4 animate-fade-in">
             <!-- Summary Card -->
             <div class="col-lg-4">
                 <Card Class="shadow-sm border-0 h-100">
@@ -122,14 +132,27 @@
                     </CardBody>
                 </Card>
             </div>
-        </div>
+            </div>
+        }
+        else if (_activeTab == "fines" && _isAdmin)
+        {
+            <div class="animate-fade-in">
+                <FineSettingsTab AssociationId="_profileModel.AssociationId" />
+            </div>
+        }
     }
 </div>
+
+<style>
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
 
 @code {
     private AssociationManager.Shared.Models.AssociationProfile? _profileModel;
     private bool _isAdmin;
     private bool _isSaving;
+    private string _activeTab = "profile";
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;

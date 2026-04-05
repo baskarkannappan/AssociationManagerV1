@@ -110,7 +110,7 @@ public class DashboardController : ControllerBase
 
         foreach (var aid in assetIds)
         {
-            var assetInvoices = await _invoiceRepository.GetByAssetIdAsync(aid, tenantId, associationId);
+            var assetInvoices = await _financeService.GetInvoicesByAssetIdAsync(aid, associationId);
             invoices.AddRange(assetInvoices);
 
             var assetWorkOrders = await _workOrderRepository.GetByAssetIdAsync(aid, tenantId, associationId);
@@ -127,12 +127,17 @@ public class DashboardController : ControllerBase
             totalCredit += (advances - settlements);
         }
 
+        var unpaidInvoices = invoices.Where(i => i.Status != "Paid");
+        // SMART SUM: Amount (Principal) + all Fine items + any virtual items
+        var totalBalanceDue = unpaidInvoices.Sum(i => i.Amount + 
+            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount));
+
         var metrics = new ResidentDashboardMetrics
         {
-            BalanceDue = invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount),
+            BalanceDue = totalBalanceDue,
             WalletBalance = totalCredit,
-            NetPosition = totalCredit - invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount),
-            PendingInvoices = invoices.Count(i => i.Status != "Paid"),
+            NetPosition = totalCredit - totalBalanceDue,
+            PendingInvoices = unpaidInvoices.Count(),
             ActiveWorkOrders = workOrders.Count(w => w.Status != "Completed" && w.Status != "Closed")
         };
 

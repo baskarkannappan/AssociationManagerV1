@@ -1,6 +1,7 @@
 using System;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Shared.Interfaces;
+using AssociationManager.Shared.Models;
 using Microsoft.Extensions.Logging;
 using RulesEngine.Models;
 using System.Collections.Generic;
@@ -46,6 +47,34 @@ public class RuleEngineService : IRuleEngineService
         {
             _logger.LogError(ex, "Error evaluating auth rule {WorkflowName}", workflowName);
             return false;
+        }
+    }
+
+    public async Task<decimal> CalculateValueAsync(string workflowName, FineCalculationContext context)
+    {
+        try
+        {
+            var workflow = await _workflowRepository.GetByNameAsync(workflowName);
+            if (workflow == null) return 0m;
+
+            var workflowData = JsonSerializer.Deserialize<List<Workflow>>(workflow.WorkflowJson);
+            if (workflowData == null) return 0m;
+
+            var engine = new RulesEngine.RulesEngine(workflowData.ToArray());
+            var results = await engine.ExecuteAllRulesAsync(workflowName, context);
+            
+            var successRule = results.FirstOrDefault(r => r.IsSuccess);
+            if (successRule != null && decimal.TryParse(successRule.Rule.SuccessEvent, out decimal val))
+            {
+                return val;
+            }
+            
+            return 0m;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating fine value for {WorkflowName}", workflowName);
+            return 0m;
         }
     }
 }

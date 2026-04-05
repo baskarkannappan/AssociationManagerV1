@@ -56,6 +56,7 @@ builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
+builder.Services.AddScoped<IFineRepository, FineRepository>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 
 // Services
@@ -73,6 +74,7 @@ builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
+builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 
 // Caching

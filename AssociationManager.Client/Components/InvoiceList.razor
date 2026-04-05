@@ -32,9 +32,31 @@
             <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
                 <span class="text-muted" style="font-size: 11px;">@context.DueDate.ToShortDateString()</span>
             </GridColumn>
+            
+            <GridColumn TItem="Invoice" HeaderText="Fine" PropertyName="Amount">
+                @{
+                    var fineAmount = context.LineItems.Where(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+                }
+                @if (fineAmount > 0)
+                {
+                    <span class="text-danger fw-semibold">₹@fineAmount.ToString("N0")</span>
+                }
+                else
+                {
+                    <span class="text-muted opacity-50">-</span>
+                }
+            </GridColumn>
 
-            <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
-                <span class="fw-bold">₹@context.Amount.ToString("N0")</span>
+            <GridColumn TItem="Invoice" HeaderText="Total Amount" PropertyName="Amount" SortKeySelector='item => item.Amount + item.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Fine") || l.ChargeName.Contains("Penalty")).Sum(l => l.Amount)'>
+                <div class="d-flex flex-column">
+                    <span class="fw-bold text-dark">₹@((context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Fine") || l.ChargeName.Contains("Penalty")).Sum(l => l.Amount)).ToString("N2"))</span>
+                    @if (context.LineItems.Any(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")))
+                    {
+                        <span class="text-danger fw-bold" style="font-size: 9px; margin-top: -2px;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Includes Fine
+                        </span>
+                    }
+                </div>
             </GridColumn>
 
             <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
@@ -48,16 +70,24 @@
                 {
                     <span class="badge @GetStatusClass(context.Status)" style="font-size: 10px; border-radius: 2px;">@context.Status</span>
                 }
+                
+                @if (context.Status != "Paid" && context.DueDate < DateTime.UtcNow)
+                {
+                    <span class="ms-1 badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20" style="font-size: 9px; cursor: help;" title="Interest/Fine applied due to delay">
+                        LATE
+                    </span>
+                }
             </GridColumn>
 
-            <GridColumn TItem="Invoice" HeaderText="Actions">
+                    <GridColumn TItem="Invoice" HeaderText="Actions">
                 <div class="d-flex gap-2">
                     <button class="btn btn-sm btn-link p-0 text-primary" @onclick="() => ShowDetails(context)" title="View Details">
                         <i class="bi bi-info-circle"></i> Breakdown
                     </button>
                     @if (context.Status != "Paid")
                     {
-                        @if (WalletBalance >= context.Amount)
+                        var totalAmount = context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Fine") || l.ChargeName.Contains("Penalty")).Sum(l => l.Amount);
+                        @if (WalletBalance >= totalAmount)
                         {
                             <button class="btn btn-sm btn-outline-primary py-0 px-2" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" style="font-size: 10px;" title="Pay using your advance credit">
                                 <i class="bi bi-wallet2 pe-1"></i> Pay with Advance
@@ -121,7 +151,7 @@
                             }
                             <div class="d-flex justify-content-between pt-2 mt-1 fw-bold text-primary">
                                 <span>Total Amount</span>
-                                <span>₹@_selectedInvoice.Amount.ToString("N0")</span>
+                                <span>₹@((_selectedInvoice.Amount + _selectedInvoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Fine") || l.ChargeName.Contains("Penalty")).Sum(l => l.Amount)).ToString("N2"))</span>
                             </div>
                         </div>
                     </div>

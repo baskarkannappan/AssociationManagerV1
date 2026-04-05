@@ -59,6 +59,8 @@ builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IGovernanceRepository, GovernanceRepository>();
 builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
+builder.Services.AddScoped<IFineRepository, FineRepository>();
+builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 
 // Services
@@ -78,6 +80,7 @@ builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IGovernanceService, GovernanceService>();
 builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
 builder.Services.AddScoped<IPaymentServiceV2, PaymentServiceV2>();
+builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();

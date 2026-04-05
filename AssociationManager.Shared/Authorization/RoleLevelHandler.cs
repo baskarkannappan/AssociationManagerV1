@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Interfaces;
+using AssociationManager.Shared.Models;
 
 namespace AssociationManager.Shared.Authorization;
 

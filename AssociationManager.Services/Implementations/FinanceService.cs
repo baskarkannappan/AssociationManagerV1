@@ -17,6 +17,7 @@ public class FinanceService : IFinanceService
     private readonly ITenantContext _tenantContext;
     private readonly IAssociationRepository _associationRepository;
     private readonly IOccupancyRepository _occupancyRepository;
+    private readonly IFineService _fineService;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -24,7 +25,8 @@ public class FinanceService : IFinanceService
         ILedgerService ledgerService,
         ITenantContext tenantContext,
         IAssociationRepository associationRepository,
-        IOccupancyRepository occupancyRepository)
+        IOccupancyRepository occupancyRepository,
+        IFineService fineService)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -32,6 +34,7 @@ public class FinanceService : IFinanceService
         _tenantContext = tenantContext;
         _associationRepository = associationRepository;
         _occupancyRepository = occupancyRepository;
+        _fineService = fineService;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -43,6 +46,7 @@ public class FinanceService : IFinanceService
         if (invoice != null)
         {
             invoice.LineItems = (await _invoiceRepository.GetLineItemsAsync(id)).ToList();
+            await AddFinePreviewAsync(invoice);
         }
         return invoice;
     }
@@ -53,6 +57,7 @@ public class FinanceService : IFinanceService
         foreach (var inv in invoices)
         {
             inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
+            await AddFinePreviewAsync(inv);
         }
         return invoices;
     }
@@ -63,6 +68,7 @@ public class FinanceService : IFinanceService
         foreach (var inv in invoices)
         {
             inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
+            await AddFinePreviewAsync(inv);
         }
         return invoices;
     }
@@ -70,12 +76,64 @@ public class FinanceService : IFinanceService
     public async Task<PagedResult<Invoice>> GetPagedInvoicesAsync(InvoiceSearchCriteria criteria)
     {
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
-        return await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
+        var paged = await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
+        foreach (var inv in paged.Items)
+        {
+            inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
+            await AddFinePreviewAsync(inv);
+        }
+        return paged;
+    }
+
+    private async Task AddFinePreviewAsync(Invoice invoice)
+    {
+        if (invoice.Status != "Paid" && invoice.DueDate < DateTime.UtcNow)
+        {
+            var fine = await _fineService.CalculateFineAsync(invoice, DateTime.UtcNow);
+            if (fine > 0)
+            {
+                // Check if fine is already in line items (to avoid duplication if already persisted)
+                if (!invoice.LineItems.Any(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")))
+                {
+                    invoice.LineItems.Add(new InvoiceLineItem 
+                    { 
+                        ChargeName = "Late Penalty (Automated)", 
+                        Amount = fine, 
+                        Description = "Calculated based on association fine rules." 
+                    });
+                }
+            }
+        }
     }
 
     public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null)
     {
-        var (unpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
+        // Get base stats from repository
+        var (_, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
+        
+        // Calculate REAL unpaid balance including ONLY virtual dynamic fines (to avoid double-counting persisted maintenance items)
+        IEnumerable<Invoice> unpaidInvoices;
+        if (assetId.HasValue)
+        {
+            unpaidInvoices = (await GetInvoicesByAssetIdAsync(assetId.Value, associationId)).Where(i => i.Status != "Paid");
+        }
+        else if (assetIds != null && assetIds.Any())
+        {
+            var allInUserScope = new List<Invoice>();
+            foreach(var id in assetIds)
+            {
+                allInUserScope.AddRange(await GetInvoicesByAssetIdAsync(id, associationId));
+            }
+            unpaidInvoices = allInUserScope.Where(i => i.Status != "Paid");
+        }
+        else
+        {
+            unpaidInvoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
+        }
+
+        // SMART SUM: Amount (Principal) + all Fine items + any virtual items
+        decimal realUnpaid = unpaidInvoices.Sum(i => i.Amount + 
+            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
         
         decimal totalWallet = 0;
         var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
@@ -89,7 +147,7 @@ public class FinanceService : IFinanceService
 
         return new FinanceSummary 
         { 
-            TotalUnpaid = unpaid, 
+            TotalUnpaid = realUnpaid, 
             Collected30Days = collected,
             TotalAdvanceCredits = totalWallet
         };
@@ -228,6 +286,24 @@ public class FinanceService : IFinanceService
         // If Payment is linked to an Invoice, update invoice status
         if (payment.InvoiceId.HasValue)
         {
+            // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
+            var invoice = await GetInvoiceByIdAsync(payment.InvoiceId.Value, payment.AssociationId);
+            if (invoice != null && invoice.Status != "Paid")
+            {
+                // Find the virtual fine item (ID == 0) that was added by the preview logic
+                var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
+                                   (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
+                
+                if (virtualFine != null)
+                {
+                    virtualFine.InvoiceId = invoice.InvoiceId; // Ensure correct ID
+                    await _invoiceRepository.CreateLineItemAsync(virtualFine);
+                    
+                    // Optional: Update the ledger transaction amount to include the fine for audit clarity
+                    // But usually, the Payment amount already covers it.
+                }
+            }
+
             await _invoiceRepository.UpdateStatusAsync(payment.InvoiceId.Value, "Paid", CurrentTenantId, CurrentAssociationId);
         }
 
@@ -241,14 +317,36 @@ public class FinanceService : IFinanceService
 
     public async Task<decimal> GetAssetBalanceAsync(int assetId)
     {
-        // USER REQ: Resident for each asset should display the asset specific pending amount. 
-        // It should not use wallet amount. Negative (-2000) should be 0.
-        var invoices = await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, CurrentAssociationId);
-        return invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount);
+        var invoices = await GetInvoicesByAssetIdAsync(assetId);
+        return invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount + 
+            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
     }
 
     public async Task<bool> AutoSettleInvoicesAsync(int assetId, int? associationId = null)
     {
+        // USER REQ: Persist fines before auto-settling.
+        // We fetch all pending invoices, calculate/persist fine if needed.
+        var invoices = await GetInvoicesByAssetIdAsync(assetId, associationId);
+        foreach (var inv in invoices.Where(i => i.Status != "Paid"))
+        {
+            var fine = await _fineService.CalculateFineAsync(inv, DateTime.UtcNow);
+            if (fine > 0)
+            {
+                // Only persist if not already persisted
+                var existingLineItems = await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId);
+                if (!existingLineItems.Any(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")))
+                {
+                    await _invoiceRepository.CreateLineItemAsync(new InvoiceLineItem 
+                    { 
+                        InvoiceId = inv.InvoiceId,
+                        ChargeName = "Late Penalty (Automated)",
+                        Amount = fine,
+                        Description = "Calculated at settlement based on association fine rules."
+                    });
+                }
+            }
+        }
+
         return await _paymentRepository.AutoSettleAsync(assetId, CurrentTenantId, associationId ?? CurrentAssociationId, _tenantContext.UserId);
     }
 
@@ -282,8 +380,13 @@ public class FinanceService : IFinanceService
         }
 
         if (totalWalletPower <= 0) return false;
+        
+        // SMART TOTAL: Calculate real amount due including virtual fines
+        decimal totalAmountDue = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount);
+        
+        if (totalWalletPower < totalAmountDue) return false; // Insufficient global credit
 
-        decimal remainingSettleAmount = invoice.Amount;
+        decimal remainingSettleAmount = totalAmountDue;
         decimal spendableWallet = totalWalletPower;
 
         foreach (var asset in userAssets)
@@ -333,11 +436,21 @@ public class FinanceService : IFinanceService
 
         if (remainingSettleAmount <= 0)
         {
+            // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
+            var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
+                               (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
+            
+            if (virtualFine != null)
+            {
+                virtualFine.InvoiceId = invoice.InvoiceId;
+                await _invoiceRepository.CreateLineItemAsync(virtualFine);
+            }
+
             await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
             return true;
         }
 
-        return remainingSettleAmount < invoice.Amount;
+        return remainingSettleAmount < totalAmountDue;
     }
 
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
@@ -358,7 +471,12 @@ public class FinanceService : IFinanceService
 
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
-        return await _paymentRepository.GetAssociationSummaryAsync(tenantId, associationId);
+        var invoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
+        var totalOutstanding = invoices.Sum(i => i.Amount + 
+            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
+
+        var (_, totalCredits, unitsWithCredit) = await _paymentRepository.GetAssociationSummaryAsync(tenantId, associationId);
+        return (totalOutstanding, totalCredits, unitsWithCredit);
     }
 
     public async Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null)

@@ -22,6 +22,7 @@ public class FinanceController : ControllerBase
     private readonly IPeopleService _peopleService;
     private readonly AssociationManager.Api.Services.Billing.BillingBatchService _batchService;
     private readonly IRuleEngineService _ruleEngine;
+    private readonly IFineService _fineService;
 
     public FinanceController(
         IFinanceService financeService, 
@@ -29,7 +30,8 @@ public class FinanceController : ControllerBase
         ITenantContext tenantContext,
         IPeopleService peopleService,
         AssociationManager.Api.Services.Billing.BillingBatchService batchService,
-        IRuleEngineService ruleEngine)
+        IRuleEngineService ruleEngine,
+        IFineService fineService)
     {
         _financeService = financeService;
         _auditService = auditService;
@@ -37,6 +39,7 @@ public class FinanceController : ControllerBase
         _peopleService = peopleService;
         _batchService = batchService;
         _ruleEngine = ruleEngine;
+        _fineService = fineService;
     }
 
     [HttpPost("batch-generate")]
@@ -451,5 +454,27 @@ public class FinanceController : ControllerBase
         {
             return StatusCode(500, ApiResponse.FailureResponse($"Error saving bank details: {ex.Message}"));
         }
+    }
+
+    [HttpGet("fine-settings")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> GetFineSettings([FromQuery] int associationId)
+    {
+        var settings = await _fineService.GetSettingsAsync(associationId);
+        if (settings == null)
+        {
+            return Ok(ApiResponse<FineSettings>.SuccessResponse(new FineSettings { AssociationId = associationId, TenantId = _tenantContext.TenantId }));
+        }
+        return Ok(ApiResponse<FineSettings>.SuccessResponse(settings));
+    }
+
+    [HttpPost("fine-settings")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> SaveFineSettings([FromBody] FineSettings settings)
+    {
+        settings.TenantId = _tenantContext.TenantId;
+        await _fineService.SaveSettingsAsync(settings);
+        await _auditService.LogAsync("Update Fine Settings", "Association", settings.AssociationId);
+        return Ok(ApiResponse<bool>.SuccessResponse(true));
     }
 }

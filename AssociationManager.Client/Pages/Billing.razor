@@ -121,25 +121,56 @@
                                         <span class="tree-badge">@context.AssetName</span>
                                     </GridColumn>
 
-                                    <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount">
-                                        <span class="fw-semibold">₹@context.Amount</span>
+                                    <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector='item => item.Amount + item.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)'>
+                                        <div class="d-flex flex-column">
+                                            <span class="fw-semibold text-dark">₹@((context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)).ToString("N2"))</span>
+                                            @if (context.LineItems.Any(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")))
+                                            {
+                                                <span class="text-danger fw-bold" style="font-size: 9px; margin-top: -2px;">
+                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Includes Fine
+                                                </span>
+                                            }
+                                        </div>
                                     </GridColumn>
 
-                                    <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
-                                        @context.DueDate.ToShortDateString()
-                                    </GridColumn>
-
-                                    <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
-                                        @if (context.Status == "Paid" && context.IsAdvancePaid)
+                                    <GridColumn TItem="Invoice" HeaderText="Fine" PropertyName="Amount">
+                                        @{
+                                            var fineAmount = context.LineItems.Where(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+                                        }
+                                        @if (fineAmount > 0)
                                         {
-                                            <span class="badge bg-advance-paid text-advance-paid" style="font-size: 11px; border-radius: 2px;">
-                                                <i class="bi bi-wallet2 me-1"></i> Paid (Advance)
-                                            </span>
+                                            <span class="text-danger fw-semibold">₹@fineAmount.ToString("N0")</span>
                                         }
                                         else
                                         {
-                                            <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
+                                            <span class="text-muted opacity-50">-</span>
                                         }
+                                    </GridColumn>
+
+                                    <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
+                                        <span class="text-muted">@context.DueDate.ToShortDateString()</span>
+                                    </GridColumn>
+
+                                    <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                                        <div class="d-flex align-items-center">
+                                            @if (context.Status == "Paid" && context.IsAdvancePaid)
+                                            {
+                                                <span class="badge bg-advance-paid text-advance-paid" style="font-size: 11px; border-radius: 2px;">
+                                                    <i class="bi bi-wallet2 me-1"></i> Paid (Advance)
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
+                                            }
+
+                                            @if (context.Status != "Paid" && context.DueDate < DateTime.UtcNow)
+                                            {
+                                                <span class="ms-1 badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20" style="font-size: 9px;">
+                                                    LATE
+                                                </span>
+                                            }
+                                        </div>
                                     </GridColumn>
 
                                     <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
@@ -607,9 +638,10 @@
 
     private async Task RecordPayment(Invoice invoice)
     {
+        var totalAmount = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
         var payment = new Payment 
         { 
-            Amount = invoice.Amount,
+            Amount = totalAmount,
             InvoiceId = invoice.InvoiceId,
             Status = "Paid",
             Currency = "INR"
@@ -628,9 +660,10 @@
     {
         try
         {
+            var totalAmount = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
             var request = new RazorpayOrderRequest
             {
-                Amount = invoice.Amount,
+                Amount = totalAmount,
                 Currency = "INR",
                 InvoiceId = invoice.InvoiceId,
                 Receipt = $"INV_{invoice.InvoiceId}"

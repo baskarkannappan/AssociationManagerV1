@@ -1,3 +1,4 @@
+using System;
 using AssociationManager.Shared.Interfaces;
 using System.Threading.Tasks;
 
@@ -35,5 +36,24 @@ public class ClientRuleEngineService : IRuleEngineService
         };
 
         return Task.FromResult(result);
+    }
+
+    public Task<decimal> CalculateValueAsync(string workflowName, FineCalculationContext context)
+    {
+        // On the corporate client, we use the server-calculated values for fines.
+        // This is a standardized C# backup for UI-side logic matching the Association client.
+        if (!workflowName.StartsWith("FineRule_")) return Task.FromResult(0m);
+
+        decimal result = workflowName switch
+        {
+            "FineRule_FlatAmount" => context.FlatAmount * context.MonthsLate,
+            "FineRule_OneTimeFlat" => context.FlatAmount,
+            "FineRule_Percentage" when context.IsCompounding => (decimal)Math.Pow((double)(1 + context.Rate), context.MonthsLate) * context.OriginalAmount - context.OriginalAmount,
+            "FineRule_Percentage" when !context.IsCompounding => context.OriginalAmount * context.Rate * context.MonthsLate,
+            "FineRule_OneTimePercentage" => context.OriginalAmount * context.Rate,
+            _ => 0m
+        };
+
+        return Task.FromResult(Math.Round(result, 2));
     }
 }

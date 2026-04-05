@@ -65,7 +65,8 @@ public class PlatformBillingRepository : IPlatformBillingRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<decimal>(
-            "SELECT ISNULL(SUM(Amount), 0) FROM corp.PlatformPayments WHERE PaymentDate >= @startDate AND PaymentDate <= @endDate",
-            new { startDate, endDate });
+            "corp.sp_PlatformPayments_GetRevenue", 
+            new { startDate, endDate },
+            commandType: CommandType.StoredProcedure);
     }
 }
