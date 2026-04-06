@@ -5,6 +5,8 @@
 @using BlazorBootstrap
 @inject ApiService ApiService
 @inject ToastService _toastService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <div class="vscode-page-header border-bottom">
     <div class="d-flex align-items-center justify-content-between w-100">
@@ -97,16 +99,50 @@
                     <h6 class="modal-title fw-bold">Platform Invoice Payment</h6>
                     <button type="button" class="btn-close small" @onclick="() => _showPaymentModal = false"></button>
                 </div>
-                <div class="modal-body text-center py-4">
-                    <div class="mb-3 text-success">
-                        <i class="bi bi-shield-check" style="font-size: 48px;"></i>
-                    </div>
-                    <h5>Complete Payment of ₹@_selectedInvoice.Amount.ToString("N2")</h5>
-                    <p class="text-muted small">By clicking "Confirm", you simulate a successful online payment to the platform entity.</p>
+                <div class="modal-body py-4">
+                    @if (_isProcessing && _billingAccount == null)
+                    {
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-muted mb-2"></div>
+                            <p class="text-muted small">Preparing secure checkout...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center mb-4">
+                            <div class="mb-3 text-primary">
+                                <i class="bi bi-shield-check" style="font-size: 48px;"></i>
+                            </div>
+                            <h5 class="fw-bold mb-1">Invoice Amount: ₹@_selectedInvoice.Amount.ToString("N2")</h5>
+                            <p class="text-muted small">You will be redirected to our secure payment gateway to complete the transaction.</p>
+                        </div>
+
+                        <div class="bg-light p-3 rounded-3 border mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small uppercase fw-bold" style="font-size: 10px;">Billing Period</span>
+                                <span class="small fw-medium">@_selectedInvoice.BillingDate.ToString("MMMM yyyy")</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted small uppercase fw-bold" style="font-size: 10px;">Subscription Plan</span>
+                                <span class="small fw-medium">@_selectedInvoice.PlanName</span>
+                            </div>
+                        </div>
+                        
+                        <div class="p-2 bg-info-subtle border border-info-subtle rounded small text-start">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            Your payment will be processed securely via Razorpay.
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showPaymentModal = false">Cancel</button>
-                    <button class="btn btn-sm btn-vscode px-3" @onclick="ConfirmPayment">Confirm Payment</button>
+                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showPaymentModal = false" disabled="@_isProcessing">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-4" @onclick="InitiateRazorpayPayment" disabled="@_isProcessing">
+                        @if (_isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-lock-fill me-1"></i> Proceed to Pay
+                    </button>
                 </div>
             </div>
         </div>
@@ -131,6 +167,8 @@
     
     private bool _showPaymentModal;
     private PlatformInvoice? _selectedInvoice;
+    private PlatformAccount? _billingAccount;
+    private bool _isProcessing;
 
     protected override async Task OnInitializedAsync()
     {
@@ -153,35 +191,119 @@
         return request.ApplyTo(_invoices ?? new List<PlatformInvoice>());
     }
 
-    private void InitiatePayment(PlatformInvoice invoice)
+    private async Task InitiatePayment(PlatformInvoice invoice)
     {
         _selectedInvoice = invoice;
         _showPaymentModal = true;
+        _billingAccount = null;
+        
+        try
+        {
+            var response = await ApiService.GetAsync<PlatformAccount>("api/platformbilling/billing-account");
+            if (response == null)
+            {
+                _toastService.Notify(new(ToastType.Warning, "Billing account not configured for this association. Please contact support."));
+                _showPaymentModal = false;
+                return;
+            }
+            _billingAccount = response;
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Failed to load bank details: {ex.Message}"));
+            _showPaymentModal = false;
+        }
     }
 
-    private async Task ConfirmPayment()
+    private async Task InitiateRazorpayPayment()
     {
-        if (_selectedInvoice == null) return;
+        if (_selectedInvoice == null || _isProcessing) return;
+        _isProcessing = true;
 
-        var payment = new PlatformPayment
+        try
         {
-            PlatformInvoiceId = _selectedInvoice.PlatformInvoiceId,
-            Amount = _selectedInvoice.Amount,
-            PaymentDate = DateTime.UtcNow,
-            TransactionRef = $"MOCK_PLATFORM_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}"
-        };
+            var orderResponse = await ApiService.PostAsync<object, RazorpayOrderResponse>($"api/platformbilling/create-order/{_selectedInvoice.PlatformInvoiceId}", new { });
+            if (orderResponse == null) throw new Exception("Failed to create payment order.");
 
-        var success = await ApiService.PostAsync("api/platformbilling/pay", payment);
-        if (success)
-        {
-            _toastService.Notify(new(ToastType.Success, "Platform bill paid successfully."));
-            _showPaymentModal = false;
-            _invoices = null;
-            await invoiceGrid.RefreshDataAsync();
+            var options = new
+            {
+                key = orderResponse.KeyId,
+                amount = orderResponse.Amount,
+                currency = orderResponse.Currency,
+                name = "Association Manager",
+                description = $"Platform Fee - {_selectedInvoice.BillingDate:MMM yyyy}",
+                order_id = orderResponse.OrderId,
+                prefill = new
+                {
+                    name = "", // Can be filled if we have user info
+                    email = "" 
+                },
+                theme = new { color = "#0078d4" }
+            };
+
+            await JSRuntime.InvokeVoidAsync("razorpayInterop.openCheckout", options, DotNetObjectReference.Create(this));
         }
-        else
+        catch (Exception ex)
         {
-            _toastService.Notify(new(ToastType.Danger, "Failed to process platform payment."));
+            _toastService.Notify(new(ToastType.Danger, $"Payment initialization failed: {ex.Message}"));
+            _isProcessing = false;
         }
+    }
+
+    [JSInvokable]
+    public async Task HandlePaymentSuccess(RazorpayVerifyResponse response)
+    {
+        try
+        {
+            var verifyRequest = new RazorpayVerifyRequest
+            {
+                InvoiceId = _selectedInvoice?.PlatformInvoiceId,
+                RazorpayOrderId = response.razorpay_order_id,
+                RazorpayPaymentId = response.razorpay_payment_id,
+                RazorpaySignature = response.razorpay_signature
+            };
+
+            var success = await ApiService.PostAsync<RazorpayVerifyRequest, bool>("api/platformbilling/verify-payment", verifyRequest);
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Payment successful! Your subscription is updated."));
+                _showPaymentModal = false;
+                _invoices = null;
+                await LoadData();
+                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Payment verification failed. Please contact support."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnPaymentDismiss()
+    {
+        _isProcessing = false;
+        _toastService.Notify(new(ToastType.Info, "Payment cancelled."));
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+    }
+
+    public class RazorpayVerifyResponse
+    {
+        public string razorpay_payment_id { get; set; } = string.Empty;
+        public string razorpay_order_id { get; set; } = string.Empty;
+        public string razorpay_signature { get; set; } = string.Empty;
     }
 }

@@ -12,11 +12,25 @@ public class PlatformBillingService : IPlatformBillingService
 {
     private readonly IPlatformBillingRepository _billingRepository;
     private readonly ISubscriptionService _subscriptionService;
+    private readonly IPlatformAccountRepository _platformAccountRepository;
+    private readonly IAssociationRepository _associationRepository;
+    private readonly AssociationManager.Shared.Interfaces.ITenantContext _tenantContext;
+    private readonly AssociationManager.Services.Razorpay.RazorpayClient _razorpayClient;
 
-    public PlatformBillingService(IPlatformBillingRepository billingRepository, ISubscriptionService subscriptionService)
+    public PlatformBillingService(
+        IPlatformBillingRepository billingRepository, 
+        ISubscriptionService subscriptionService,
+        IPlatformAccountRepository platformAccountRepository,
+        IAssociationRepository associationRepository,
+        AssociationManager.Shared.Interfaces.ITenantContext tenantContext,
+        AssociationManager.Services.Razorpay.RazorpayClient razorpayClient)
     {
         _billingRepository = billingRepository;
         _subscriptionService = subscriptionService;
+        _platformAccountRepository = platformAccountRepository;
+        _associationRepository = associationRepository;
+        _tenantContext = tenantContext;
+        _razorpayClient = razorpayClient;
     }
 
     public async Task<int> GenerateMonthlyBillsAsync(int? month = null, int? year = null)
@@ -89,5 +103,91 @@ public class PlatformBillingService : IPlatformBillingService
     {
         var result = await _billingRepository.RecordPaymentAsync(payment);
         return result > 0;
+    }
+
+    public async Task<RazorpayOrderResponse> CreateOrderAsync(int invoiceId)
+    {
+        var invoices = await _billingRepository.GetAllInvoicesAsync();
+        var invoice = invoices.FirstOrDefault(i => i.PlatformInvoiceId == invoiceId);
+        if (invoice == null) throw new Exception("Invoice not found.");
+
+        var association = await _associationRepository.GetByIdAsync(invoice.AssociationId, _tenantContext.TenantId);
+        if (association == null || association.PlatformAccountId == null)
+            throw new Exception("Association billing not configured (missing PlatformAccountId).");
+
+        var account = await _platformAccountRepository.GetByIdAsync(association.PlatformAccountId.Value);
+        if (account == null || string.IsNullOrEmpty(account.RazorpayKeyId) || string.IsNullOrEmpty(account.RazorpayKeySecret))
+            throw new Exception("Platform billing account not configured with Razorpay keys.");
+
+        var orderId = await _razorpayClient.CreateOrderAsync(
+            invoice.Amount, 
+            "INR", 
+            $"PLAT-{invoice.PlatformInvoiceId}", 
+            account.RazorpayKeyId, 
+            account.RazorpayKeySecret);
+
+        return new RazorpayOrderResponse
+        {
+            OrderId = orderId,
+            Amount = (int)(invoice.Amount * 100),
+            Currency = "INR",
+            KeyId = account.RazorpayKeyId
+        };
+    }
+
+    public async Task<bool> VerifyPaymentAsync(RazorpayVerifyRequest request)
+    {
+        if (request.InvoiceId == null) throw new Exception("InvoiceId is required for verification.");
+
+        // 1. Find the invoice and its association
+        var invoices = await _billingRepository.GetAllInvoicesAsync();
+        var invoice = invoices.FirstOrDefault(i => i.PlatformInvoiceId == request.InvoiceId.Value);
+        if (invoice == null) throw new Exception("Invoice not found.");
+
+        // 2. Find the association and its keys
+        var association = await _associationRepository.GetByIdAsync(invoice.AssociationId, _tenantContext.TenantId);
+        if (association == null || association.PlatformAccountId == null)
+            throw new Exception("Association billing not configured.");
+
+        // 3. Find the platform account keys
+        var account = await _platformAccountRepository.GetByIdAsync(association.PlatformAccountId.Value);
+        if (account == null || string.IsNullOrEmpty(account.RazorpayKeySecret))
+            throw new Exception("Platform billing account missing Razorpay secret.");
+
+        // 4. Verify signature
+        bool isValid = _razorpayClient.VerifySignature(
+            request.RazorpayOrderId, 
+            request.RazorpayPaymentId, 
+            request.RazorpaySignature, 
+            account.RazorpayKeySecret);
+
+        if (isValid)
+        {
+            // 5. Update Status
+            await _billingRepository.UpdateInvoiceStatusAsync(invoice.PlatformInvoiceId, "Paid");
+
+            // 6. Record Payment
+            var payment = new PlatformPayment
+            {
+                PlatformInvoiceId = invoice.PlatformInvoiceId,
+                Amount = invoice.Amount,
+                PaymentDate = DateTime.UtcNow,
+                PaymentMethod = "Razorpay",
+                TransactionRef = request.RazorpayPaymentId,
+                Status = "Completed"
+            };
+            await _billingRepository.RecordPaymentAsync(payment);
+            return true;
+        }
+
+        return false;
+    }
+    
+    public async Task<PlatformAccount?> GetBillingAccountByAssociationIdAsync(int associationId)
+    {
+        var association = await _associationRepository.GetByIdAsync(associationId, _tenantContext.TenantId);
+        if (association == null || association.PlatformAccountId == null) return null;
+        
+        return await _platformAccountRepository.GetByIdAsync(association.PlatformAccountId.Value);
     }
 }

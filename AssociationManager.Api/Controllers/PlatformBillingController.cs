@@ -39,6 +39,18 @@ public class PlatformBillingController : ControllerBase
         var invoices = await _billingService.GetInvoicesForAssociationAsync(associationId);
         return Ok(ApiResponse<IEnumerable<PlatformInvoice>>.SuccessResponse(invoices));
     }
+    
+    [HttpGet("billing-account")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> GetBillingAccount()
+    {
+        var associationId = _tenantContext.AssociationId;
+        var account = await _billingService.GetBillingAccountByAssociationIdAsync(associationId);
+        
+        if (account == null) return NotFound(ApiResponse.FailureResponse("No billing account assigned to this association."));
+        
+        return Ok(ApiResponse<PlatformAccount>.SuccessResponse(account));
+    }
 
     [HttpPost("generate-batch")]
     [Authorize(Policy = "RequireAssociationAdmin")]
@@ -61,5 +73,35 @@ public class PlatformBillingController : ControllerBase
 
         var success = await _billingService.ProcessPaymentAsync(payment);
         return success ? Ok(ApiResponse.SuccessResponse("Payment successful.")) : BadRequest(ApiResponse.FailureResponse("Payment failed."));
+    }
+
+    [HttpPost("create-order/{invoiceId}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> CreateOrder(int invoiceId)
+    {
+        try
+        {
+            var order = await _billingService.CreateOrderAsync(invoiceId);
+            return Ok(ApiResponse<RazorpayOrderResponse>.SuccessResponse(order));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("verify-payment")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> VerifyPayment([FromBody] RazorpayVerifyRequest request)
+    {
+        try
+        {
+            var success = await _billingService.VerifyPaymentAsync(request);
+            return success ? Ok(ApiResponse<bool>.SuccessResponse(true)) : BadRequest(ApiResponse<bool>.ErrorResponse("Payment verification failed."));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
+        }
     }
 }

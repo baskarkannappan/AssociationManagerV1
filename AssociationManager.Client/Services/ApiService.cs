@@ -42,17 +42,25 @@ public class ApiService
         try
         {
             var response = await _httpClient.PostAsJsonAsync(url, data);
+            
             if (response.IsSuccessStatusCode)
             {
                 var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>();
                 return apiResponse != null ? apiResponse.Data : default;
             }
-            return default;
+            else
+            {
+                // On failure, deserialize as non-generic ApiResponse to safely read the Message
+                var errorResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
+                var message = errorResponse?.Message ?? $"Server error: {response.StatusCode}";
+                Console.WriteLine($"API Error: {message}");
+                throw new Exception(message);
+            }
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Token fetch error: {ex.Message}");
-            return default;
+            Console.WriteLine($"HTTP POST error: {ex.Message}");
+            throw;
         }
     }
 

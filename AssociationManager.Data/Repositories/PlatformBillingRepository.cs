@@ -56,9 +56,20 @@ public class PlatformBillingRepository : IPlatformBillingRepository
             new { 
                 payment.PlatformInvoiceId, 
                 payment.Amount, 
-                payment.TransactionRef 
+                payment.TransactionRef,
+                payment.PaymentMethod,
+                payment.Status
             },
             commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> UpdateInvoiceStatusAsync(int invoiceId, string status)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "corp.sp_PlatformInvoices_UpdateStatus",
+            new { PlatformInvoiceId = invoiceId, Status = status },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<decimal> GetRevenueAsync(DateTime startDate, DateTime endDate)
