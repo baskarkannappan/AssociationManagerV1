@@ -362,5 +362,11 @@
     <Build Include="corp\Stored Procedures\sp_PlatformAccounts_GetById.sql" />
     <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Delete.sql" />
     <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Create.sql" />
+    <Build Include="corp\Tables\PlatformAdvancePayments.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAdvancePayments_Insert.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAdvancePayments_GetPaged.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_UpdateWalletBalance.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_UpdateStatus.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_GetWalletBalance.sql" />
   </ItemGroup>
 </Project>

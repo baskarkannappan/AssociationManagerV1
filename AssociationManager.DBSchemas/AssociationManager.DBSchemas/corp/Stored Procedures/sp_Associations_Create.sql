@@ -1,17 +1,16 @@
-﻿-- Script0087_UpdateAssociationProcedures.sql
--- Updating Association CRUD stored procedures to include new Platform Billing fields
-
+﻿-- 4. Update sp_Associations_Create
 CREATE   PROCEDURE corp.sp_Associations_Create 
     @TenantId INT, 
     @Name NVARCHAR(255), 
     @Description NVARCHAR(MAX), 
     @CreatedDate DATETIME, 
     @CreatedBy INT,
+    @AdminEmail NVARCHAR(255) = NULL,
     @PlatformAccountId INT = NULL,
     @AdminPaysFee BIT = 1
 AS 
 BEGIN 
-    INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy, PlatformAccountId, AdminPaysFee) 
+    INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy, AdminEmail, PlatformAccountId, AdminPaysFee, Status) 
     OUTPUT INSERTED.AssociationId 
-    VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy, @PlatformAccountId, @AdminPaysFee); 
+    VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy, @AdminEmail, @PlatformAccountId, @AdminPaysFee, 'Active'); 
 END

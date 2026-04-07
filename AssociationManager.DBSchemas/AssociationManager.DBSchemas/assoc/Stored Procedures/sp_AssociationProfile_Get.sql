@@ -1,9 +1,10 @@
-﻿-- Governance Stored Procedures
-
--- 1. Profile
+﻿-- 8. Update sp_AssociationProfile_Get to include status from corp.Associations
 CREATE   PROCEDURE assoc.sp_AssociationProfile_Get
     @AssociationId INT
 AS
 BEGIN
-    SELECT * FROM assoc.AssociationProfile WHERE AssociationId = @AssociationId;
+    SELECT p.*, a.Status
+    FROM assoc.AssociationProfile p
+    JOIN corp.Associations a ON p.AssociationId = a.AssociationId
+    WHERE p.AssociationId = @AssociationId;
 END;
