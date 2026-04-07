@@ -22,7 +22,8 @@ public class AuditLogRepository : IAuditLogRepository
     public async Task<int> CreateAsync(AuditLog log)
     {
         if (log.TenantId == 0) log.TenantId = _tenantContext.TenantId;
-        if (log.AssociationId == 0) log.AssociationId = _tenantContext.AssociationId;
+        log.AssociationId ??= _tenantContext.AssociationId != 0 ? _tenantContext.AssociationId : null;
+        if (log.AssociationId == 0) log.AssociationId = null;
         
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(

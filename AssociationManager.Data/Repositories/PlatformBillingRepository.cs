@@ -80,4 +80,64 @@ public class PlatformBillingRepository : IPlatformBillingRepository
             new { startDate, endDate },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<decimal> GetWalletBalanceAsync(int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<decimal>(
+            "corp.sp_Associations_GetWalletBalance",
+            new { associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> UpdateWalletBalanceAsync(int associationId, decimal delta)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "corp.sp_Associations_UpdateWalletBalance",
+            new { associationId, delta },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
+
+    public async Task<int> RecordAdvancePaymentAsync(PlatformAdvanceHistory advance)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "corp.sp_PlatformAdvancePayments_Insert",
+            new { 
+                advance.AssociationId, 
+                advance.Amount, 
+                advance.Status,
+                advance.TransactionRef,
+                advance.Description,
+                advance.Notes
+            },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<PagedResult<PlatformAdvanceHistory>> GetPagedAdvanceHistoryAsync(int associationId, AdvanceSearchCriteria criteria)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("@AssociationId", associationId);
+        parameters.Add("@SearchTerm", criteria.SearchTerm);
+        parameters.Add("@Status", criteria.Status);
+        parameters.Add("@StartDate", criteria.StartDate);
+        parameters.Add("@EndDate", criteria.EndDate);
+        parameters.Add("@PageNumber", criteria.PageNumber);
+        parameters.Add("@PageSize", criteria.PageSize);
+        parameters.Add("@SortColumn", criteria.SortColumn);
+        parameters.Add("@SortDirection", criteria.SortDirection);
+
+        var result = await connection.QueryAsync<PlatformAdvanceHistory>(
+            "corp.sp_PlatformAdvancePayments_GetPaged",
+            parameters,
+            commandType: CommandType.StoredProcedure);
+
+        // Map TotalCount from first item
+        var history = result.ToList();
+        var totalCount = history.Any() ? history.First().TotalCount : 0;
+        
+        return new PagedResult<PlatformAdvanceHistory> { Items = history, TotalCount = totalCount };
+    }
 }

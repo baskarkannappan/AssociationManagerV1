@@ -12,6 +12,7 @@ public class SecurityContext
     public string Resource { get; set; } = string.Empty;
     public int AssociationId { get; set; }
     public int? AssetId { get; set; }
+    public string AssociationStatus { get; set; } = "Active";
 }
 
 public class FineCalculationContext

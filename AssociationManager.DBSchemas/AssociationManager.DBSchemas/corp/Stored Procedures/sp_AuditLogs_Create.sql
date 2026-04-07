@@ -1,7 +1,7 @@
-﻿-- 2. Update sp_AuditLogs_Create to handle AssetId
+﻿-- 4. Update sp_AuditLogs_Create to handle NULL AssociationId
 CREATE   PROCEDURE corp.sp_AuditLogs_Create
     @TenantId INT,
-    @AssociationId INT,
+    @AssociationId INT = NULL,
     @UserId INT = NULL,
     @AssetId INT = NULL,
     @Action NVARCHAR(MAX),

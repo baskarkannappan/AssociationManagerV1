@@ -28,6 +28,13 @@ public class AssetsController : ControllerBase
         _ruleEngine = ruleEngine;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var assets = await _assetService.GetAllAsync();
+        return Ok(ApiResponse<IEnumerable<Asset>>.SuccessResponse(assets));
+    }
+
     [HttpGet("hierarchy")]
     public async Task<IActionResult> GetHierarchy()
     {

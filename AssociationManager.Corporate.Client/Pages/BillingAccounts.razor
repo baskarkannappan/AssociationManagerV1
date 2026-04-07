@@ -1,0 +1,195 @@
+@page "/billing-accounts"
+@attribute [Authorize(Policy = "RequirePlatformAdmin")]
+@using AssociationManager.Shared.Models
+@using AssociationManager.Corporate.Client.Services
+@inject ApiService ApiService
+@inject ToastService ToastService
+
+<div class="vscode-page-header border-bottom">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-wallet2 text-muted" style="font-size: 14px;"></i>
+        <span class="fw-medium">Platform Billing Accounts</span>
+    </div>
+    <button class="btn-vscode" @onclick="ShowCreateForm">
+        <i class="bi @(_isEditing ? "bi-dash" : "bi-plus")"></i>
+        @(_isEditing ? "Discard" : "New Account")
+    </button>
+</div>
+
+<div class="p-3">
+    @if (_isEditing)
+    {
+        <div class="compact-card mb-3 border-top-0 animate-fadeIn">
+            <div class="fw-bold mb-3 small text-uppercase text-muted">@(_account.Id == 0 ? "Add New Billing Account" : "Edit Billing Account")</div>
+            <div class="row g-3 compact-form">
+                <div class="col-md-3">
+                    <label>Account Name</label>
+                    <input @bind="_account.AccountName" class="form-control" placeholder="e.g. Master Platform Account" />
+                </div>
+                <div class="col-md-3">
+                    <label>Account Number</label>
+                    <input @bind="_account.AccountNumber" class="form-control" placeholder="0000 0000 0000" />
+                </div>
+                <div class="col-md-3">
+                    <label>Bank Name</label>
+                    <input @bind="_account.BankName" class="form-control" placeholder="ICICI Bank..." />
+                </div>
+                <div class="col-md-3">
+                    <label>IFSC Code</label>
+                    <input @bind="_account.IFSCCode" class="form-control" placeholder="ICIC000123" />
+                </div>
+                <div class="col-md-3">
+                    <label>Branch Name</label>
+                    <input @bind="_account.BranchName" class="form-control" placeholder="Nungambakkam..." />
+                </div>
+                <div class="col-md-2 d-flex align-items-center gap-2">
+                    <div class="form-check form-switch p-0 ms-4">
+                        <input class="form-check-input" type="checkbox" @bind="_account.IsActive" id="accountActive">
+                        <label class="form-check-label small text-muted" for="accountActive">Active</label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end offset-md-8">
+                    <button @onclick="SaveAccount" class="btn-vscode w-100 justify-content-center bg-accent text-white">
+                        <i class="bi bi-save me-1"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_accounts == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border spinner-border-sm text-muted mb-2" role="status"></div>
+            <p class="text-muted small">Loading billing accounts...</p>
+        </div>
+    }
+    else if (!_accounts.Any())
+    {
+        <div class="alert alert-info small border-0 bg-light">
+            <i class="bi bi-info-circle me-2"></i> No billing accounts configured.
+        </div>
+    }
+    else
+    {
+        <div class="border bg-white shadow-sm overflow-hidden rounded">
+            <table class="table table-hover table-bordered table-striped compact-table mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 80px;">ID</th>
+                        <th>Account Name</th>
+                        <th>Account Number</th>
+                        <th>Bank / IFSC</th>
+                        <th>Last Updated</th>
+                        <th class="text-center" style="width: 120px;">Status</th>
+                        <th class="text-end" style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _accounts)
+                    {
+                        <tr>
+                            <td class="text-muted font-monospace small">#@item.Id</td>
+                            <td>
+                                <div class="fw-medium">@item.AccountName</div>
+                            </td>
+                            <td class="font-monospace small">@item.AccountNumber</td>
+                            <td>
+                                <div class="small">@item.BankName</div>
+                                <div class="text-muted" style="font-size: 10px;">@item.IFSCCode</div>
+                            </td>
+                            <td class="small text-muted">@item.LastUpdated.ToLocalTime().ToString("g")</td>
+                            <td class="text-center">
+                                <span class="badge @(item.IsActive ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger") border">
+                                    @(item.IsActive ? "Active" : "Disabled")
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button @onclick="() => EditAccount(item)" class="btn btn-link btn-sm text-secondary p-0 me-2" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button @onclick="() => DeleteAccount(item.Id)" class="btn btn-link btn-sm text-muted p-0 hover-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<PlatformAccount>? _accounts;
+    private PlatformAccount _account = new();
+    private bool _isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _accounts = await ApiService.GetAsync<List<PlatformAccount>>("PlatformAccounts");
+    }
+
+    private void ShowCreateForm()
+    {
+        _isEditing = !_isEditing;
+        if (_isEditing) _account = new();
+    }
+
+    private void EditAccount(PlatformAccount item)
+    {
+        _account = new PlatformAccount
+        {
+            Id = item.Id,
+            AccountName = item.AccountName,
+            AccountNumber = item.AccountNumber,
+            BankName = item.BankName,
+            IFSCCode = item.IFSCCode,
+            BranchName = item.BranchName,
+            IsActive = item.IsActive
+        };
+        _isEditing = true;
+    }
+
+    private async Task SaveAccount()
+    {
+        if (string.IsNullOrWhiteSpace(_account.AccountName))
+        {
+            ToastService.Notify(new(ToastType.Warning, "Account name is required."));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_account.AccountNumber))
+        {
+            ToastService.Notify(new(ToastType.Warning, "Account number is required."));
+            return;
+        }
+
+        var success = await ApiService.PostAsync("PlatformAccounts", _account);
+        if (success)
+        {
+            ToastService.Notify(new(ToastType.Success, "Account saved successfully."));
+            _isEditing = false;
+            await LoadData();
+        }
+        else
+        {
+            ToastService.Notify(new(ToastType.Danger, "Failed to save account."));
+        }
+    }
+
+    private async Task DeleteAccount(int id)
+    {
+        var success = await ApiService.DeleteAsync($"PlatformAccounts/{id}");
+        if (success)
+        {
+            ToastService.Notify(new(ToastType.Warning, "Account removed."));
+            await LoadData();
+        }
+    }
+}

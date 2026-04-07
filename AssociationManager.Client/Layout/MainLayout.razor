@@ -143,6 +143,7 @@
     private int _currentTenantId;
     private int _currentAssociationId;
     private string? _currentRole;
+    private string _currentAssociationStatus = "Active";
     private bool _isMobileMenuOpen;
     private bool _isLoadingTenants;
 
@@ -155,10 +156,20 @@
 
     private void ToggleMobileMenu() => _isMobileMenuOpen = !_isMobileMenuOpen;
 
-    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         _isMobileMenuOpen = false;
-        StateHasChanged();
+        
+        // Re-verify deactivation status on every navigation - UNIVERSAL REDIRECT
+        if (_currentAssociationStatus == "Deactivated")
+        {
+            if (!Navigation.Uri.Contains("/deactivated") && !Navigation.Uri.Contains("/login"))
+            {
+                Navigation.NavigateTo("/deactivated");
+            }
+        }
+        
+        await InvokeAsync(StateHasChanged);
     }
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
@@ -198,7 +209,19 @@
                 }
                 
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");
-                Console.WriteLine($"[Layout] Loaded {_userTenants?.Count() ?? 0} tenants for User.");
+                
+                var currentAssoc = _userTenants?.FirstOrDefault(a => a.AssociationId == _currentAssociationId);
+                _currentAssociationStatus = currentAssoc?.Status ?? "Active";
+
+                if (_currentAssociationStatus == "Deactivated")
+                {
+                    if (!Navigation.Uri.Contains("/deactivated") && !Navigation.Uri.Contains("/login"))
+                    {
+                        Navigation.NavigateTo("/deactivated");
+                    }
+                }
+                
+                Console.WriteLine($"[Layout] Loaded {_userTenants?.Count() ?? 0} tenants for User. Status: {_currentAssociationStatus}");
                 
                 // Auto-select first association if none selected AND we aren't currently switching
                 if (_currentAssociationId == 0 && _userTenants != null && _userTenants.Any())

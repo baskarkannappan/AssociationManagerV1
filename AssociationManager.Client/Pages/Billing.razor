@@ -179,6 +179,12 @@
                                             <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => InitiateRazorpayPayment(context)">
                                                 <i class="bi bi-credit-card-2-back"></i>
                                             </button>
+                                            @if (_advanceBalance >= (context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)))
+                                            {
+                                                <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => PayWithAdvance(context)">
+                                                    <i class="bi bi-patch-check"></i>
+                                                </button>
+                                            }
                                             <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
                                                 <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => RecordPayment(context)">
                                                     <i class="bi bi-cash-stack"></i>
@@ -477,6 +483,7 @@
     private bool _historyLoading;
     private Invoice? _selectedInvoice;
     private List<PaymentHistoryItem>? _historyTransactions;
+    private decimal _advanceBalance;
 
 
     protected override async Task OnInitializedAsync()
@@ -582,6 +589,8 @@
             
             var payments = await Api.GetAsync<IEnumerable<Payment>>(paymentsUrl);
             _payments = payments?.ToList();
+
+            _advanceBalance = await Api.GetAsync<decimal>("api/finance/balance/asset");
 
             if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
         }
@@ -696,6 +705,29 @@
         _payments = null;
         if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
         await LoadData();
+    }
+
+    private async Task PayWithAdvance(Invoice invoice)
+    {
+        try
+        {
+            var success = await Api.PostAsync($"api/finance/invoices/{invoice.InvoiceId}/settled-with-advance", new { });
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, $"Invoice #{invoice.InvoiceId} paid successfully using advance credit!"));
+                _payments = null;
+                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+                await LoadData();
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit. Please check your balance."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+        }
     }
 
     private async Task ShowTransactionHistory(Invoice invoice)

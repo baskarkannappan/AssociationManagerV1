@@ -51,7 +51,10 @@ public class AssociationRepository : IAssociationRepository
                 association.Name, 
                 association.Description, 
                 association.CreatedDate, 
-                association.CreatedBy 
+                association.CreatedBy,
+                association.AdminEmail,
+                association.PlatformAccountId,
+                association.AdminPaysFee
             },
             commandType: CommandType.StoredProcedure);
     }
@@ -66,7 +69,11 @@ public class AssociationRepository : IAssociationRepository
                 association.AssociationId, 
                 association.TenantId, 
                 association.Name, 
-                association.Description 
+                association.Description,
+                association.AdminEmail,
+                association.PlatformAccountId,
+                association.AdminPaysFee,
+                association.Status
             },
             commandType: CommandType.StoredProcedure) > 0;
     }
@@ -87,6 +94,15 @@ public class AssociationRepository : IAssociationRepository
             $"{_schema}.sp_Associations_GetByUserId", 
             new { UserId = userId },
             commandType: CommandType.StoredProcedure);
+    }
+    
+    public async Task<bool> UpdateStatusAsync(int id, string status)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "corp.sp_Associations_UpdateStatus", 
+            new { Id = id, Status = status },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 
     public async Task<IEnumerable<Association>> GetAllAsync()

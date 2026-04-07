@@ -143,7 +143,14 @@ public class AuthService : IAuthService
                 }
             }
 
-            return await GenerateAuthResponse(user, user.Role);
+            var status = "Active";
+            if (user.AssociationId > 0)
+            {
+                var assoc = await _associationRepository.GetByIdAsync(user.AssociationId.Value, user.TenantId);
+                status = assoc?.Status ?? "Active";
+            }
+
+            return await GenerateAuthResponse(user, user.Role, status);
         }
         catch (Exception ex)
         {
@@ -212,12 +219,14 @@ public class AuthService : IAuthService
         }
 
         _logger.LogInformation("Token refresh successful for {Email}", email);
-        return await GenerateAuthResponse(user);
+        
+        var status = principal.Claims.FirstOrDefault(c => c.Type == "AssociationStatus")?.Value ?? "Active";
+        return await GenerateAuthResponse(user, null, status);
     }
 
-    private async Task<AuthResponse> GenerateAuthResponse(User user, string? contextRole = null)
+    private async Task<AuthResponse> GenerateAuthResponse(User user, string? contextRole = null, string status = "Active")
     {
-        var token = GenerateJwtToken(user, contextRole);
+        var token = GenerateJwtToken(user, contextRole, status);
         var refreshToken = GenerateRefreshToken();
 
         // Store refresh token in Redis with expiry
@@ -236,7 +245,7 @@ public class AuthService : IAuthService
         };
     }
 
-    private string GenerateJwtToken(User user, string? contextRole = null)
+    private string GenerateJwtToken(User user, string? contextRole = null, string status = "Active")
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -249,6 +258,7 @@ public class AuthService : IAuthService
             new Claim("UserId", user.UserId.ToString()),
             new Claim("TenantId", user.TenantId.ToString()),
             new Claim("AssociationId", (user.AssociationId?.ToString() ?? "0")),
+            new Claim("AssociationStatus", status),
             new Claim("name", user.Name),
             new Claim("DeviceId", "Web") // Simplified for now
         };
@@ -354,8 +364,12 @@ public class AuthService : IAuthService
         }
         user.Role = MergeRoles(originalGlobalRole, newRole ?? AppRole.Resident);
 
+        // Get current association status
+        var assoc = await _associationRepository.GetByIdAsync(associationId, tenantId);
+        var status = assoc?.Status ?? "Active";
+
         // Generate response with merged roles
-        var response = await GenerateAuthResponse(user, newRole);
+        var response = await GenerateAuthResponse(user, newRole, status);
 
         // Restore original role for database update (persist context but not role merge)
         user.Role = originalGlobalRole;

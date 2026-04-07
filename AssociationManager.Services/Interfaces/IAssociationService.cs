@@ -13,4 +13,5 @@ public interface IAssociationService
     Task<bool> UpdateAsync(Association association);
     Task<bool> DeleteAsync(int id);
     Task<IEnumerable<Association>> GetByUserIdAsync(int userId);
+    Task<bool> UpdateStatusAsync(int id, string status);
 }

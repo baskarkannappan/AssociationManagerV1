@@ -1,2 +1,17 @@
-﻿CREATE   PROCEDURE corp.sp_Associations_Create @TenantId INT, @Name NVARCHAR(255), @Description NVARCHAR(MAX), @CreatedDate DATETIME, @CreatedBy INT AS 
-BEGIN INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy) OUTPUT INSERTED.AssociationId VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy); END
+﻿-- Script0087_UpdateAssociationProcedures.sql
+-- Updating Association CRUD stored procedures to include new Platform Billing fields
+
+CREATE   PROCEDURE corp.sp_Associations_Create 
+    @TenantId INT, 
+    @Name NVARCHAR(255), 
+    @Description NVARCHAR(MAX), 
+    @CreatedDate DATETIME, 
+    @CreatedBy INT,
+    @PlatformAccountId INT = NULL,
+    @AdminPaysFee BIT = 1
+AS 
+BEGIN 
+    INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy, PlatformAccountId, AdminPaysFee) 
+    OUTPUT INSERTED.AssociationId 
+    VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy, @PlatformAccountId, @AdminPaysFee); 
+END

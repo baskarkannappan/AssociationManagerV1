@@ -10,4 +10,5 @@ public class ClientTenantContext : ITenantContext
     public string? Email { get; set; }
     public bool IsPlatformAdmin { get; set; }
     public bool IsSystemAdmin { get; set; }
+    public string AssociationStatus { get; set; } = "Active";
 }

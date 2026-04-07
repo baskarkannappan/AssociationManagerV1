@@ -38,8 +38,25 @@ public class RuleEngineService : IRuleEngineService
 
             var engine = new RulesEngine.RulesEngine(workflowData.ToArray());
             
+            // Hard gate: If association is deactivated, only Admins have any access
+            if (context.AssociationStatus == "Deactivated" && 
+                !context.UserRole.Contains("AssociationAdmin") && 
+                !context.UserRole.Contains("PlatformAdmin"))
+            {
+                return false;
+            }
+
             var results = await engine.ExecuteAllRulesAsync(workflowName, context);
             
+            // If association is deactivated, even Admins are restricted to Read access
+            // (Note: This logic can be more granular per workflow if needed)
+            if (context.AssociationStatus == "Deactivated" && 
+                (workflowName.Contains("Create") || workflowName.Contains("Update") || workflowName.Contains("Delete") || workflowName.Contains("Add") || workflowName.Contains("Process")))
+            {
+                // Only allow Read-only operations if association is deactivated
+                return false;
+            }
+
             // If any rule in the workflow passes, we consider it successful for authorization
             return results.Any(r => r.IsSuccess);
         }

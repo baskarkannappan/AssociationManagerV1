@@ -23,26 +23,48 @@
         </div>
 
         <div class="p-3">
-            @if (_showCreateForm)
+            @if (_showCreateForm || _isEditing)
             {
-                <div class="compact-card mb-3 border-top-0">
-                    <div class="fw-bold mb-2 small text-uppercase text-muted">Initialize New Association</div>
+                <div class="compact-card mb-3 border-top-0 border-accent anim-slideDown" style="border-left: 3px solid var(--vscode-accent) !important;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold small text-uppercase text-muted">@(_isEditing ? $"Edit Association: {editingAssociation.Name}" : "Initialize New Association")</div>
+                        <button class="btn btn-link btn-sm text-muted p-0" @onclick="CancelEdit"><i class="bi bi-x-lg"></i></button>
+                    </div>
                     <div class="row g-2 compact-form">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label>Name</label>
-                            <input @bind="newAssociation.Name" class="form-control" placeholder="Legal Name" />
+                            <input @bind="targetAssociation.Name" class="form-control" placeholder="Legal Name" />
                         </div>
-                        <div class="col-md-4">
-                            <label>Admin Email</label>
-                            <input @bind="newAssociation.AdminEmail" class="form-control" placeholder="admin@example.com" type="email" />
+                        <div class="col-md-3">
+                            <label>Description</label>
+                            <input @bind="targetAssociation.Description" class="form-control" placeholder="Short summary" />
                         </div>
                         <div class="col-md-2">
-                            <label>Description</label>
-                            <input @bind="newAssociation.Description" class="form-control" placeholder="Optional..." />
+                            <label>Admin Email</label>
+                            <input @bind="targetAssociation.AdminEmail" class="form-control" type="email" placeholder="admin@email.com" disabled="@_isEditing" />
                         </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button @onclick="CreateAssociation" class="btn-vscode w-100 justify-content-center">
-                                Create
+                        <div class="col-md-2">
+                            <label>Billing Account</label>
+                            <select @bind="targetAssociation.PlatformAccountId" class="form-select">
+                                <option value="">Select...</option>
+                                @if (_accounts != null)
+                                {
+                                    @foreach (var acc in _accounts)
+                                    {
+                                        <option value="@acc.Id">@acc.AccountName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-1 d-flex flex-column justify-content-end align-items-center mb-1">
+                            <label class="mb-1" style="font-size: 10px;">Pays Fee</label>
+                            <div class="form-check form-switch ps-0">
+                                <input class="form-check-input ms-0" type="checkbox" @bind="targetAssociation.AdminPaysFee">
+                            </div>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button @onclick="HandleSubmit" class="btn-vscode btn-vscode-primary w-100 justify-content-center">
+                                @(_isEditing ? "Update" : "Create")
                             </button>
                         </div>
                     </div>
@@ -72,35 +94,80 @@
                         </GridColumn>
 
                         <GridColumn TItem="Association" HeaderText="Association Name" PropertyName="Name" SortKeySelector="item => item.Name">
-                            <div class="fw-medium">@context.Name</div>
-                            <div class="text-muted" style="font-size: 11px;">@context.Description</div>
+                            <div class="d-flex flex-column">
+                                <span class="fw-semibold text-dark">@context.Name</span>
+                                <span class="text-muted" style="font-size: 10px; line-height: 1.2;">@context.Description</span>
+                                <span class="text-accent" style="font-size: 9px; opacity: 0.8;">@context.AdminEmail</span>
+                            </div>
                         </GridColumn>
 
-                        <GridColumn TItem="Association" HeaderText="Subscription Plan" PropertyName="PlanName" SortKeySelector="item => item.PlanName">
-                            <span class="badge @(context.PlanName == null ? "bg-secondary-subtle text-secondary" : "bg-info-subtle text-info") border border-info-subtle">
-                                @(context.PlanName ?? "Starter")
-                            </span>
+                        <GridColumn TItem="Association" HeaderText="Subscription & Billing" PropertyName="PlanName" SortKeySelector="item => item.PlanName">
+                            <div class="d-flex align-items-center gap-2 py-1">
+                                <span class="badge-pill @(context.PlanName == null ? "pill-starter" : "pill-active")">
+                                    @(context.PlanName ?? "Starter")
+                                </span>
+                                
+                                <div class="d-flex align-items-center gap-2 ms-2">
+                                    <div class="d-flex align-items-center gap-1" style="font-size: 11px;">
+                                        <i class="bi bi-wallet2 text-muted" style="font-size: 10px;"></i>
+                                        <span class="@(context.BillingAccountName == null ? "text-muted" : "text-dark fw-medium")">
+                                            @(context.BillingAccountName ?? "Not set")
+                                        </span>
+                                    </div>
+                                    
+                                    @if (context.AdminPaysFee)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size: 9px; padding: 1px 6px;">
+                                            ADMIN PAYS
+                                        </span>
+                                    }
+                                </div>
+                            </div>
                         </GridColumn>
 
                         <GridColumn TItem="Association" HeaderText="Created" PropertyName="CreatedDate" SortKeySelector="item => item.CreatedDate">
                             @context.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd")
                         </GridColumn>
 
-                        <GridColumn TItem="Association" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-                            <AuthorizeView Policy="RequireCorporate" Context="innerAuth">
-                                <Authorized>
-                                    <a href="/subscriptions" class="btn btn-link btn-sm text-accent p-0 me-2" title="Manage Platform Tariff">
-                                        <i class="bi bi-credit-card-2-front"></i>
-                                    </a>
-                                </Authorized>
-                            </AuthorizeView>
-                            <AuthorizeView Policy="RequireCorporate" Context="innerDeleteAuth">
-                                <Authorized>
-                                    <button @onclick="() => DeleteAssociation(context.AssociationId)" class="btn btn-link btn-sm text-muted p-0 hover-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </Authorized>
-                            </AuthorizeView>
+                        <GridColumn TItem="Association" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+                            <span class="badge @(context.Status == "Active" ? "bg-success-subtle text-success border-success-subtle" : "bg-danger-subtle text-danger border-danger-subtle") border" style="font-size: 10px;">
+                                @context.Status.ToUpper()
+                            </span>
+                        </GridColumn>
+
+                        <GridColumn TItem="Association" HeaderText="Actions" HeaderClass="text-end" Class="text-end py-1">
+                            <div class="d-flex justify-content-end gap-1">
+                                <AuthorizeView Policy="RequireManagement" Context="innerEditAuth">
+                                    <Authorized>
+                                        <button @onclick="() => EditAssociation(context)" class="btn-icon-slate" title="Edit Association">
+                                            <i class="bi bi-pencil" style="font-size: 11px;"></i>
+                                        </button>
+                                    </Authorized>
+                                </AuthorizeView>
+                                <AuthorizeView Policy="RequireCorporate" Context="innerAuth">
+                                    <Authorized>
+                                        <a href="/subscriptions" class="btn-icon-slate" title="Manage Platform Tariff">
+                                            <i class="bi bi-credit-card-2-front" style="font-size: 11px;"></i>
+                                        </a>
+                                    </Authorized>
+                                </AuthorizeView>
+                                 <AuthorizeView Policy="RequireCorporate" Context="innerDeleteAuth">
+                                    <Authorized>
+                                        @if (context.Status == "Active")
+                                        {
+                                            <button @onclick="() => DeactivateAssociation(context.AssociationId)" class="btn-icon-slate hover-danger" title="Deactivate Association">
+                                                <i class="bi bi-power" style="font-size: 11px;"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button @onclick="() => ActivateAssociation(context.AssociationId)" class="btn-icon-slate text-success" title="Re-activate Association">
+                                                <i class="bi bi-arrow-repeat" style="font-size: 11px;"></i>
+                                            </button>
+                                        }
+                                    </Authorized>
+                                </AuthorizeView>
+                            </div>
                         </GridColumn>
 
                     </Grid>
@@ -117,18 +184,33 @@
 </AuthorizeView>
 
 <style>
-    .btn-icon-slate { width: 32px; height: 32px; border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; color: #64748b; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-    .btn-icon-slate:hover { background: #f8fafc; color: var(--vscode-accent); border-color: var(--vscode-accent); }
-    .btn-icon-slate.hover-danger:hover { background: #fee2e2; color: #ef4444; border-color: #fecaca; }
-    .bg-slate-50 { background-color: #f8fafc; }
+    .compact-table .table { font-size: 13px !important; }
+    .compact-table .table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; padding: 10px 12px; }
+    .compact-table .table td { vertical-align: middle; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+    .compact-table .table tr:hover td { background: #fdfdfd; }
+    
+    .badge-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; border: 1px solid transparent; }
+    .pill-starter { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+    .pill-active { background: #f0f9ff; color: #0369a1; border-color: #bae6fd; }
+    
+    .btn-icon-slate { width: 26px; height: 26px; border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; color: #94a3b8; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+    .btn-icon-slate:hover { background: #f8fafc; color: var(--vscode-accent); border-color: #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .btn-icon-slate.hover-danger:hover { background: #fff1f2; color: #e11d48; border-color: #fecaca; }
+    
+    .text-accent { color: var(--vscode-accent); }
 </style>
 
 @code {
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
     private Grid<Association> grid = default!;
     private List<Association>? associations;
+    private List<PlatformAccount>? _accounts;
     private Association newAssociation = new();
+    private Association editingAssociation = new();
     private bool _showCreateForm = false;
+    private bool _isEditing = false;
+
+    private Association targetAssociation => _isEditing ? editingAssociation : newAssociation;
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,6 +230,7 @@
         try 
         {
             associations = await ApiService.GetAsync<List<Association>>("associations");
+            _accounts = await ApiService.GetAsync<List<PlatformAccount>>("PlatformAccounts");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -157,6 +240,34 @@
         {
             Console.WriteLine($"Error loading associations: {ex.Message}");
         }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_isEditing) await UpdateAssociation();
+        else await CreateAssociation();
+    }
+
+    private void EditAssociation(Association item)
+    {
+        editingAssociation = new Association
+        {
+            AssociationId = item.AssociationId,
+            TenantId = item.TenantId,
+            Name = item.Name,
+            Description = item.Description,
+            AdminEmail = item.AdminEmail,
+            PlatformAccountId = item.PlatformAccountId,
+            AdminPaysFee = item.AdminPaysFee
+        };
+        _isEditing = true;
+        _showCreateForm = false;
+    }
+
+    private void CancelEdit()
+    {
+        _isEditing = false;
+        _showCreateForm = false;
     }
 
     private async Task CreateAssociation()
@@ -186,14 +297,54 @@
         }
     }
 
-    private async Task DeleteAssociation(int id)
+    private async Task UpdateAssociation()
+    {
+        if (string.IsNullOrWhiteSpace(editingAssociation.Name))
+        {
+            _toastService.Notify(new(ToastType.Warning, "Association name is required."));
+            return;
+        }
+        
+        var url = $"associations/{editingAssociation.AssociationId}";
+        var success = await ApiService.PutAsync(url, editingAssociation);
+        
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Association updated successfully."));
+            _isEditing = false;
+            associations = null;
+            await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to update association."));
+        }
+    }
+
+    private async Task DeactivateAssociation(int id)
     {
         var success = await ApiService.DeleteAsync($"associations/{id}");
         if (success)
         {
-            _toastService.Notify(new(ToastType.Warning, "Association removed."));
+            _toastService.Notify(new(ToastType.Warning, "Association deactivated. Access is now restricted."));
             associations = null; // Clear so DataProvider reloads
             await grid.RefreshDataAsync();
+        }
+    }
+
+    private async Task ActivateAssociation(int id)
+    {
+        var url = $"associations/{id}/status?status=Active";
+        var success = await ApiService.PostAsync(url, new { });
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Association re-activated. Full access restored."));
+            associations = null;
+            await grid.RefreshDataAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to re-activate association."));
         }
     }
 

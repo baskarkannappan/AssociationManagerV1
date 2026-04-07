@@ -510,7 +510,8 @@
         {
             UserRole = string.Join(",", roles),
             UserLevel = AppRole.GetMaxLevel(user.Claims),
-            AssociationId = TenantContext.AssociationId
+            AssociationId = TenantContext.AssociationId,
+            AssociationStatus = TenantContext.AssociationStatus
         };
 
         bool isManagement = await RuleEngine.EvaluateRuleAsync("RequireManagement", securityContext);

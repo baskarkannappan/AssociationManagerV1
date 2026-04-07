@@ -21,25 +21,39 @@
     @if (_subscription != null)
     {
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card border-0 shadow-sm bg-primary text-white h-100 p-3">
-                    <div class="small text-white-50 mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Active Plan</div>
-                    <div class="h4 mb-2">@_subscription.PlanName</div>
-                    <div class="small mb-0 opacity-75">Status: <span class="badge bg-white text-primary">@_subscription.Status</span></div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm bg-white h-100 p-3" style="border-top: 4px solid #0078d4 !important;">
+                    <div class="small text-muted mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Active Plan</div>
+                    <div class="h4 mb-2 text-primary fw-bold">@_subscription.PlanName</div>
+                    <div class="small mb-0 opacity-75">Status: <span class="badge bg-success-subtle text-success border">@_subscription.Status</span></div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card border-0 shadow-sm bg-white h-100 p-3">
                     <div class="small text-muted mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Monthly Cost</div>
                     <div class="h4 mb-1">₹@((_subscription.BasePrice + (_assetCount * _subscription.PricePerAsset)).ToString("N2"))</div>
                     <div class="small text-muted mb-0">Base: ₹@_subscription.BasePrice.ToString("N2") + (₹@_subscription.PricePerAsset.ToString("N2") × @_assetCount assets)</div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card border-0 shadow-sm bg-white h-100 p-3">
                     <div class="small text-muted mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Next Billing Date</div>
                     <div class="h4 mb-1">@_subscription.NextBillingDate.ToString("dd MMM yyyy")</div>
                     <div class="small text-muted mb-0">Automatic generation approx. monthly.</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm bg-dark text-white h-100 p-3" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="small text-white-50 mb-1 font-heading uppercase letter-spacing-05 fw-bold" style="font-size: 10px;">Wallet Balance</div>
+                            <div class="h4 mb-1">₹@_walletBalance.ToString("N2")</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-light py-0 px-2" style="font-size: 10px;" @onclick="() => _showTopupModal = true">
+                            <i class="bi bi-plus-circle me-1"></i> TOP-UP
+                        </button>
+                    </div>
+                    <div class="small mb-0 opacity-75 mt-auto">Used for automatic settlement.</div>
                 </div>
             </div>
         </div>
@@ -47,7 +61,7 @@
 
     <div class="vscode-explorer-header mb-2" style="background: transparent; padding-left: 0; color: var(--text-primary);">Billing History</div>
     
-    <div class="border bg-white p-2">
+    <div class="border bg-white p-2 mb-4">
         <Grid @ref="invoiceGrid" TItem="PlatformInvoice"
               Class="table table-hover table-bordered table-striped compact-table"
               DataProvider="InvoicesDataProvider"
@@ -81,14 +95,94 @@
             <GridColumn TItem="PlatformInvoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
                 @if (context.Status == "Unpaid")
                 {
-                    <button class="btn btn-sm btn-vscode" @onclick="() => InitiatePayment(context)">
-                        <i class="bi bi-wallet2 me-1"></i> Pay Now
-                    </button>
+                    <div class="d-flex justify-content-end gap-2">
+                        @if (_walletBalance >= context.Amount)
+                        {
+                            <button class="btn btn-sm btn-outline-success" @onclick="() => DirectPayWithWallet(context)" disabled="@_isProcessing">
+                                <i class="bi bi-patch-check me-1"></i> Pay with Advance
+                            </button>
+                        }
+                        <button class="btn btn-sm btn-vscode" @onclick="() => InitiatePayment(context)">
+                            <i class="bi bi-wallet2 me-1"></i> Pay Now
+                        </button>
+                    </div>
                 }
             </GridColumn>
         </Grid>
     </div>
+
+    <div class="vscode-explorer-header mb-2" style="background: transparent; padding-left: 0; color: var(--text-primary);">Wallet Transaction History</div>
+    <div class="border bg-white p-2">
+        <Grid @ref="walletGrid" TItem="PlatformAdvanceHistory"
+              Class="table table-hover table-bordered table-striped compact-table"
+              DataProvider="WalletDataProvider"
+              Responsive="true"
+              AllowPaging="true"
+              PageSize="5"
+              AllowSorting="true">
+
+            <GridColumn TItem="PlatformAdvanceHistory" HeaderText="Date" PropertyName="Date" SortKeySelector="item => item.Date">
+                @context.Date.ToString("dd MMM yyyy HH:mm")
+            </GridColumn>
+
+            <GridColumn TItem="PlatformAdvanceHistory" HeaderText="Description" PropertyName="Description">
+                @context.Description
+            </GridColumn>
+
+            <GridColumn TItem="PlatformAdvanceHistory" HeaderText="Amount" PropertyName="Amount" Class="text-end" HeaderClass="text-end" SortKeySelector="item => item.Amount">
+                @if (context.Amount >= 0)
+                {
+                    <span class="text-success fw-bold">+₹@context.Amount.ToString("N2")</span>
+                }
+                else
+                {
+                    <span class="text-danger fw-bold">-₹@Math.Abs(context.Amount).ToString("N2")</span>
+                }
+            </GridColumn>
+
+            <GridColumn TItem="PlatformAdvanceHistory" HeaderText="Reference" PropertyName="TransactionRef">
+                <code class="small text-muted">@context.TransactionRef</code>
+            </GridColumn>
+
+            <GridColumn TItem="PlatformAdvanceHistory" HeaderText="Status" PropertyName="Status">
+                @context.Status
+            </GridColumn>
+        </Grid>
+    </div>
 </div>
+
+@if (_showTopupModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">Top-up Platform Wallet</h6>
+                    <button type="button" class="btn-close small" @onclick="() => _showTopupModal = false"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Amount to Add (₹)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">₹</span>
+                            <input type="number" class="form-control" @bind="_topupAmount" placeholder="Enter amount" />
+                        </div>
+                        <div class="mt-2 text-muted" style="font-size: 11px;">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Credits will be added instantly to your association's wallet after successful payment.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showTopupModal = false" disabled="@_isProcessing">Cancel</button>
+                    <button class="btn btn-sm btn-vscode px-4" @onclick="InitiateTopup" disabled="@(_isProcessing || _topupAmount <= 0)">
+                        <i class="bi bi-plus-circle me-1"></i> Proceed to Pay
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @if (_showPaymentModal && _selectedInvoice != null)
 {
@@ -134,15 +228,29 @@
                         </div>
                     }
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showPaymentModal = false" disabled="@_isProcessing">Cancel</button>
-                    <button class="btn btn-sm btn-vscode px-4" @onclick="InitiateRazorpayPayment" disabled="@_isProcessing">
-                        @if (_isProcessing)
+                <div class="modal-footer border-0 pt-3 d-flex justify-content-between align-items-center">
+                    <div class="text-start">
+                        <div class="text-muted extra-small uppercase fw-bold" style="font-size: 9px;">Your Wallet Balance</div>
+                        <div class="small fw-bold @(_walletBalance >= _selectedInvoice.Amount ? "text-success" : "text-danger")">₹@_walletBalance.ToString("N2")</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-vscode-secondary" @onclick="() => _showPaymentModal = false" disabled="@_isProcessing">Cancel</button>
+                        
+                        @if (_walletBalance >= _selectedInvoice.Amount)
                         {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <button class="btn btn-sm btn-success px-3" @onclick="PayWithWallet" disabled="@_isProcessing">
+                                <i class="bi bi-wallet2 me-1"></i> Pay from Wallet
+                            </button>
                         }
-                        <i class="bi bi-lock-fill me-1"></i> Proceed to Pay
-                    </button>
+
+                        <button class="btn btn-sm btn-vscode px-4" @onclick="InitiateRazorpayPayment" disabled="@_isProcessing">
+                            @if (_isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-lock-fill me-1"></i> Proceed to Pay
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -163,8 +271,14 @@
     private AssociationSubscription? _subscription;
     private List<PlatformInvoice>? _invoices;
     private Grid<PlatformInvoice> invoiceGrid = default!;
+    private Grid<PlatformAdvanceHistory> walletGrid = default!;
     private int _assetCount;
     
+    private decimal _walletBalance;
+    private bool _showTopupModal;
+    private decimal _topupAmount;
+    private bool _isTopup;
+
     private bool _showPaymentModal;
     private PlatformInvoice? _selectedInvoice;
     private PlatformAccount? _billingAccount;
@@ -179,8 +293,8 @@
     {
         _subscription = await ApiService.GetAsync<AssociationSubscription>("api/subscription/current");
         _invoices = await ApiService.GetAsync<List<PlatformInvoice>>("api/platformbilling/my-invoices");
+        _walletBalance = await ApiService.GetAsync<decimal>("api/platformbilling/wallet-balance");
         
-        // Optionally fetch asset count if not in subscription model
         var assets = await ApiService.GetAsync<List<Asset>>("api/assets");
         _assetCount = assets?.Count ?? 0;
     }
@@ -191,9 +305,16 @@
         return request.ApplyTo(_invoices ?? new List<PlatformInvoice>());
     }
 
+    private async Task<GridDataProviderResult<PlatformAdvanceHistory>> WalletDataProvider(GridDataProviderRequest<PlatformAdvanceHistory> request)
+    {
+        var result = await ApiService.GetAsync<PagedResult<PlatformAdvanceHistory>>($"api/platformbilling/wallet-history?pageNumber={request.PageNumber}&pageSize={request.PageSize}");
+        return new GridDataProviderResult<PlatformAdvanceHistory> { Data = result?.Items ?? new List<PlatformAdvanceHistory>(), TotalCount = result?.TotalCount ?? 0 };
+    }
+
     private async Task InitiatePayment(PlatformInvoice invoice)
     {
         _selectedInvoice = invoice;
+        _isTopup = false;
         _showPaymentModal = true;
         _billingAccount = null;
         
@@ -215,33 +336,34 @@
         }
     }
 
+    private async Task InitiateTopup()
+    {
+        if (_topupAmount <= 0) return;
+        _isProcessing = true;
+        _isTopup = true;
+
+        try
+        {
+            var orderResponse = await ApiService.PostAsync<decimal, RazorpayOrderResponse>("api/platformbilling/create-topup-order", _topupAmount);
+            if (orderResponse != null) await OpenRazorpay(orderResponse, "Platform Wallet Top-up");
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Top-up initiation failed: {ex.Message}"));
+            _isProcessing = false;
+        }
+    }
+
     private async Task InitiateRazorpayPayment()
     {
         if (_selectedInvoice == null || _isProcessing) return;
         _isProcessing = true;
+        _isTopup = false;
 
         try
         {
             var orderResponse = await ApiService.PostAsync<object, RazorpayOrderResponse>($"api/platformbilling/create-order/{_selectedInvoice.PlatformInvoiceId}", new { });
-            if (orderResponse == null) throw new Exception("Failed to create payment order.");
-
-            var options = new
-            {
-                key = orderResponse.KeyId,
-                amount = orderResponse.Amount,
-                currency = orderResponse.Currency,
-                name = "Association Manager",
-                description = $"Platform Fee - {_selectedInvoice.BillingDate:MMM yyyy}",
-                order_id = orderResponse.OrderId,
-                prefill = new
-                {
-                    name = "", // Can be filled if we have user info
-                    email = "" 
-                },
-                theme = new { color = "#0078d4" }
-            };
-
-            await JSRuntime.InvokeVoidAsync("razorpayInterop.openCheckout", options, DotNetObjectReference.Create(this));
+            if (orderResponse != null) await OpenRazorpay(orderResponse, $"Platform Fee - {_selectedInvoice.BillingDate:MMM yyyy}");
         }
         catch (Exception ex)
         {
@@ -250,31 +372,104 @@
         }
     }
 
+    private async Task OpenRazorpay(RazorpayOrderResponse orderResponse, string description)
+    {
+        if (orderResponse == null) throw new Exception("Failed to create payment order.");
+
+        var options = new
+        {
+            key = orderResponse.KeyId,
+            amount = orderResponse.Amount,
+            currency = orderResponse.Currency,
+            name = "Association Manager",
+            description = description,
+            order_id = orderResponse.OrderId,
+            prefill = new
+            {
+                name = "", 
+                email = "" 
+            },
+            theme = new { color = "#0078d4" }
+        };
+
+        await JSRuntime.InvokeVoidAsync("razorpayInterop.openCheckout", options, DotNetObjectReference.Create(this));
+    }
+
+    private async Task DirectPayWithWallet(PlatformInvoice invoice)
+    {
+        if (invoice == null || _isProcessing) return;
+        _selectedInvoice = invoice;
+        await PayWithWallet();
+    }
+
+    private async Task PayWithWallet()
+    {
+        if (_selectedInvoice == null || _isProcessing) return;
+        _isProcessing = true;
+
+        try
+        {
+            var success = await ApiService.PostAsync<object, bool>($"api/platformbilling/pay-with-wallet/{_selectedInvoice.PlatformInvoiceId}", new { });
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Payment successful! Your wallet balance has been deducted."));
+                await FinalizeSuccess();
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Wallet payment failed: {ex.Message}"));
+            _isProcessing = false;
+        }
+    }
+
+    private async Task FinalizeSuccess()
+    {
+        _showPaymentModal = false;
+        _showTopupModal = false;
+        _invoices = null;
+        await LoadData();
+        if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+        if (walletGrid != null) await walletGrid.RefreshDataAsync();
+    }
+
     [JSInvokable]
     public async Task HandlePaymentSuccess(RazorpayVerifyResponse response)
     {
         try
         {
-            var verifyRequest = new RazorpayVerifyRequest
+            if (_isTopup)
             {
-                InvoiceId = _selectedInvoice?.PlatformInvoiceId,
-                RazorpayOrderId = response.razorpay_order_id,
-                RazorpayPaymentId = response.razorpay_payment_id,
-                RazorpaySignature = response.razorpay_signature
-            };
-
-            var success = await ApiService.PostAsync<RazorpayVerifyRequest, bool>("api/platformbilling/verify-payment", verifyRequest);
-            if (success)
-            {
-                _toastService.Notify(new(ToastType.Success, "Payment successful! Your subscription is updated."));
-                _showPaymentModal = false;
-                _invoices = null;
-                await LoadData();
-                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+                var verifyRequest = new RazorpayVerifyRequest
+                {
+                    RazorpayOrderId = response.razorpay_order_id,
+                    RazorpayPaymentId = response.razorpay_payment_id,
+                    RazorpaySignature = response.razorpay_signature,
+                    Amount = _topupAmount
+                };
+                var success = await ApiService.PostAsync<RazorpayVerifyRequest, bool>("api/platformbilling/verify-topup-payment", verifyRequest);
+                if (success)
+                {
+                    _toastService.Notify(new(ToastType.Success, "Top-up successful! Credits added to your wallet."));
+                    await FinalizeSuccess();
+                }
             }
             else
             {
-                _toastService.Notify(new(ToastType.Danger, "Payment verification failed. Please contact support."));
+                var verifyRequest = new RazorpayVerifyRequest
+                {
+                    InvoiceId = _selectedInvoice?.PlatformInvoiceId,
+                    RazorpayOrderId = response.razorpay_order_id,
+                    RazorpayPaymentId = response.razorpay_payment_id,
+                    RazorpaySignature = response.razorpay_signature
+                };
+
+                var success = await ApiService.PostAsync<RazorpayVerifyRequest, bool>("api/platformbilling/verify-payment", verifyRequest);
+                if (success)
+                {
+                    _toastService.Notify(new(ToastType.Success, "Payment successful! Your subscription is updated."));
+                    await FinalizeSuccess();
+                }
             }
         }
         catch (Exception ex)

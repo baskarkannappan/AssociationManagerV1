@@ -1,0 +1,42 @@
+@page "/deactivated"
+@layout EmptyLayout
+
+<div class="d-flex flex-column align-items-center justify-content-center vh-100 bg-light animate-fade-in text-center p-4">
+    <div class="mb-4">
+        <i class="bi bi-shield-slash-fill text-danger" style="font-size: 5rem; opacity: 0.8;"></i>
+    </div>
+    
+    <h1 class="display-5 fw-bold text-dark mb-3">Association Deactivated</h1>
+    <p class="lead text-muted mb-5" style="max-width: 500px;">
+        Access to this association has been suspended by the platform administrator. 
+        Your data is safe, but all operations are currently locked. 
+        Please contact your building management for more information.
+    </p>
+
+    <div class="card shadow-sm border-0 bg-white p-4" style="max-width: 450px;">
+        <h6 class="fw-bold mb-3 d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-info-circle text-primary"></i>
+            What you can do
+        </h6>
+        <p class="small text-muted mb-4 text-start">
+            - Contact your Association Manager or support@associationmanager.com<br/>
+            - Sign out and switch to a different association if you have multiple.<br/>
+            - All historical records will be automatically restored once re-activated.
+        </p>
+        
+        <div class="d-grid gap-2">
+            <button @onclick="Logout" class="btn btn-outline-secondary py-2 fw-bold small">Sign Out</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private AuthService AuthService { get; set; } = default!;
+
+    private async Task Logout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login");
+    }
+}

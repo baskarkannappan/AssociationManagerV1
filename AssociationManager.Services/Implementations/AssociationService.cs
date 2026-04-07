@@ -105,10 +105,20 @@ public class AssociationService : IAssociationService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        // First delete mappings in assoc schema to avoid FK constraint issues
-        await _assocUserRepository.DeleteByAssociationIdAsync(id);
+        // For deactivation, we DO NOT delete mappings as we want the Association Admin
+        // to still have Read-Only access.
         
         bool success = await _associationRepository.DeleteAsync(id, CurrentTenantId);
+        if (success)
+        {
+            await InvalidateCache(id);
+        }
+        return success;
+    }
+
+    public async Task<bool> UpdateStatusAsync(int id, string status)
+    {
+        bool success = await _associationRepository.UpdateStatusAsync(id, status);
         if (success)
         {
             await InvalidateCache(id);

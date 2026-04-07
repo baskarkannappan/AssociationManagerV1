@@ -9,4 +9,6 @@ public class PlatformPayment
     public decimal Amount { get; set; }
     public DateTime PaymentDate { get; set; }
     public string? TransactionRef { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? Status { get; set; }
 }

@@ -31,6 +31,8 @@ public class TenantContext : ITenantContext
         }
     }
 
+    public string AssociationStatus => GetClaim("AssociationStatus") ?? "Active";
+
     public int UserId 
     {
         get

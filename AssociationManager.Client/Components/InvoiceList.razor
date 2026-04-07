@@ -151,7 +151,7 @@
                             }
                             <div class="d-flex justify-content-between pt-2 mt-1 fw-bold text-primary">
                                 <span>Total Amount</span>
-                                <span>₹@((_selectedInvoice.Amount + _selectedInvoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Fine") || l.ChargeName.Contains("Penalty")).Sum(l => l.Amount)).ToString("N2"))</span>
+                                <span>₹@((_selectedInvoice.Amount + (_selectedInvoice.LineItems?.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Fine") || l.ChargeName.Contains("Penalty")).Sum(l => l.Amount) ?? 0)).ToString("N2"))</span>
                             </div>
                         </div>
                     </div>

@@ -101,8 +101,18 @@ public class AssociationsController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _associationService.DeleteAsync(id);
-        if (!success) return NotFound(ApiResponse.FailureResponse("Association not found for deletion."));
-        await _auditService.LogAsync("Delete Association", "Association", id);
-        return Ok(ApiResponse.SuccessResponse("Association deleted successfully."));
+        if (!success) return NotFound(ApiResponse.FailureResponse("Association not found for deactivation."));
+        await _auditService.LogAsync("Deactivate Association", "Association", id);
+        return Ok(ApiResponse.SuccessResponse("Association deactivated successfully."));
+    }
+
+    [HttpPost("{id}/status")]
+    [Authorize(Policy = "RequirePlatformAdmin")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromQuery] string status)
+    {
+        var success = await _associationService.UpdateStatusAsync(id, status);
+        if (!success) return NotFound(ApiResponse.FailureResponse("Association not found for status update."));
+        await _auditService.LogAsync($"Update Status to {status}", "Association", id);
+        return Ok(ApiResponse.SuccessResponse($"Association status updated to {status}."));
     }
 }

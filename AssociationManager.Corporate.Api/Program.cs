@@ -58,6 +58,7 @@ builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
+builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -76,6 +77,7 @@ builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
+builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();

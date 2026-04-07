@@ -8,4 +8,5 @@ public interface ITenantContext
     string? Email { get; }
     bool IsPlatformAdmin { get; }
     bool IsSystemAdmin { get; }
+    string AssociationStatus { get; }
 }

@@ -14,4 +14,5 @@ public class AssociationProfile
     public string? ContactEmail { get; set; }
     public string? ContactPhone { get; set; }
     public byte[]? Logo { get; set; }
+    public string Status { get; set; } = "Active";
 }

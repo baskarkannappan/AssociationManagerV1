@@ -62,6 +62,7 @@ builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
+builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();

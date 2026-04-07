@@ -12,4 +12,9 @@ public class Association
     public int? CreatedBy { get; set; }
     public string? PlanName { get; set; }
     public string? AdminEmail { get; set; }
+    public int? PlatformAccountId { get; set; }
+    public string? BillingAccountName { get; set; }
+    public bool AdminPaysFee { get; set; } = true;
+    public decimal PlatformWalletBalance { get; set; } = 0;
+    public string Status { get; set; } = "Active";
 }

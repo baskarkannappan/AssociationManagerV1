@@ -27,4 +27,5 @@ public class RazorpayVerifyRequest
     public string RazorpayOrderId { get; set; } = string.Empty;
     public string RazorpaySignature { get; set; } = string.Empty;
     public int? InvoiceId { get; set; }
+    public decimal? Amount { get; set; }
 }

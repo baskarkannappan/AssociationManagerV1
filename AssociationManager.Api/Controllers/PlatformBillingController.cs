@@ -104,4 +104,65 @@ public class PlatformBillingController : ControllerBase
             return BadRequest(ApiResponse.FailureResponse(ex.Message));
         }
     }
+
+    [HttpGet("wallet-balance")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> GetWalletBalance()
+    {
+        var balance = await _billingService.GetPlatformWalletBalanceAsync(_tenantContext.AssociationId);
+        return Ok(ApiResponse<decimal>.SuccessResponse(balance));
+    }
+
+    [HttpGet("wallet-history")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> GetWalletHistory([FromQuery] AdvanceSearchCriteria criteria)
+    {
+        var result = await _billingService.GetPlatformAdvanceHistoryAsync(_tenantContext.AssociationId, criteria);
+        return Ok(ApiResponse<PagedResult<PlatformAdvanceHistory>>.SuccessResponse(result));
+    }
+
+    [HttpPost("create-topup-order")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> CreateTopupOrder([FromBody] decimal amount)
+    {
+        try
+        {
+            var order = await _billingService.CreateTopupOrderAsync(amount);
+            return Ok(ApiResponse<RazorpayOrderResponse>.SuccessResponse(order));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("verify-topup-payment")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> VerifyTopupPayment([FromBody] RazorpayVerifyRequest request)
+    {
+        try
+        {
+            var success = await _billingService.VerifyTopupPaymentAsync(request);
+            return success ? Ok(ApiResponse<bool>.SuccessResponse(true)) : BadRequest(ApiResponse<bool>.ErrorResponse("Top-up verification failed."));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("pay-with-wallet/{invoiceId}")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> PayWithWallet(int invoiceId)
+    {
+        try
+        {
+            var success = await _billingService.SettleInvoiceWithWalletAsync(invoiceId);
+            return success ? Ok(ApiResponse<bool>.SuccessResponse(true, "Invoice paid successfully using wallet balance.")) : BadRequest(ApiResponse.FailureResponse("Payment failed."));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
+        }
+    }
 }
