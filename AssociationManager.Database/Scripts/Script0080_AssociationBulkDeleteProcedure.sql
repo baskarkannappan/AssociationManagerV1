@@ -55,12 +55,14 @@ BEGIN
         DELETE FROM assoc.WorkOrders WHERE AssociationId = @AssociationId;
         DELETE FROM assoc.Broadcasts WHERE AssociationId = @AssociationId;
 
-        -- 6. Tier 6: Profiles
+        -- 6. Tier 6: Profiles and Settings
+        DELETE FROM assoc.FineSettings WHERE AssociationId = @AssociationId;
         DELETE FROM assoc.ByeLaws WHERE AssociationId = @AssociationId;
         DELETE FROM assoc.AssociationBankDetails WHERE AssociationId = @AssociationId;
         DELETE FROM assoc.AssociationProfile WHERE AssociationId = @AssociationId;
 
         -- 7. Tier 7: Corporate Integration
+        DELETE FROM corp.PlatformAdvancePayments WHERE AssociationId = @AssociationId;
         DELETE FROM corp.PlatformPayments WHERE PlatformInvoiceId IN (SELECT PlatformInvoiceId FROM corp.PlatformInvoices WHERE AssociationId = @AssociationId);
         DELETE FROM corp.PlatformInvoices WHERE AssociationId = @AssociationId;
         DELETE FROM corp.AssociationSubscriptions WHERE AssociationId = @AssociationId;

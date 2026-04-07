@@ -143,8 +143,11 @@ public class FinanceService : IFinanceService
         }
 
         // SMART SUM: Amount (Principal) + all Fine items + any virtual items
-        decimal realUnpaid = unpaidInvoices.Sum(i => i.Amount + 
-            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
+        decimal realUnpaid = 0;
+        foreach (var inv in unpaidInvoices)
+        {
+            realUnpaid += await GetTotalInvoiceAmountAsync(inv);
+        }
         
         decimal totalWallet = 0;
         var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
@@ -329,8 +332,12 @@ public class FinanceService : IFinanceService
     public async Task<decimal> GetAssetBalanceAsync(int assetId)
     {
         var invoices = await GetInvoicesByAssetIdAsync(assetId);
-        return invoices.Where(i => i.Status != "Paid").Sum(i => i.Amount + 
-            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
+        decimal outstanding = 0;
+        foreach (var inv in invoices.Where(i => i.Status != "Paid"))
+        {
+            outstanding += await GetTotalInvoiceAmountAsync(inv);
+        }
+        return outstanding;
     }
 
     public async Task<bool> AutoSettleInvoicesAsync(int assetId, int? associationId = null)
@@ -392,9 +399,8 @@ public class FinanceService : IFinanceService
 
         if (totalWalletPower <= 0) return false;
         
-        // EXCLUSIVE TOTAL: For Advance Settlements, only settle the base amount + already-persisted items.
-        // We skip virtual (ID=0) fines here to avoid 'surprising' wallet deductions.
-        decimal totalAmountDue = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId > 0).Sum(li => li.Amount);
+        // UNIFIED TOTAL: Use the shared calculation logic to determine the exact amount due.
+        decimal totalAmountDue = await GetTotalInvoiceAmountAsync(invoice);
         
         if (totalWalletPower < totalAmountDue) return false;
 
@@ -486,8 +492,11 @@ public class FinanceService : IFinanceService
     {
         // 1. Unified Unpaid Invoices (including fines)
         var invoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
-        var totalOutstanding = invoices.Sum(i => i.Amount + 
-            i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount));
+        decimal totalOutstanding = 0;
+        foreach (var inv in invoices)
+        {
+            totalOutstanding += await GetTotalInvoiceAmountAsync(inv);
+        }
 
         // 2. Unified Advance Credits (Scan all units to match Resident logic)
         // Note: associationId is passed for cross-tenant multi-asset support
@@ -518,5 +527,28 @@ public class FinanceService : IFinanceService
         if (criteria.TenantId == null) criteria.TenantId = CurrentTenantId;
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
         return await _paymentRepository.GetAdvancesPagedAsync(criteria);
+    }
+
+    /// <summary>
+    /// Unified calculation logic for Total Invoice Amount.
+    /// Ensures that Amount (Principal) and Breakdown (Line Items) are not double-counted.
+    /// Logic: Sum of LineItems (if they exist), or Invoice.Amount if no line items are found.
+    /// It effectively handles virtual fines (preview) and persisted fines identically.
+    /// </summary>
+    private async Task<decimal> GetTotalInvoiceAmountAsync(Invoice invoice)
+    {
+        // 1. If no line items, return the base amount
+        if (invoice.LineItems == null || !invoice.LineItems.Any()) 
+            return invoice.Amount;
+
+        // 2. Extract specific charges
+        decimal principalLineItems = invoice.LineItems.Where(l => !l.ChargeName.Contains("Penalty") && !l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+        decimal penaltyLineItems = invoice.LineItems.Where(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+
+        // 3. UNIFIED RULE: The "True Principal" is the maximum of the invoice.Amount or the sum of principal breakdown line items.
+        // This prevents double-counting if Amount is 200 and a 'Maintenance Fee' line item is also 200.
+        decimal truePrincipal = Math.Max(invoice.Amount, principalLineItems);
+
+        return truePrincipal + penaltyLineItems;
     }
 }

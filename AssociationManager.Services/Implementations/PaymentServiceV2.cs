@@ -34,8 +34,8 @@ public class PaymentServiceV2 : IPaymentServiceV2
 
     public async Task<RazorpayOrderResponse> CreateOrderAsync(RazorpayOrderRequest request)
     {
-        var config = await _repository.GetPaymentConfigAsync(_tenantContext.TenantId);
-        if (config == null) throw new Exception("Payment configuration not found for this tenant.");
+        var config = await GetActiveConfigAsync(_tenantContext.TenantId);
+        if (config == null) throw new Exception("Payment configuration not found (Master fallback also failed).");
 
         var receipt = request.Receipt ?? $"INV_{request.InvoiceId ?? 0}_{DateTime.Now.Ticks}";
         
@@ -85,7 +85,7 @@ public class PaymentServiceV2 : IPaymentServiceV2
 
     public async Task<bool> VerifySignatureAsync(RazorpayVerifyRequest request)
     {
-        var config = await _repository.GetPaymentConfigAsync(_tenantContext.TenantId);
+        var config = await GetActiveConfigAsync(_tenantContext.TenantId);
         if (config == null) return false;
 
         if (string.IsNullOrEmpty(config.RazorpayKeySecret)) return false;
@@ -144,7 +144,7 @@ public class PaymentServiceV2 : IPaymentServiceV2
             // 3. SECURITY: Verify signature if secret is configured (MANDATORY if configured)
             if (tenantId.HasValue)
             {
-                var config = await _repository.GetPaymentConfigAsync(tenantId.Value);
+                var config = await GetActiveConfigAsync(tenantId.Value);
                 if (config != null && !string.IsNullOrEmpty(config.RazorpayWebhookSecret))
                 {
                     bool isWebhookValid = _razorpayClient.VerifyWebhookSignature(payload, signature, config.RazorpayWebhookSecret);
@@ -225,7 +225,7 @@ public class PaymentServiceV2 : IPaymentServiceV2
         }
 
         // 4. RECOVERY CONFIG (Tenant context might be missing in webhook)
-        var config = await _repository.GetPaymentConfigAsync(tenantId);
+        var config = await GetActiveConfigAsync(tenantId);
         if (config == null) return;
 
         // 5. PREPARE TRANSACTION DATA
@@ -319,5 +319,19 @@ public class PaymentServiceV2 : IPaymentServiceV2
             Transactions = transactions, 
             Orders = orders 
         };
+    }
+
+    private async Task<TenantPaymentConfig?> GetActiveConfigAsync(int tenantId)
+    {
+        // 1. Try Specific Tenant Config
+        var config = await _repository.GetPaymentConfigAsync(tenantId);
+        
+        // 2. Fallback to Master (Tenant 1) if not found or inactive
+        if (config == null || !config.IsActive)
+        {
+            config = await _repository.GetPaymentConfigAsync(1); // Master Tenant Fallback
+        }
+
+        return config;
     }
 }

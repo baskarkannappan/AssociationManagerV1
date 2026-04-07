@@ -31,7 +31,19 @@ public class GovernanceRepository : IGovernanceRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
             "assoc.sp_AssociationProfile_Upsert",
-            profile,
+            new
+            {
+                profile.AssociationId,
+                profile.RegistrationNumber,
+                profile.RegistrationDate,
+                profile.Address,
+                profile.City,
+                profile.State,
+                profile.Pincode,
+                profile.ContactEmail,
+                profile.ContactPhone,
+                profile.Logo
+            },
             commandType: CommandType.StoredProcedure) > 0;
     }
 

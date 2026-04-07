@@ -342,10 +342,10 @@
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Finance_AutoSettleInvoices.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Upsert.sql" />
     <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetAll.sql" />
