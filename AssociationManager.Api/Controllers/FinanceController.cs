@@ -50,6 +50,14 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
     }
 
+    [HttpGet("batches")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> GetBatches([FromQuery] int associationId)
+    {
+        var result = await _batchService.GetBatchesAsync(associationId, _tenantContext.TenantId);
+        return Ok(ApiResponse<IEnumerable<BillingBatch>>.SuccessResponse(result));
+    }
+
     [HttpGet("invoices")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetInvoices(

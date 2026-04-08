@@ -217,11 +217,12 @@ public class BillingBatchService
             }
         }
 
-        result.Message = request.DryRun 
-            ? $"Preview generated for {result.Previews.Count} assets." 
-            : $"Successfully generated {result.InvoicesGenerated} invoices for {periodName} (Batch #{batchId}).";
-
         return result;
+    }
+
+    public async Task<IEnumerable<BillingBatch>> GetBatchesAsync(int associationId, int tenantId)
+    {
+        return await _billingBatchRepository.GetByAssociationAsync(associationId, tenantId);
     }
 
     private IEnumerable<Asset> Flatten(IEnumerable<Asset> assets)

@@ -61,6 +61,11 @@ public class PeopleService : IPeopleService
         occupancy.TenantId = CurrentTenantId;
         occupancy.AssociationId = CurrentAssociationId;
         
+        if (occupancy.IsPrimaryContact)
+        {
+            await HandlePrimarySwapAsync(occupancy);
+        }
+
         var id = await _occupancyRepository.CreateAsync(occupancy);
 
         // Provision user as Resident if email exists
@@ -97,7 +102,25 @@ public class PeopleService : IPeopleService
     {
         occupancy.TenantId = CurrentTenantId;
         occupancy.AssociationId = CurrentAssociationId;
+
+        if (occupancy.IsPrimaryContact)
+        {
+            await HandlePrimarySwapAsync(occupancy);
+        }
+
         return await _occupancyRepository.UpdateAsync(occupancy);
+    }
+
+    private async Task HandlePrimarySwapAsync(Occupancy occupancy)
+    {
+        var occupants = await _occupancyRepository.GetByAssetIdAsync(occupancy.AssetId, CurrentTenantId, CurrentAssociationId);
+        var existingPrimary = occupants.FirstOrDefault(o => o.IsPrimaryContact && o.OccupancyId != occupancy.OccupancyId);
+        
+        if (existingPrimary != null)
+        {
+            existingPrimary.IsPrimaryContact = false;
+            await _occupancyRepository.UpdateAsync(existingPrimary);
+        }
     }
     public async Task<bool> RemoveOccupantAsync(int occupancyId, int? associationId = null) => await _occupancyRepository.DeleteAsync(occupancyId, CurrentTenantId, associationId ?? CurrentAssociationId);
 

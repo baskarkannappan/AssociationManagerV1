@@ -245,7 +245,12 @@
                                 <select class="form-select form-select-sm" @bind="_batchRequest.Month">
                                     @for (int i = 1; i <= 12; i++)
                                     {
-                                        <option value="@i">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(i)</option>
+                                        var monthValue = i;
+                                        var isBilled = _existingBatches?.Any(b => b.Month == monthValue && b.Year == _batchRequest.Year) ?? false;
+                                        if (!isBilled)
+                                        {
+                                            <option value="@monthValue">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(monthValue)</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -484,6 +489,7 @@
     private Invoice? _selectedInvoice;
     private List<PaymentHistoryItem>? _historyTransactions;
     private decimal _advanceBalance;
+    private List<BillingBatch>? _existingBatches;
 
 
     protected override async Task OnInitializedAsync()
@@ -591,6 +597,29 @@
             _payments = payments?.ToList();
 
             _advanceBalance = await Api.GetAsync<decimal>("api/finance/balance/asset");
+
+            if (_scope == "association")
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var aid = authState.User.FindFirst("AssociationId")?.Value;
+                if (int.TryParse(aid, out int associationId))
+                {
+                    _existingBatches = (await Api.GetAsync<IEnumerable<BillingBatch>>($"api/finance/batches?associationId={associationId}"))?.ToList();
+                    
+                    // Auto-select first available month if current selection is billed
+                    if (_existingBatches != null && _existingBatches.Any(b => b.Month == _batchRequest.Month && b.Year == _batchRequest.Year))
+                    {
+                        for (int m = 1; m <= 12; m++)
+                        {
+                            if (!_existingBatches.Any(b => b.Month == m && b.Year == _batchRequest.Year))
+                            {
+                                _batchRequest.Month = m;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
         }
