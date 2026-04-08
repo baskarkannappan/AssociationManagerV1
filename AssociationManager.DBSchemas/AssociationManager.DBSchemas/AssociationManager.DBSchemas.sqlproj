@@ -368,5 +368,12 @@
     <Build Include="corp\Stored Procedures\sp_Associations_UpdateWalletBalance.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_UpdateStatus.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_GetWalletBalance.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetPersonalWalletBalance.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvancesPaged_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetPersonalWalletBalance_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
   </ItemGroup>
 </Project>

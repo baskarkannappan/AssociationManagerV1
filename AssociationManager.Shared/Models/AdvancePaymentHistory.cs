@@ -13,6 +13,7 @@ public class AdvancePaymentHistory
     public string? Notes { get; set; }
     
     // Joined Info
+    public int? AssetId { get; set; }
     public string? UnitName { get; set; }
     public string? ResidentName { get; set; }
     public string? ResidentEmail { get; set; }

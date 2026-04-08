@@ -14,4 +14,5 @@ public interface IPaymentRepository
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationSummaryAsync(int tenantId, int associationId);
     Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int tenantId, int associationId, int? userId = null, int? assetId = null);
     Task<PagedResult<AdvancePaymentHistory>> GetAdvancesPagedAsync(AdvanceSearchCriteria criteria);
+    Task<decimal> GetPersonalWalletBalanceAsync(int tenantId, int associationId, int userId);
 }

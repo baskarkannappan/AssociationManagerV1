@@ -83,6 +83,7 @@ BEGIN
             [Date],
             Status,
             ReferenceId,
+            AssetId,
             ISNULL(ResidentName, 'System') AS ResidentName,
             ISNULL(UnitName, 'General') AS UnitName,
             COUNT(*) OVER() as TotalCount

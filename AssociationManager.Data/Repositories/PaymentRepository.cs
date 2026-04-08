@@ -151,6 +151,7 @@ public class PaymentRepository : IPaymentRepository
                 Date = row.Date,
                 Status = row.Status,
                 ReferenceId = row.ReferenceId,
+                AssetId = row.AssetId,
                 ResidentName = row.ResidentName,
                 UnitName = row.UnitName
             });
@@ -160,5 +161,14 @@ public class PaymentRepository : IPaymentRepository
         result.FilteredCount = result.TotalCount;
 
         return result;
+    }
+
+    public async Task<decimal> GetPersonalWalletBalanceAsync(int tenantId, int associationId, int userId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<decimal>(
+            "assoc.sp_Finance_GetPersonalWalletBalance",
+            new { tenantId, associationId, userId },
+            commandType: CommandType.StoredProcedure);
     }
 }

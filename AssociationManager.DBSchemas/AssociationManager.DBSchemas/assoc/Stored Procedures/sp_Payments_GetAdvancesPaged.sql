@@ -1,8 +1,8 @@
-﻿-- Script0082_DeduplicateWalletHistory.sql
+-- Script0082_DeduplicateWalletHistory.sql
 -- Fix: Deduplicating wallet history by only including 'Debit' transactions from the ledger.
 -- This ensures only the money leaving the wallet is visible, excluding the corresponding invoice credit.
 
-CREATE   PROCEDURE assoc.sp_Payments_GetAdvancesPaged
+CREATE OR ALTER PROCEDURE assoc.sp_Payments_GetAdvancesPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @UserId INT = NULL,
@@ -29,6 +29,13 @@ BEGIN
     IF @SortDirection NOT IN ('ASC', 'DESC')
         SET @SortDirection = 'DESC';
 
+    -- NEW: Robust Identity Resolution (resolves from either schema)
+    DECLARE @UserEmail NVARCHAR(255);
+    SELECT @UserEmail = Email FROM corp.Users WHERE UserId = @UserId;
+    
+    IF @UserEmail IS NULL
+        SELECT @UserEmail = Email FROM assoc.Users WHERE UserId = @UserId AND TenantId = @TenantId;
+
     -- CTE for Filtering and Paging
     ;WITH RawAdvances AS (
         -- 1. TOP-UPS (Credits)
@@ -42,11 +49,19 @@ BEGIN
             p.UserId,
             p.AssetId
         FROM assoc.Payments p
-        LEFT JOIN assoc.Users u ON p.UserId = u.UserId
+        LEFT JOIN corp.Users cu ON p.UserId = cu.UserId
+        LEFT JOIN assoc.Users au ON p.UserId = au.UserId AND p.TenantId = @TenantId
+        LEFT JOIN assoc.Users u ON p.UserId = u.UserId AND p.TenantId = @TenantId -- For Display Name
         LEFT JOIN assoc.Assets a ON p.AssetId = a.AssetId
         WHERE p.TenantId = @TenantId
           AND p.InvoiceId IS NULL -- Top-ups / Advances
           AND (@AssociationId IS NULL OR p.AssociationId = @AssociationId)
+          -- Match by Email OR UserId for Identity consistency
+          AND (
+                @UserId IS NULL 
+                OR (@UserEmail IS NOT NULL AND (cu.Email = @UserEmail OR au.Email = @UserEmail))
+                OR p.UserId = @UserId -- Fallback to direct ID match
+          )
 
         UNION ALL
 
@@ -69,12 +84,25 @@ BEGIN
           AND t.Type = 'Debit' -- ONLY WALLET WITHDRAWAL
           AND t.Category IN ('Credit Settlement', 'Internal Credit Transfer')
           AND (@AssociationId IS NULL OR t.AssociationId = @AssociationId)
-          -- SECURITY: If @UserId is provided, ensure they occupy the unit the transaction belongs to
-          AND (@UserId IS NULL OR EXISTS (
-              SELECT 1 FROM assoc.Occupancy o 
-              INNER JOIN assoc.Persons per ON o.PersonId = per.PersonId
-              INNER JOIN assoc.Users usr ON per.Email = usr.Email
-              WHERE o.AssetId = t.AssetId AND usr.UserId = @UserId
+          -- SECURITY: Resolve Assets belonging to this email OR directly to this UserId
+          AND (@UserId IS NULL OR t.AssetId IN (
+              SELECT DISTINCT oc.AssetId 
+              FROM assoc.Occupancy oc
+              INNER JOIN assoc.Persons per ON oc.PersonId = per.PersonId
+              WHERE (per.Email = @UserEmail OR per.Email = (SELECT Email FROM assoc.Users WHERE UserId = @UserId AND TenantId = @TenantId))
+                AND oc.TenantId = @TenantId
+              
+              UNION
+              
+              SELECT DISTINCT pay.AssetId 
+              FROM assoc.Payments pay
+              LEFT JOIN corp.Users gcu ON pay.UserId = gcu.UserId
+              LEFT JOIN assoc.Users lau ON pay.UserId = lau.UserId AND pay.TenantId = @TenantId
+              WHERE (
+                     (@UserEmail IS NOT NULL AND (gcu.Email = @UserEmail OR lau.Email = @UserEmail))
+                     OR pay.UserId = @UserId
+                    ) 
+                AND pay.TenantId = @TenantId
           ))
     ),
     FilteredAdvances AS (
@@ -87,8 +115,7 @@ BEGIN
             ISNULL(UnitName, 'General') AS UnitName,
             COUNT(*) OVER() as TotalCount
         FROM RawAdvances
-        WHERE (@UserId IS NULL OR UserId = @UserId)
-          AND (@AssetId IS NULL OR AssetId = @AssetId)
+        WHERE (@AssetId IS NULL OR AssetId = @AssetId)
           AND (
                @Status IS NULL 
                OR Status = @Status 

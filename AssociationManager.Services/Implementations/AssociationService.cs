@@ -14,19 +14,24 @@ public class AssociationService : IAssociationService
 {
     private readonly IAssociationRepository _associationRepository;
     private readonly IAssocUserRepository _assocUserRepository;
+    private readonly IGlobalUserRepository _globalUserRepository;
+    private readonly ITenantRepository _tenantRepository;
     private readonly ITenantContext _tenantContext;
     private readonly IDistributedCache _cache;
     private readonly ILogger<AssociationService> _logger;
-
     public AssociationService(
         IAssociationRepository associationRepository,
         IAssocUserRepository assocUserRepository,
+        IGlobalUserRepository globalUserRepository,
+        ITenantRepository tenantRepository,
         ITenantContext tenantContext,
         IDistributedCache cache,
         ILogger<AssociationService> logger)
     {
         _associationRepository = associationRepository;
         _assocUserRepository = assocUserRepository;
+        _globalUserRepository = globalUserRepository;
+        _tenantRepository = tenantRepository;
         _tenantContext = tenantContext;
         _cache = cache;
         _logger = logger;
@@ -56,7 +61,17 @@ public class AssociationService : IAssociationService
 
     public async Task<int> CreateAsync(Association association)
     {
-        association.TenantId = CurrentTenantId;
+        // Option B Implementation: Each Association is a separate Tenant
+        // 1. Create the Tenant First
+        var tenantId = await _tenantRepository.CreateAsync(new Tenant 
+        { 
+            Name = association.Name,
+            CreatedDate = DateTime.UtcNow,
+            IsActive = true
+        });
+
+        // 2. Link the Association to the new Tenant
+        association.TenantId = tenantId;
         association.CreatedDate = DateTime.UtcNow;
         
         var id = await _associationRepository.CreateAsync(association);
@@ -84,7 +99,12 @@ public class AssociationService : IAssociationService
                 userId = user.UserId;
             }
 
-            // Map user to association as AssociationAdmin
+            // Two-Level Mapping for Option B (Standalone Associations):
+            
+            // 1. GLOBAL LEVEL: Map user to the brand new Tenant (for corporate/billing context)
+            await _globalUserRepository.AddUserToTenantAsync(userId, tenantId, "AssociationAdmin");
+
+            // 2. LOCAL LEVEL: Map user to the brand new Association (for resident/asset management)
             await _assocUserRepository.AddUserToTenantAsync(userId, id, "AssociationAdmin");
         }
         

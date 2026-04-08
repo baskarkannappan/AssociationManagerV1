@@ -117,11 +117,19 @@ public class FinanceService : IFinanceService
         // Calculate REAL unpaid balance including ONLY virtual dynamic fines (to avoid double-counting persisted maintenance items)
         IEnumerable<Invoice> unpaidInvoices;
         
-        // If userId is provided, resolve their asset IDs first
+        // If userId is provided, resolve their asset IDs first (UNIFIED: Occupancy + Payment History)
         if (userId.HasValue && (assetIds == null || !assetIds.Any()))
         {
+            // 1. Resolve from Occupancy
             var occupancies = await _occupancyRepository.GetByUserIdAsync(userId.Value, CurrentTenantId, associationId ?? CurrentAssociationId);
-            assetIds = occupancies.Select(o => o.AssetId).ToList();
+            var resolvedIds = occupancies.Select(o => o.AssetId).ToList();
+
+            // 2. Resolve from Payment History (for units paid but not yet officially occupied)
+            // Use non-paged GetAdvancesAsync for internal resolution
+            var advances = await _paymentRepository.GetAdvancesAsync(CurrentTenantId, associationId ?? CurrentAssociationId, userId: userId.Value);
+            var unitIdsFromHistory = advances.Where(h => h.AssetId.HasValue).Select(h => h.AssetId!.Value);
+
+            assetIds = resolvedIds.Union(unitIdsFromHistory).Distinct().ToList();
         }
 
         if (assetId.HasValue)
@@ -139,6 +147,7 @@ public class FinanceService : IFinanceService
         }
         else
         {
+            // STAFF/GLOBAL VIEW
             unpaidInvoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
         }
 
@@ -150,13 +159,17 @@ public class FinanceService : IFinanceService
         }
         
         decimal totalWallet = 0;
-        var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
-        foreach (var aid in ids)
+        if (userId.HasValue)
         {
-            var txs = await GetAssetTransactionsAsync(aid);
-            var advances = txs.Where(t => t.Type == "Credit" && (t.Category == "Payment" || t.Category == "Advance Payment") && !t.InvoiceId.HasValue).Sum(t => t.Amount);
-            var settlements = txs.Where(t => t.Type == "Debit" && (t.Category == "Credit Settlement" || t.Category == "Internal Credit Transfer")).Sum(t => t.Amount);
-            totalWallet += (advances - settlements);
+            totalWallet = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, associationId ?? CurrentAssociationId, userId.Value);
+        }
+        else
+        {
+            var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
+            foreach (var aid in ids)
+            {
+                totalWallet += await GetAssetWalletBalanceAsync(aid);
+            }
         }
 
         return new FinanceSummary 
@@ -391,10 +404,7 @@ public class FinanceService : IFinanceService
         decimal totalWalletPower = 0;
         foreach (var asset in userAssets)
         {
-            var txs = await GetAssetTransactionsAsync(asset.AssetId);
-            var advances = txs.Where(t => t.Type == "Credit" && (t.Category == "Payment" || t.Category == "Advance Payment") && !t.InvoiceId.HasValue).Sum(t => t.Amount);
-            var settlements = txs.Where(t => t.Type == "Debit" && (t.Category == "Credit Settlement" || t.Category == "Internal Credit Transfer")).Sum(t => t.Amount);
-            totalWalletPower += (advances - settlements);
+            totalWalletPower += await GetAssetWalletBalanceAsync(asset.AssetId);
         }
 
         if (totalWalletPower <= 0) return false;
@@ -412,10 +422,7 @@ public class FinanceService : IFinanceService
             if (remainingSettleAmount <= 0 || spendableWallet <= 0) break;
 
             // How much of the wallet power is stored specifically in this asset?
-            var txs = await GetAssetTransactionsAsync(asset.AssetId);
-            var assetAdvances = txs.Where(t => t.Type == "Credit" && (t.Category == "Payment" || t.Category == "Advance Payment") && !t.InvoiceId.HasValue).Sum(t => t.Amount);
-            var assetSettlements = txs.Where(t => t.Type == "Debit" && (t.Category == "Credit Settlement" || t.Category == "Internal Credit Transfer")).Sum(t => t.Amount);
-            var assetWalletPower = (assetAdvances - assetSettlements);
+            var assetWalletPower = await GetAssetWalletBalanceAsync(asset.AssetId);
 
             if (assetWalletPower > 0)
             {
@@ -550,5 +557,31 @@ public class FinanceService : IFinanceService
         decimal truePrincipal = Math.Max(invoice.Amount, principalLineItems);
 
         return truePrincipal + penaltyLineItems;
+    }
+
+    /// <summary>
+    /// Robust calculation of the wallet balance for a specific asset.
+    /// It considers Credits (Advances/Payments) and Debits (Settlements) while handling
+    /// case-sensitivity and potential 0 vs null InvoiceId edge cases from the database.
+    /// </summary>
+    private async Task<decimal> GetAssetWalletBalanceAsync(int assetId)
+    {
+        var txs = await GetAssetTransactionsAsync(assetId);
+        
+        // ROBUST CALCULATION: Case-insensitive and handling potential 0 vs null InvoiceId
+        var advances = txs.Where(t => 
+            string.Equals(t.Type, "Credit", StringComparison.OrdinalIgnoreCase) && 
+            (string.Equals(t.Category, "Payment", StringComparison.OrdinalIgnoreCase) || 
+             string.Equals(t.Category, "Advance Payment", StringComparison.OrdinalIgnoreCase)) && 
+            (!t.InvoiceId.HasValue || t.InvoiceId == 0)
+        ).Sum(t => t.Amount);
+
+        var settlements = txs.Where(t => 
+            string.Equals(t.Type, "Debit", StringComparison.OrdinalIgnoreCase) && 
+            (string.Equals(t.Category, "Credit Settlement", StringComparison.OrdinalIgnoreCase) || 
+             string.Equals(t.Category, "Internal Credit Transfer", StringComparison.OrdinalIgnoreCase))
+        ).Sum(t => t.Amount);
+
+        return (advances - settlements);
     }
 }

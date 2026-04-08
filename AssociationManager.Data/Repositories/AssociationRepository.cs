@@ -41,7 +41,6 @@ public class AssociationRepository : IAssociationRepository
 
     public async Task<int> CreateAsync(Association association)
     {
-        association.TenantId = _tenantContext.TenantId;
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteScalarAsync<int>(
             "corp.sp_Associations_Create", 

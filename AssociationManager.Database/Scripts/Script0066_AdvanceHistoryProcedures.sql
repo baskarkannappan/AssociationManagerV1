@@ -18,6 +18,7 @@ BEGIN
         p.Status,
         p.GatewayReference,
         p.Notes,
+        p.AssetId,
         a.Name as UnitName,
         u.Name as ResidentName,
         u.Email as ResidentEmail

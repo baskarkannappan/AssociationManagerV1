@@ -33,8 +33,8 @@ BEGIN UPDATE assoc.Payments SET Status = @Status, GatewayReference = @GatewayRef
 GO
 
 -- TRANSACTIONS
-CREATE OR ALTER PROCEDURE assoc.sp_Transactions_Create @TenantId INT, @AssociationId INT, @AssetId INT, @Amount DECIMAL(18, 2), @Type NVARCHAR(50), @TransactionDate DATETIME, @Description NVARCHAR(MAX) = NULL AS 
-BEGIN INSERT INTO assoc.Transactions (TenantId, AssociationId, AssetId, Amount, Type, TransactionDate, Description) OUTPUT INSERTED.TransactionId VALUES (@TenantId, @AssociationId, @AssetId, @Amount, @Type, @TransactionDate, @Description); END
+CREATE OR ALTER PROCEDURE assoc.sp_Transactions_Create @TenantId INT, @AssociationId INT, @AssetId INT, @InvoiceId INT = NULL, @PaymentId INT = NULL, @Amount DECIMAL(18, 2), @Type NVARCHAR(50), @Category NVARCHAR(100) = NULL, @TransactionDate DATETIME, @Description NVARCHAR(MAX) = NULL AS 
+BEGIN INSERT INTO assoc.Transactions (TenantId, AssociationId, AssetId, InvoiceId, PaymentId, Amount, Type, Category, TransactionDate, Description) OUTPUT INSERTED.TransactionId VALUES (@TenantId, @AssociationId, @AssetId, @InvoiceId, @PaymentId, @Amount, @Type, @Category, @TransactionDate, @Description); END
 GO
 CREATE OR ALTER PROCEDURE assoc.sp_Transactions_GetByAssetId @AssetId INT, @TenantId INT, @AssociationId INT AS 
 BEGIN SELECT * FROM assoc.Transactions WHERE AssetId = @AssetId AND TenantId = @TenantId AND AssociationId = @AssociationId ORDER BY TransactionDate DESC; END

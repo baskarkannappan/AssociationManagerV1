@@ -169,19 +169,15 @@ public class FinanceController : ControllerBase
                 AssociationId = _tenantContext.AssociationId
             };
 
-            bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
-            if (!isStaff)
-            {
-                var userIdStr = User.FindFirst("UserId")?.Value;
-                if (int.TryParse(userIdStr, out int userId))
-                {
-                    var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                    assetIds = occupancies.Select(o => o.AssetId).ToList();
-                }
-            }
+            // Delegate ALL resident asset resolution (Occupancy + Payment History) to the FinanceService 
+            // This handles both official occupants and Admins who have topped up a wallet.
+            var userId = _tenantContext.UserId;
+            var summaryWithUser = await _financeService.GetFinanceSummaryAsync(associationId, assetId, userId: userId);
+            return Ok(ApiResponse<FinanceSummary>.SuccessResponse(summaryWithUser));
         }
 
-        var summary = await _financeService.GetFinanceSummaryAsync(associationId, assetId, assetIds);
+        // Specific asset summary
+        var summary = await _financeService.GetFinanceSummaryAsync(associationId, assetId);
         return Ok(ApiResponse<FinanceSummary>.SuccessResponse(summary));
     }
 
