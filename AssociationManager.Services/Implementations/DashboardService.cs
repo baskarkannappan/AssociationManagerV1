@@ -9,12 +9,20 @@ namespace AssociationManager.Services.Implementations;
 public class DashboardService : IDashboardService
 {
     private readonly IDashboardRepository _dashboardRepository;
+    private readonly IFinanceService _financeService;
     private readonly ITenantContext _tenantContext;
+    private readonly IAssociationRepository _associationRepository;
 
-    public DashboardService(IDashboardRepository dashboardRepository, ITenantContext tenantContext)
+    public DashboardService(
+        IDashboardRepository dashboardRepository, 
+        IFinanceService financeService,
+        ITenantContext tenantContext,
+        IAssociationRepository associationRepository)
     {
         _dashboardRepository = dashboardRepository;
+        _financeService = financeService;
         _tenantContext = tenantContext;
+        _associationRepository = associationRepository;
     }
 
     public async Task<int> GetTotalMembersAsync()
@@ -34,7 +42,9 @@ public class DashboardService : IDashboardService
 
     public async Task<decimal> GetNetOutstandingAsync()
     {
-        return await _dashboardRepository.GetNetOutstandingAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
+        // Use FinanceService for current outstanding balance to ensure late fines are included (Smart Sum)
+        var summary = await _financeService.GetFinanceSummaryAsync(_tenantContext.AssociationId);
+        return summary.TotalUnpaid;
     }
 
     public async Task<(decimal amount, int units)> GetHeldAdvanceMoneyAsync()

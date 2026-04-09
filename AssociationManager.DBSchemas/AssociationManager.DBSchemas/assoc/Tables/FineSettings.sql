@@ -9,9 +9,12 @@
     [Frequency]       NVARCHAR (20)   DEFAULT ('Monthly') NOT NULL,
     [LastUpdated]     DATETIME        DEFAULT (getutcdate()) NOT NULL,
     [LastUpdatedBy]   NVARCHAR (255)  NULL,
+    [ActivationDate]  DATETIME        NULL,
     PRIMARY KEY CLUSTERED ([FineSettingsId] ASC),
     CONSTRAINT [FK_FineSettings_Association] FOREIGN KEY ([AssociationId]) REFERENCES [corp].[Associations] ([AssociationId])
 );
+
+
 
 
 GO

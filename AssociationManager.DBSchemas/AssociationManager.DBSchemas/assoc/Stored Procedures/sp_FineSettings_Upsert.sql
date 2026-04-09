@@ -1,5 +1,4 @@
-﻿-- Stored Procedure for Upsert
-CREATE   PROCEDURE assoc.sp_FineSettings_Upsert
+﻿CREATE PROCEDURE assoc.sp_FineSettings_Upsert
     @AssociationId INT,
     @TenantId INT,
     @StrategyType NVARCHAR(50),
@@ -7,6 +6,7 @@ CREATE   PROCEDURE assoc.sp_FineSettings_Upsert
     @GracePeriodDays INT,
     @IsCompounding BIT,
     @Frequency NVARCHAR(20),
+    @ActivationDate DATETIME = NULL,
     @UserId INT
 AS
 BEGIN
@@ -20,13 +20,14 @@ BEGIN
             GracePeriodDays = @GracePeriodDays,
             IsCompounding = @IsCompounding,
             Frequency = @Frequency,
+            ActivationDate = @ActivationDate,
             LastUpdated = GETUTCDATE(),
             LastUpdatedBy = CAST(@UserId AS NVARCHAR(255))
         WHERE AssociationId = @AssociationId;
     END
     ELSE
     BEGIN
-        INSERT INTO assoc.FineSettings (AssociationId, TenantId, StrategyType, FineValue, GracePeriodDays, IsCompounding, Frequency, LastUpdatedBy)
-        VALUES (@AssociationId, @TenantId, @StrategyType, @FineValue, @GracePeriodDays, @IsCompounding, @Frequency, CAST(@UserId AS NVARCHAR(255)));
+        INSERT INTO assoc.FineSettings (AssociationId, TenantId, StrategyType, FineValue, GracePeriodDays, IsCompounding, Frequency, ActivationDate, LastUpdatedBy)
+        VALUES (@AssociationId, @TenantId, @StrategyType, @FineValue, @GracePeriodDays, @IsCompounding, @Frequency, @ActivationDate, CAST(@UserId AS NVARCHAR(255)));
     END
 END;

@@ -13,6 +13,7 @@ public class FineSettings
     public int GracePeriodDays { get; set; }
     public bool IsCompounding { get; set; }
     public string Frequency { get; set; } = "Monthly";
+    public DateTime? ActivationDate { get; set; }
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
     public string? LastUpdatedBy { get; set; }
 }

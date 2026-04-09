@@ -35,6 +35,7 @@ public class FineRepository : IFineRepository
         parameters.Add("@GracePeriodDays", settings.GracePeriodDays);
         parameters.Add("@IsCompounding", settings.IsCompounding);
         parameters.Add("@Frequency", settings.Frequency);
+        parameters.Add("@ActivationDate", settings.ActivationDate);
         parameters.Add("@UserId", userId);
 
         await connection.ExecuteAsync("assoc.sp_FineSettings_Upsert", parameters, commandType: CommandType.StoredProcedure);

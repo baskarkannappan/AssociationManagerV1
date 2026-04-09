@@ -25,6 +25,10 @@ public class FineService : IFineService
         var settings = await _fineRepository.GetByAssociationIdAsync(invoice.AssociationId);
         if (settings == null || settings.StrategyType == "None") return 0m;
 
+        // NEW: Check if invoice was created before the fine policy was enabled
+        if (settings.ActivationDate == null || invoice.CreatedDate < settings.ActivationDate)
+            return 0m;
+
         var daysLate = (atDate - invoice.DueDate).Days;
         if (daysLate <= settings.GracePeriodDays) return 0m;
 
@@ -71,7 +75,28 @@ public class FineService : IFineService
 
     public async Task SaveSettingsAsync(FineSettings settings)
     {
-        // Here we could also generate the RulesEngine JSON if we wanted to override the default C# logic
-        await _fineRepository.UpsertAsync(settings, settings.AssociationId); // Using ID as stub for UserId for now
+        var current = await _fineRepository.GetByAssociationIdAsync(settings.AssociationId);
+        
+        // LOGIC: Maintain ActivationDate correctly
+        bool wasNone = current == null || current.StrategyType == "None";
+        bool isNone = settings.StrategyType == "None";
+
+        if (wasNone && !isNone)
+        {
+            // Transitioning from OFF to ON: Set activation date to now
+            settings.ActivationDate = DateTime.UtcNow;
+        }
+        else if (isNone)
+        {
+            // Fines are disabled: Clear activation date
+            settings.ActivationDate = null;
+        }
+        else
+        {
+            // Transitioning between active strategies: Keep existing activation date
+            settings.ActivationDate = current?.ActivationDate;
+        }
+
+        await _fineRepository.UpsertAsync(settings, settings.AssociationId); 
     }
 }
