@@ -275,7 +275,7 @@
                         <div class="col-md-3">
                             <div class="compact-card h-100 bg-white border">
                                 <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Total Members</div>
-                                <div class="h4 mb-1 fw-bold">@(_adminMetrics?.TotalMembers ?? 0)</div>
+                                <div class="h4 mb-1 fw-bold">@(_totalMembers)</div>
                                 <div class="small text-success" style="font-size: 11px;">
                                     <i class="bi bi-people-fill"></i> Community Portfolio
                                 </div>
@@ -284,7 +284,7 @@
                         <div class="col-md-3">
                             <div class="compact-card h-100 bg-white border border-start-0" style="border-left: 3px solid var(--vscode-accent) !important;">
                                 <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Committee Members</div>
-                                <div class="h4 mb-1 fw-bold">@(_committee?.Count ?? 0)</div>
+                                <div class="h4 mb-1 fw-bold">@(_committeeCount)</div>
                                 <div class="small text-muted" style="font-size: 11px;">Active Governance</div>
                             </div>
                         </div>
@@ -292,7 +292,7 @@
                             <div class="col-md-3">
                                 <div class="compact-card h-100 bg-white border">
                                     <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Total Revenue (30d)</div>
-                                    <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);">₹@(_adminMetrics?.TotalRevenueCollected.ToString("N0") ?? "0")</div>
+                                    <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);">₹@(_revenue30D.ToString("N0"))</div>
                                     <div class="small text-success" style="font-size: 11px;">
                                         <i class="bi bi-graph-up-arrow"></i> Collections
                                     </div>
@@ -301,7 +301,7 @@
                             <div class="col-md-3">
                                 <div class="compact-card h-100 bg-white border">
                                     <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Net Outstanding</div>
-                                    <div class="h4 mb-1 fw-bold @(_adminMetrics?.TotalOutstanding > 0 ? "text-danger" : "text-success")">₹@(_adminMetrics?.TotalOutstanding.ToString("N0") ?? "0")</div>
+                                    <div class="h4 mb-1 fw-bold @(_netOutstanding > 0 ? "text-danger" : "text-success")">₹@(_netOutstanding.ToString("N0"))</div>
                                     <div class="d-flex align-items-center gap-1 small text-muted" style="font-size: 11px;">
                                         <i class="bi bi-hourglass-split"></i> To be collected
                                     </div>
@@ -310,9 +310,9 @@
                              <div class="col-lg-3 col-md-6">
                                 <div class="compact-card h-100 bg-white border border-success border-opacity-25" style="border-left: 3px solid #10b981 !important;">
                                     <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Held Advance Money</div>
-                                    <div class="h4 mb-1 fw-bold text-success">₹@(_adminMetrics?.TotalAdvanceCredits.ToString("N0") ?? "0")</div>
+                                    <div class="h4 mb-1 fw-bold text-success">₹@(_heldAdvanceMoney.ToString("N0"))</div>
                                     <div class="d-flex align-items-center gap-1 small text-muted" style="font-size: 11px;">
-                                        <i class="bi bi-piggy-bank-fill text-success"></i> Prepaid by @(_adminMetrics?.UnitsWithCredit ?? 0) units
+                                        <i class="bi bi-piggy-bank-fill text-success"></i> Prepaid by @(_unitsWithCredit) units
                                     </div>
                                 </div>
                             </div>
@@ -471,6 +471,13 @@
     private AssociationDashboardMetrics? _adminMetrics;
     private ResidentDashboardMetrics? _residentMetrics;
 
+    private int _totalMembers;
+    private int _committeeCount;
+    private decimal _revenue30D;
+    private decimal _netOutstanding;
+    private decimal _heldAdvanceMoney;
+    private int _unitsWithCredit;
+
     private bool _isResident;
     private bool _isSystemAdmin;
     private bool _isPrimaryOwner;
@@ -547,7 +554,46 @@
         _profile = await GovernanceService.GetProfileAsync();
         _committee = await GovernanceService.GetCommitteeMembersAsync();
         _meetings = await GovernanceService.GetMeetingsAsync();
-        _adminMetrics = await ApiService.GetAsync<AssociationDashboardMetrics>("api/dashboard/admin/metrics");
+        
+        // Fetch Admin Metrics and Cards independently
+        var tasks = new List<Task>();
+        
+        tasks.Add(Task.Run(async () => {
+            _adminMetrics = await ApiService.GetAsync<AssociationDashboardMetrics>("api/dashboard/admin/metrics");
+            StateHasChanged();
+        }));
+        
+        tasks.Add(Task.Run(async () => {
+            _totalMembers = await ApiService.GetAsync<int>("api/dashboard/admin/total-members");
+            StateHasChanged();
+        }));
+
+        tasks.Add(Task.Run(async () => {
+            _committeeCount = await ApiService.GetAsync<int>("api/dashboard/admin/committee-count");
+            StateHasChanged();
+        }));
+
+        tasks.Add(Task.Run(async () => {
+            _revenue30D = await ApiService.GetAsync<decimal>("api/dashboard/admin/revenue-30d");
+            StateHasChanged();
+        }));
+
+        tasks.Add(Task.Run(async () => {
+            _netOutstanding = await ApiService.GetAsync<decimal>("api/dashboard/admin/outstanding");
+            StateHasChanged();
+        }));
+
+        tasks.Add(Task.Run(async () => {
+            var adv = await ApiService.GetAsync<AdvanceMoneyMetrics>("api/dashboard/admin/advance-money");
+            if (adv != null)
+            {
+                _heldAdvanceMoney = adv.TotalAdvanceCredits;
+                _unitsWithCredit = adv.UnitsWithCredit;
+            }
+            StateHasChanged();
+        }));
+
+        await Task.WhenAll(tasks);
     }
 
     private async Task LoadResidentData()

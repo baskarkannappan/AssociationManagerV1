@@ -128,7 +128,7 @@ public class AssociationService : IAssociationService
         // For deactivation, we DO NOT delete mappings as we want the Association Admin
         // to still have Read-Only access.
         
-        bool success = await _associationRepository.DeleteAsync(id, CurrentTenantId);
+        bool success = await _associationRepository.DeleteAsync(id);
         if (success)
         {
             await InvalidateCache(id);

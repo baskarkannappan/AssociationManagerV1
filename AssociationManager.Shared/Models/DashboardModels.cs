@@ -23,3 +23,9 @@ public class ResidentDashboardMetrics
     public int ActiveWorkOrders { get; set; }
     public List<AuditLog> MyRecentActivity { get; set; } = new();
 }
+
+public class AdvanceMoneyMetrics
+{
+    public decimal TotalAdvanceCredits { get; set; }
+    public int UnitsWithCredit { get; set; }
+}

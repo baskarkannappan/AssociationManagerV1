@@ -77,12 +77,12 @@ public class AssociationRepository : IAssociationRepository
             commandType: CommandType.StoredProcedure) > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id, int tenantId)
+    public async Task<bool> DeleteAsync(int id)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
             "corp.sp_Associations_Delete", 
-            new { Id = id, TenantId = tenantId },
+            new { Id = id },
             commandType: CommandType.StoredProcedure) > 0;
     }
 

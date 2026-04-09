@@ -26,6 +26,7 @@ public class DashboardController : ControllerBase
     private readonly IPeopleService _peopleService;
     private readonly ITenantContext _tenantContext;
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IDashboardService _dashboardService;
 
     public DashboardController(
         IPersonRepository personRepository,
@@ -36,7 +37,8 @@ public class DashboardController : ControllerBase
         IFinanceService financeService,
         IPeopleService peopleService,
         ITenantContext tenantContext,
-        ITransactionRepository transactionRepository)
+        ITransactionRepository transactionRepository,
+        IDashboardService dashboardService)
     {
         _personRepository = personRepository;
         _invoiceRepository = invoiceRepository;
@@ -47,6 +49,7 @@ public class DashboardController : ControllerBase
         _peopleService = peopleService;
         _tenantContext = tenantContext;
         _transactionRepository = transactionRepository;
+        _dashboardService = dashboardService;
     }
 
     [HttpGet("admin/metrics")]
@@ -75,6 +78,46 @@ public class DashboardController : ControllerBase
         };
 
         return Ok(ApiResponse<AssociationDashboardMetrics>.SuccessResponse(metrics));
+    }
+
+    [HttpGet("admin/total-members")]
+    [Authorize(Policy = "RequireManagement")]
+    public async Task<IActionResult> GetTotalMembers()
+    {
+        var count = await _dashboardService.GetTotalMembersAsync();
+        return Ok(ApiResponse<int>.SuccessResponse(count));
+    }
+
+    [HttpGet("admin/committee-count")]
+    [Authorize(Policy = "RequireManagement")]
+    public async Task<IActionResult> GetCommitteeCount()
+    {
+        var count = await _dashboardService.GetCommitteeCountAsync();
+        return Ok(ApiResponse<int>.SuccessResponse(count));
+    }
+
+    [HttpGet("admin/revenue-30d")]
+    [Authorize(Policy = "RequireManagement")]
+    public async Task<IActionResult> GetRevenue30D()
+    {
+        var revenue = await _dashboardService.GetRevenue30DAsync();
+        return Ok(ApiResponse<decimal>.SuccessResponse(revenue));
+    }
+
+    [HttpGet("admin/outstanding")]
+    [Authorize(Policy = "RequireManagement")]
+    public async Task<IActionResult> GetNetOutstanding()
+    {
+        var outstanding = await _dashboardService.GetNetOutstandingAsync();
+        return Ok(ApiResponse<decimal>.SuccessResponse(outstanding));
+    }
+
+    [HttpGet("admin/advance-money")]
+    [Authorize(Policy = "RequireManagement")]
+    public async Task<IActionResult> GetHeldAdvanceMoney()
+    {
+        var (amount, units) = await _dashboardService.GetHeldAdvanceMoneyAsync();
+        return Ok(ApiResponse<object>.SuccessResponse(new { TotalAdvanceCredits = amount, UnitsWithCredit = units }));
     }
 
     [HttpGet("resident/metrics")]
