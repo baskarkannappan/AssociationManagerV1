@@ -1,0 +1,280 @@
+@page "/finance/reports"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@using BlazorBootstrap
+@inject ApiService ApiService
+@inject ITenantContext TenantContext
+@attribute [Authorize(Policy = "RequireFinanceManager")]
+
+<div class="reports-container p-4 animate-fade-in">
+    <div class="premium-page-header border-bottom px-4 py-3 mb-4" style="margin-left: -2rem; margin-right: -2rem; margin-top: -2rem; background: #fff;">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="premium-page-title mb-1">
+                    <i class="bi bi-graph-up-arrow me-2 opacity-50"></i>
+                    Financial Analytics & Aging Reports
+                </h1>
+                <p class="text-muted small mb-0">Insights into collection efficiency and debt health for @(TenantContext.AssociationId != 0 ? "Association #" + TenantContext.AssociationId : "Management")</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-vscode-outline btn-sm" @onclick="RefreshData">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (_report == null)
+    {
+        <div class="d-flex flex-column align-items-center justify-content-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <div class="text-muted">Loading financial metrics...</div>
+        </div>
+    }
+    else
+    {
+        <!-- Key Performance Indicators -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="report-kpi-card">
+                    <div class="kpi-label">TOTAL PORTFOLIO OUTSTANDING</div>
+                    <div class="kpi-value">₹@(_report.TotalPortfolioOutstanding.ToString("N0"))</div>
+                    <div class="kpi-subtext text-danger">Total debt across all assets</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="report-kpi-card">
+                    <div class="kpi-label">TOTAL LIFETIME COLLECTIONS</div>
+                    <div class="kpi-value text-success">₹@(_report.TotalCollectedAllTime.ToString("N0"))</div>
+                    <div class="kpi-subtext text-muted">Total payments captured to date</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="report-kpi-card">
+                    <div class="kpi-label">NET OVERDUE (AGING)</div>
+                    <div class="kpi-value text-warning">₹@(_report.Aging.TotalOverdue.ToString("N0"))</div>
+                    <div class="kpi-subtext text-muted">Sum of all buckets > 0 days</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Debt Aging Chart -->
+            <div class="col-lg-6">
+                <div class="report-chart-card h-100">
+                    <div class="chart-header">
+                        <h6 class="mb-0"><i class="bi bi-hourglass-split me-2 text-primary"></i>Debt Aging Analysis</h6>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Aging Buckets</span>
+                    </div>
+                    <div class="chart-body p-4">
+                        <BarChart @ref="barChart" Height="300" />
+                        
+                        <div class="aging-legend mt-4">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="legend-item">
+                                        <span class="dot" style="background-color: rgba(54, 162, 235, 1);"></span>
+                                        <span class="label">0-30 Days:</span>
+                                        <span class="value">₹@(_report.Aging.Current.ToString("N0"))</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="legend-item">
+                                        <span class="dot" style="background-color: rgba(255, 159, 64, 1);"></span>
+                                        <span class="label">31-60 Days:</span>
+                                        <span class="value">₹@(_report.Aging.Bucket31_60.ToString("N0"))</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="legend-item">
+                                        <span class="dot" style="background-color: rgba(255, 99, 132, 1);"></span>
+                                        <span class="label">61-90 Days:</span>
+                                        <span class="value">₹@(_report.Aging.Bucket61_90.ToString("N0"))</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="legend-item">
+                                        <span class="dot" style="background-color: rgba(153, 102, 255, 1);"></span>
+                                        <span class="label">90+ Days:</span>
+                                        <span class="value">₹@(_report.Aging.Over90.ToString("N0"))</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collection Efficiency Chart -->
+            <div class="col-lg-6">
+                <div class="report-chart-card h-100">
+                    <div class="chart-header">
+                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2 text-success"></i>Collection Efficiency (6 Months)</h6>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">Target > 90%</span>
+                    </div>
+                    <div class="chart-body p-4">
+                        <LineChart @ref="lineChart" Height="300" />
+                        
+                        <div class="efficiency-table mt-4">
+                            <table class="table table-sm text-center border-top">
+                                <thead>
+                                    <tr class="small text-muted text-uppercase">
+                                        <th class="text-start">Month</th>
+                                        <th>Billed</th>
+                                        <th>Collected</th>
+                                        <th>Efficiency</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var month in _report.MonthlyEfficiency.AsEnumerable().Reverse().Take(4))
+                                    {
+                                        <tr>
+                                            <td class="text-start fw-bold small">@month.Month</td>
+                                            <td class="small">₹@month.BilledAmount.ToString("N0")</td>
+                                            <td class="small">₹@month.CollectedAmount.ToString("N0")</td>
+                                            <td>
+                                                <span class="badge @(month.EfficiencyPercentage >= 90 ? "bg-success" : month.EfficiencyPercentage >= 70 ? "bg-warning" : "bg-danger") bg-opacity-10 @(month.EfficiencyPercentage >= 90 ? "text-success" : month.EfficiencyPercentage >= 70 ? "text-warning" : "text-danger")" style="font-size: 10px;">
+                                                    @month.EfficiencyPercentage.ToString("F1")%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .report-kpi-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        padding: 24px;
+        border-radius: 8px;
+        transition: transform 0.2s ease;
+    }
+    .report-kpi-card:hover { transform: translateY(-3px); }
+    .kpi-label { font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .kpi-value { font-size: 2rem; font-weight: 800; color: #1e293b; line-height: 1; margin-bottom: 8px; }
+    .kpi-subtext { font-size: 11px; }
+
+    .report-chart-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .chart-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+    
+    .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
+    .legend-item .dot { width: 10px; height: 10px; border-radius: 2px; }
+    .legend-item .label { font-size: 11px; color: #64748b; }
+    .legend-item .value { font-size: 11px; font-weight: 700; margin-left: auto; color: #1e293b; }
+    
+    .table td { vertical-align: middle; padding: 10px 4px; }
+</style>
+
+@code {
+    private FinancialMetricsReport? _report;
+    private BarChart barChart = default!;
+    private LineChart lineChart = default!;
+    private bool _chartsInitialized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_report != null && !_chartsInitialized)
+        {
+            _chartsInitialized = true;
+            await InitializeCharts();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        _report = null;
+        _chartsInitialized = false;
+        await LoadData();
+        StateHasChanged();
+    }
+
+    private async Task LoadData()
+    {
+        _report = await ApiService.GetAsync<FinancialMetricsReport>("api/reports/financial-summary");
+    }
+
+    private async Task InitializeCharts()
+    {
+        await InitializeBarChart();
+        await InitializeLineChart();
+    }
+
+    private async Task InitializeBarChart()
+    {
+        if (barChart == null || _report == null) return;
+
+        var labels = new List<string> { "0-30 Days", "31-60 Days", "61-90 Days", "90+ Days" };
+        var datasets = new List<IChartDataset>
+        {
+            new BarChartDataset
+            {
+                Label = "Debt Amount (₹)",
+                Data = new List<double?> { (double?)_report.Aging.Current, (double?)_report.Aging.Bucket31_60, (double?)_report.Aging.Bucket61_90, (double?)_report.Aging.Over90 },
+                BackgroundColor = new List<string> { "rgba(54, 162, 235, 0.8)", "rgba(255, 159, 64, 0.8)", "rgba(255, 99, 132, 0.8)", "rgba(153, 102, 255, 0.8)" },
+                BorderColor = new List<string> { "rgba(54, 162, 235, 1)", "rgba(255, 159, 64, 1)", "rgba(255, 99, 132, 1)", "rgba(153, 102, 255, 1)" },
+                BorderWidth = new List<double> { 1.0 }
+            }
+        };
+
+        await barChart.InitializeAsync(new ChartData { Labels = labels, Datasets = datasets }, new BarChartOptions { Responsive = true });
+    }
+
+    private async Task InitializeLineChart()
+    {
+        if (lineChart == null || _report == null) return;
+
+        var labels = _report.MonthlyEfficiency.Select(m => m.Month).ToList();
+        var datasets = new List<IChartDataset>
+        {
+            new LineChartDataset
+            {
+                Label = "Total Billed",
+                Data = _report.MonthlyEfficiency.Select(m => (double?)m.BilledAmount).ToList(),
+                BackgroundColor = "rgba(54, 162, 235, 0.2)",
+                BorderColor = "rgba(54, 162, 235, 1)",
+                BorderWidth = 2.0,
+                PointBackgroundColor = new List<string> { "rgba(54, 162, 235, 1)" },
+                PointRadius = new List<double> { 3.0 },
+                Tension = 0.3
+            },
+            new LineChartDataset
+            {
+                Label = "Total Collected",
+                Data = _report.MonthlyEfficiency.Select(m => (double?)m.CollectedAmount).ToList(),
+                BackgroundColor = "rgba(16, 185, 129, 0.2)",
+                BorderColor = "rgba(16, 185, 129, 1)",
+                BorderWidth = 2.0,
+                PointBackgroundColor = new List<string> { "rgba(16, 185, 129, 1)" },
+                PointRadius = new List<double> { 3.0 },
+                Tension = 0.3
+            }
+        };
+
+        await lineChart.InitializeAsync(new ChartData { Labels = labels, Datasets = datasets }, new LineChartOptions { Responsive = true });
+    }
+}

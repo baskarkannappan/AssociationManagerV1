@@ -25,22 +25,23 @@ public class AuditService : IAuditService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task LogAsync(string action, string? entity = null, int? entityId = null, int? associationId = null, int? assetId = null)
+    public async Task LogAsync(string action, string? entity = null, int? entityId = null, int? associationId = null, int? assetId = null, int? tenantId = null)
     {
-        var tenantId = _tenantContext.TenantId;
-        if (tenantId == 0) return;
+        var targetTenantId = tenantId != null && tenantId != 0 ? tenantId : _tenantContext.TenantId;
+        if (targetTenantId == 0) return; // Still require a tenant for DB constraints
 
+        var targetAssociationId = associationId != null && associationId != 0 ? associationId : _tenantContext.AssociationId;
         var userId = _tenantContext.UserId;
         
         var log = new AuditLog
         {
-            TenantId = tenantId,
-            AssociationId = associationId ?? _tenantContext.AssociationId,
+            TenantId = targetTenantId.Value,
+            AssociationId = targetAssociationId != 0 ? targetAssociationId : null,
             UserId = userId != 0 ? userId : null,
-            AssetId = assetId,
+            AssetId = assetId != 0 ? assetId : null,
             Action = action,
             Entity = entity,
-            EntityId = entityId,
+            EntityId = entityId != 0 ? entityId : null,
             IpAddress = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString(),
             Timestamp = DateTime.UtcNow
         };

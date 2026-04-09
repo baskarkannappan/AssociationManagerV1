@@ -3,6 +3,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using AssociationManager.Shared.Models;
+using Microsoft.JSInterop;
+using System;
+using System.IO;
+using System.Linq;
 
 namespace AssociationManager.Client.Services;
 
@@ -118,6 +122,25 @@ public class ApiService
         {
             Console.WriteLine($"DELETE Error: {ex.Message}");
             return false;
+        }
+    }
+
+    public async Task DownloadFileAsync(string url, string fileName, IJSRuntime jsRuntime)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var base64 = Convert.ToBase64String(bytes);
+                var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+                await jsRuntime.InvokeVoidAsync("downloadFileFromBase64", fileName, contentType, base64);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Download Error: {ex.Message}");
         }
     }
 

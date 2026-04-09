@@ -44,12 +44,14 @@
                         <i class="bi bi-cash-stack text-success"></i>
                         <span>Finance</span>
                     </NavLink>
-                    <AuthorizeView Policy="RequireFinanceManager" Context="advContext">
-                        <NavLink href="finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
-                            <i class="bi bi-wallet2 text-success"></i>
-                            <span class="small">Advance Ledgers</span>
-                        </NavLink>
-                    </AuthorizeView>
+                    <NavLink href="finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
+                        <i class="bi bi-wallet2 text-success"></i>
+                        <span class="small">Advance Ledgers</span>
+                    </NavLink>
+                    <NavLink href="finance/reports" class="vscode-tree-item ms-3 text-decoration-none">
+                        <i class="bi bi-graph-up-arrow text-success"></i>
+                        <span class="small">Financial Reports</span>
+                    </NavLink>
                 </AuthorizeView>
 
                 <AuthorizeView Policy="RequireResident" Context="residentWalletContext">

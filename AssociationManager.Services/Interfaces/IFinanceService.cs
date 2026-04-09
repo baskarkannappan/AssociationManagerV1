@@ -37,6 +37,9 @@ public interface IFinanceService
     // Manual Settlement
     Task<bool> SettleInvoiceWithAdvanceAsync(int invoiceId);
     
+    // Automation
+    Task<int> PostOverdueFinesAsync();
+
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId);
     Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null);
     Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria);

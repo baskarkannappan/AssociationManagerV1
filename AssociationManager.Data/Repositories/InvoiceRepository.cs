@@ -191,4 +191,12 @@ public class InvoiceRepository : IInvoiceRepository
             },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<IEnumerable<Invoice>> GetUnpaidOverdueInvoicesAsync()
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Invoice>(
+            "assoc.sp_Invoices_GetUnpaidOverdue",
+            commandType: CommandType.StoredProcedure);
+    }
 }

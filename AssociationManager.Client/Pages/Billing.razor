@@ -7,6 +7,7 @@
 @inject ToastService _toastService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 
 <div class="premium-page-header border-bottom px-4 py-3 mb-0">
     <div class="d-flex justify-content-between align-items-center">
@@ -193,6 +194,9 @@
                                         }
                                         <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => ShowTransactionHistory(context)">
                                             <i class="bi bi-clock-history"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Download PDF Invoice" @onclick="() => DownloadInvoice(context)">
+                                            <i class="bi bi-file-earmark-pdf"></i>
                                         </button>
                                         <button class="btn btn-sm btn-link p-0 text-muted">
                                             <i class="bi bi-three-dots-vertical"></i>
@@ -856,4 +860,16 @@
         }
     }
 
+    private async Task DownloadInvoice(Invoice invoice)
+    {
+        try
+        {
+            var fileName = $"Invoice_{invoice.InvoiceId}_{invoice.AssetName?.Replace(" ", "_") ?? "Unit"}.pdf";
+            await Api.DownloadFileAsync($"api/finance/invoices/{invoice.InvoiceId}/pdf", fileName, JS);
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Failed to download invoice: {ex.Message}"));
+        }
+    }
 }

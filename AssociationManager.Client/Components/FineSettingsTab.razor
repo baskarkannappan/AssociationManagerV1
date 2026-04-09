@@ -1,5 +1,6 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
+@using BlazorBootstrap
 @inject ApiService ApiService
 @inject ToastService ToastService
 
@@ -82,7 +83,7 @@
                         </div>
                     }
 
-                    <div class="mt-5 pt-3">
+                    <div class="mt-5 pt-3 d-flex gap-2">
                         <button class="btn btn-primary px-4 py-2 fw-bold" @onclick="SaveSettings" disabled="@_isSaving">
                             @if (_isSaving)
                             {
@@ -90,11 +91,23 @@
                             }
                             <i class="bi bi-save2 me-2"></i> Save Rule Configuration
                         </button>
+
+                        <button class="btn btn-vscode-outline px-4 py-2 fw-bold" @onclick="RunNow" disabled="@(_isSaving || _isProcessing)">
+                             @if (_isProcessing)
+                             {
+                                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                 <span>Loading...</span>
+                             }
+                             else
+                             {
+                                 <i class="bi bi-play-circle me-2"></i> <span>Automated Fine Batch Run</span>
+                             }
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Preivew / Simulation Panel -->
+            <!-- Preview / Simulation Panel -->
             <div class="col-md-5">
                 <div class="preview-panel h-100 bg-light p-4 rounded-3 border border-dashed">
                     <h6 class="fw-bold text-uppercase small text-secondary mb-3">Live Simulation Preview</h6>
@@ -161,10 +174,29 @@
     [Parameter] public int AssociationId { get; set; }
     private FineSettings? _settings;
     private bool _isSaving;
+    private bool _isProcessing;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadSettings();
+    }
+
+    private async Task RunNow()
+    {
+        _isProcessing = true;
+        try
+        {
+            var count = await ApiService.PostAsync<object, int>("api/finance/maintenance/post-overdue-fines", new { });
+            ToastService.Notify(new ToastMessage { Type = ToastType.Success, Message = $"Batch Processed: {count} new fine items recorded." });
+        }
+        catch (Exception ex)
+        {
+            ToastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
     }
 
     private async Task LoadSettings()

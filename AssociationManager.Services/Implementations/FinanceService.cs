@@ -19,6 +19,7 @@ public class FinanceService : IFinanceService
     private readonly IOccupancyRepository _occupancyRepository;
     private readonly IFineService _fineService;
     private readonly IAssetRepository _assetRepository;
+    private readonly IAuditService _auditService;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -28,7 +29,8 @@ public class FinanceService : IFinanceService
         IAssociationRepository associationRepository,
         IOccupancyRepository occupancyRepository,
         IFineService fineService,
-        IAssetRepository assetRepository)
+        IAssetRepository assetRepository,
+        IAuditService auditService)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -38,6 +40,7 @@ public class FinanceService : IFinanceService
         _occupancyRepository = occupancyRepository;
         _fineService = fineService;
         _assetRepository = assetRepository;
+        _auditService = auditService;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -583,5 +586,100 @@ public class FinanceService : IFinanceService
         ).Sum(t => t.Amount);
 
         return (advances - settlements);
+    }
+    public async Task<int> PostOverdueFinesAsync()
+    {
+        var invoices = (await _invoiceRepository.GetUnpaidOverdueInvoicesAsync())
+            .Where(i => i.AssociationId != 0)
+            .ToList();
+        
+        if (!invoices.Any()) return 0;
+
+        int totalPostedCount = 0;
+        var now = DateTime.UtcNow;
+
+        // Grouping to log a summary per association
+        var associationSummary = new Dictionary<int, (int TenantId, int Count)>();
+
+        foreach (var invoice in invoices)
+        {
+            // Calculate Total Accumulated Fine
+            var totalFineCalculated = await _fineService.CalculateFineAsync(invoice, now);
+            if (totalFineCalculated <= 0) continue;
+
+            // Get Already Posted Fines
+            var lineItems = await _invoiceRepository.GetLineItemsAsync(invoice.InvoiceId);
+            var totalFinePosted = lineItems
+                .Where(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine"))
+                .Sum(l => l.Amount);
+
+            var delta = totalFineCalculated - totalFinePosted;
+
+            if (delta >= 0.01m)
+            {
+                var fineLineItem = new InvoiceLineItem
+                {
+                    InvoiceId = invoice.InvoiceId,
+                    ChargeName = $"Late Penalty (Automated) - {now:MMM yyyy}",
+                    Amount = delta,
+                    Description = $"Automated monthly penalty posting for {invoice.Title}."
+                };
+
+                await _invoiceRepository.CreateLineItemAsync(fineLineItem);
+
+                if (invoice.AssetId.HasValue)
+                {
+                    await _ledgerService.RecordTransactionAsync(new Transaction
+                    {
+                        AssetId = invoice.AssetId.Value,
+                        InvoiceId = invoice.InvoiceId,
+                        TenantId = invoice.TenantId,
+                        AssociationId = invoice.AssociationId,
+                        Type = "Debit",
+                        Amount = delta,
+                        Category = "Penalty",
+                        Description = $"Late Penalty Posted: {invoice.Title}"
+                    });
+                }
+
+                // Update summary for auditing
+                if (!associationSummary.ContainsKey(invoice.AssociationId))
+                {
+                    associationSummary[invoice.AssociationId] = (invoice.TenantId, 1);
+                }
+                else
+                {
+                    var existing = associationSummary[invoice.AssociationId];
+                    associationSummary[invoice.AssociationId] = (existing.TenantId, existing.Count + 1);
+                }
+                
+                totalPostedCount++;
+            }
+        }
+
+        // Log summaries per association
+        foreach (var entry in associationSummary)
+        {
+            await _auditService.LogAsync(
+                action: $"Automated Fine Posting Batch: {entry.Value.Count} invoices",
+                entity: "Association",
+                entityId: entry.Key,
+                associationId: entry.Key,
+                tenantId: entry.Value.TenantId
+            );
+        }
+
+        // Final global summary if any work was done
+        if (totalPostedCount > 0)
+        {
+            var fallbackTenantId = associationSummary.Values.FirstOrDefault().TenantId;
+            await _auditService.LogAsync(
+                action: $"Automated Fine Posting Run: Total {totalPostedCount} fines",
+                entity: "Automation",
+                tenantId: fallbackTenantId
+            );
+        }
+
+        return totalPostedCount;
     }
 }

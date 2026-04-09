@@ -18,4 +18,7 @@ public interface IInvoiceRepository
     // Line Items
     Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId);
     Task<int> CreateLineItemAsync(InvoiceLineItem lineItem);
+
+    // Automation
+    Task<IEnumerable<Invoice>> GetUnpaidOverdueInvoicesAsync();
 }

@@ -65,6 +65,7 @@ builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
+builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -85,10 +86,13 @@ builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
 builder.Services.AddScoped<IPaymentServiceV2, PaymentServiceV2>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
+builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();
 builder.Services.AddScoped<AssociationManager.Api.Authorization.RulesEngineSeeder>();
+builder.Services.AddHostedService<AssociationManager.Api.Workers.FinePostingWorker>();
 
 // Billing Strategies & Batch Service
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.FixedBillingStrategy>();

@@ -23,6 +23,7 @@ public class FinanceController : ControllerBase
     private readonly AssociationManager.Api.Services.Billing.BillingBatchService _batchService;
     private readonly IRuleEngineService _ruleEngine;
     private readonly IFineService _fineService;
+    private readonly IInvoicePdfService _pdfService;
 
     public FinanceController(
         IFinanceService financeService, 
@@ -31,7 +32,8 @@ public class FinanceController : ControllerBase
         IPeopleService peopleService,
         AssociationManager.Api.Services.Billing.BillingBatchService batchService,
         IRuleEngineService ruleEngine,
-        IFineService fineService)
+        IFineService fineService,
+        IInvoicePdfService pdfService)
     {
         _financeService = financeService;
         _auditService = auditService;
@@ -40,6 +42,7 @@ public class FinanceController : ControllerBase
         _batchService = batchService;
         _ruleEngine = ruleEngine;
         _fineService = fineService;
+        _pdfService = pdfService;
     }
 
     [HttpPost("batch-generate")]
@@ -193,9 +196,24 @@ public class FinanceController : ControllerBase
     [HttpGet("invoices/{id}")]
     public async Task<IActionResult> GetInvoice(int id, [FromQuery] int? associationId = null)
     {
-        var invoice = await _financeService.GetInvoiceByIdAsync(id, associationId);
-        if (invoice == null) return NotFound(ApiResponse.FailureResponse("Invoice not found."));
-        return Ok(ApiResponse<Invoice>.SuccessResponse(invoice));
+        var result = await _financeService.GetInvoiceByIdAsync(id, associationId);
+        if (result == null) return NotFound(ApiResponse<Invoice>.ErrorResponse("Invoice not found."));
+        return Ok(ApiResponse<Invoice>.SuccessResponse(result));
+    }
+
+    [HttpGet("invoices/{id}/pdf")]
+    public async Task<IActionResult> DownloadInvoicePdf(int id)
+    {
+        try
+        {
+            var pdfBytes = await _pdfService.GenerateInvoicePdfAsync(id);
+            var fileName = $"Invoice_{id}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+            return File(pdfBytes, "application/pdf", fileName);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<string>.ErrorResponse($"Failed to generate PDF: {ex.Message}"));
+        }
     }
 
     [HttpPost("invoices")]
@@ -480,5 +498,13 @@ public class FinanceController : ControllerBase
         await _fineService.SaveSettingsAsync(settings);
         await _auditService.LogAsync("Update Fine Settings", "Association", settings.AssociationId);
         return Ok(ApiResponse<bool>.SuccessResponse(true));
+    }
+
+    [HttpPost("maintenance/post-overdue-fines")]
+    [Authorize(Policy = "RequireAssociationAdmin")]
+    public async Task<IActionResult> PostOverdueFines()
+    {
+        var count = await _financeService.PostOverdueFinesAsync();
+        return Ok(ApiResponse<int>.SuccessResponse(count, $"Batch processed fine posting. {count} new fine items recorded in the ledger."));
     }
 }
