@@ -1,4 +1,4 @@
-﻿CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
+﻿CREATE PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -10,7 +10,8 @@
     @PageNumber INT = 1,
     @PageSize INT = 10,
     @SortColumn NVARCHAR(50) = 'CreatedDate',
-    @SortDirection NVARCHAR(10) = 'DESC'
+    @SortDirection NVARCHAR(10) = 'DESC',
+    @IncludeDraft BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -27,7 +28,6 @@ BEGIN
         SELECT 
             i.*,
             a.Name AS AssetName,
-            -- DELETED: Redundant IsAdvancePaid calculation which was causing SqlException
             CAST(COUNT(*) OVER() AS INT) as TotalCount,
             CAST(SUM(CASE WHEN LTRIM(RTRIM(i.Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial') THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
         FROM assoc.Invoices i
@@ -37,6 +37,7 @@ BEGIN
         AND (@AssetId IS NULL OR i.AssetId = @AssetId)
         AND (@AssetIds IS NULL OR i.AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
         AND (@Status IS NULL OR i.Status = @Status)
+        AND (@IncludeDraft = 1 OR i.Status != 'Draft')
         AND (@SearchTerm IS NULL OR i.Title LIKE '%' + @SearchTerm + '%' OR a.Name LIKE '%' + @SearchTerm + '%')
         AND (@StartDate IS NULL OR i.CreatedDate >= @StartDate)
         AND (@EndDate IS NULL OR i.CreatedDate <= @EndDate)

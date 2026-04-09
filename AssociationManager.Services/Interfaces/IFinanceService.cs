@@ -16,6 +16,8 @@ public interface IFinanceService
     Task<int> CreateInvoiceAsync(Invoice invoice, IEnumerable<InvoiceLineItem>? lineItems = null);
     Task<bool> UpdateInvoiceStatusAsync(int id, string status, int? associationId = null);
     Task<bool> DeleteInvoiceAsync(int id, int? associationId = null);
+    Task<bool> CommitBatchAsync(int batchId);
+    Task<bool> AdjustInvoiceLineItemsAsync(int invoiceId, IEnumerable<InvoiceLineItem> items);
 
     // Payment Operations
     Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null);
@@ -43,5 +45,4 @@ public interface IFinanceService
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId);
     Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null);
     Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria);
-    
 }

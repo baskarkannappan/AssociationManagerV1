@@ -81,7 +81,7 @@ public class BillingBatchService
                 AssociationId = request.AssociationId,
                 Month = request.Month,
                 Year = request.Year,
-                Status = "Committed",
+                Status = "Draft",
                 TotalAmount = 0,
                 InvoicesGenerated = 0,
                 CreatedDate = DateTime.UtcNow
@@ -161,7 +161,7 @@ public class BillingBatchService
                             Description = invoiceDescription,
                             Amount = totalAmount,
                             DueDate = request.DueDate,
-                            Status = "Unpaid",
+                            Status = "Draft",
                             CreatedDate = DateTime.UtcNow
                         };
                         

@@ -61,6 +61,15 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<IEnumerable<BillingBatch>>.SuccessResponse(result));
     }
 
+    [HttpPost("batches/{id}/commit")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> CommitBatch(int id)
+    {
+        var success = await _financeService.CommitBatchAsync(id);
+        if (!success) return BadRequest(ApiResponse.FailureResponse("Failed to commit batch. It may not exist or is not in Draft status."));
+        return Ok(ApiResponse.SuccessResponse("Billing batch committed successfully. Invoices are now live in the ledger."));
+    }
+
     [HttpGet("invoices")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetInvoices(
@@ -73,7 +82,8 @@ public class FinanceController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string sortColumn = "CreatedDate",
-        [FromQuery] string sortDirection = "DESC")
+        [FromQuery] string sortDirection = "DESC",
+        [FromQuery] bool includeDrafts = false)
     {
         var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
                               .Select(c => c.Value);
@@ -130,7 +140,8 @@ public class FinanceController : ControllerBase
             PageNumber = pageNumber,
             PageSize = pageSize,
             SortColumn = sortColumn,
-            SortDirection = sortDirection
+            SortDirection = sortDirection,
+            IncludeDrafts = includeDrafts
         };
 
         if (assetId.HasValue)
@@ -223,6 +234,15 @@ public class FinanceController : ControllerBase
         var id = await _financeService.CreateInvoiceAsync(invoice);
         await _auditService.LogAsync("Create Invoice", "Invoice", id, assetId: invoice.AssetId);
         return CreatedAtAction(nameof(GetInvoice), new { id }, ApiResponse<int>.SuccessResponse(id, "Invoice created successfully."));
+    }
+
+    [HttpPut("invoices/{id}/review")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> AdjustDraftInvoice(int id, [FromBody] IEnumerable<InvoiceLineItem> items)
+    {
+        var success = await _financeService.AdjustInvoiceLineItemsAsync(id, items);
+        if (!success) return BadRequest(ApiResponse.FailureResponse("Failed to adjust invoice. It may not exist or is not in Draft status."));
+        return Ok(ApiResponse.SuccessResponse("Invoice adjusted successfully."));
     }
 
     [HttpPost("invoices/{id}/settled-with-advance")]

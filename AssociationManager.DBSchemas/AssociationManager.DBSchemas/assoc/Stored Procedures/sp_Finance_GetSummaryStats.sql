@@ -1,6 +1,4 @@
-﻿
--- 1. Update Summary Stats with robust status and trimming
-CREATE   PROCEDURE assoc.sp_Finance_GetSummaryStats
+﻿CREATE PROCEDURE assoc.sp_Finance_GetSummaryStats
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -19,10 +17,10 @@ BEGIN
     AND (@AssociationId IS NULL OR AssociationId = @AssociationId)
     AND (@AssetId IS NULL OR AssetId = @AssetId)
     AND (@AssetIds IS NULL OR AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
-    AND LTRIM(RTRIM(Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial');
+    AND LTRIM(RTRIM(Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial')
+    AND LTRIM(RTRIM(Status)) NOT IN ('Draft', 'draft');
 
     -- Collected in last 30 days
-    -- Includes captured gateway payments and manual payments, excludes internal auto-settlements
     SELECT @Collected30Days = SUM(Amount)
     FROM assoc.Payments
     WHERE TenantId = @TenantId

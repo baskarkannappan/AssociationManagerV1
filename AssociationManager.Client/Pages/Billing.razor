@@ -198,6 +198,15 @@
                                         <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Download PDF Invoice" @onclick="() => DownloadInvoice(context)">
                                             <i class="bi bi-file-earmark-pdf"></i>
                                         </button>
+                                        @if (context.Status == "Draft")
+                                        {
+                                            <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Adjust Line Items" @onclick="() => ShowAdjustModal(context)">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Delete Draft" @onclick="() => DeleteInvoice(context)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        }
                                         <button class="btn btn-sm btn-link p-0 text-muted">
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
@@ -274,16 +283,47 @@
                             <div class="col-md-4 d-flex gap-2">
                                 <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="PreviewBatch" disabled="@_isProcessingBatch">
                                     @if (_isProcessingBatch) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                                    <i class="bi bi-eye me-1"></i> Preview Batch
+                                    <i class="bi bi-eye me-1"></i> Preview Generation
                                 </button>
                                 @if (_batchResult != null && _batchResult.Previews.Any() && !_batchResult.IsLocked)
                                 {
-                                    <button class="btn btn-sm btn-vscode flex-grow-1" @onclick="CommitBatch" disabled="@_isProcessingBatch">
-                                        <i class="bi bi-check-circle me-1"></i> Confirm & Generate
+                                    <button class="btn btn-sm btn-vscode flex-grow-1" @onclick="CreateDraftBatch" disabled="@_isProcessingBatch">
+                                        <i class="bi bi-file-earmark-plus me-1"></i> Create Draft Batch
                                     </button>
                                 }
                             </div>
                         </div>
+
+                        @if (_existingBatches != null && _existingBatches.Any(b => b.Status == "Draft"))
+                        {
+                            <div class="mb-4">
+                                <h6 class="small fw-bold text-muted text-uppercase mb-3"><i class="bi bi-clock-history me-1"></i> Batches Pending Review</h6>
+                                <div class="row g-3">
+                                    @foreach (var draft in _existingBatches.Where(b => b.Status == "Draft"))
+                                    {
+                                        <div class="col-md-4">
+                                            <div class="compact-card border-warning border-opacity-25" style="border-left: 3px solid var(--bs-warning) !important;">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        <div class="fw-bold">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(draft.Month) @draft.Year</div>
+                                                        <div class="extra-small text-muted">@draft.InvoicesGenerated Invoices • ₹@draft.TotalAmount.ToString("N0")</div>
+                                                    </div>
+                                                    <span class="badge bg-warning-subtle text-warning" style="font-size: 9px;">PRO-FORMA</span>
+                                                </div>
+                                                <div class="d-flex gap-2 mt-2">
+                                                    <button class="btn btn-xs btn-vscode w-100" @onclick="() => FinalizeBatch(draft)">
+                                                        <i class="bi bi-check2-all me-1"></i> Post to Ledger
+                                                    </button>
+                                                    <button class="btn btn-xs btn-outline-secondary" @onclick="() => ViewDraftDetails(draft)">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
 
                         @if (_batchResult != null)
                         {
@@ -469,6 +509,65 @@
     </div>
 }
 
+@if (_isAdjustModalOpen && _adjustingInvoice != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
+                <div class="premium-card-header">
+                    <h6 class="premium-card-title">Adjust Pro-forma: @(_adjustingInvoice.AssetName ?? "Invoice #" + _adjustingInvoice.InvoiceId)</h6>
+                    <button type="button" class="btn-close" style="font-size: 10px;" @onclick="CloseModals"></button>
+                </div>
+                <div class="p-3">
+                    <div class="alert alert-info py-2 px-3 mb-3 small">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Editing a pro-forma invoice allowing you to add one-time charges or modify calculated maintenance fees.
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 300px;">
+                        <table class="table table-sm table-bordered" style="font-size: 12px;">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Charge Name</th>
+                                    <th style="width: 120px;">Amount</th>
+                                    <th>Description</th>
+                                    <th style="width: 40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in _adjustingLineItems)
+                                {
+                                    <tr>
+                                        <td><input type="text" class="form-control form-control-sm" @bind="item.ChargeName" /></td>
+                                        <td><input type="number" class="form-control form-control-sm" @bind="item.Amount" /></td>
+                                        <td><input type="text" class="form-control form-control-sm" @bind="item.Description" /></td>
+                                        <td class="text-center">
+                                            <button class="btn btn-link text-danger p-0" @onclick="() => _adjustingLineItems.Remove(item)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary mt-2 mb-3" @onclick='() => _adjustingLineItems.Add(new InvoiceLineItem { ChargeName = "Adjustment", Amount = 0 })'>
+                        <i class="bi bi-plus-lg me-1"></i> Add Manual Charge
+                    </button>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <div class="fw-bold">Total Billable: ₹@_adjustingLineItems.Sum(l => l.Amount).ToString("N2")</div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-vscode-secondary" @onclick="CloseModals">Cancel</button>
+                            <button class="btn btn-sm btn-vscode" @onclick="SaveAdjustment">Save Adjustments</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" />
 
 @code {
@@ -494,6 +593,11 @@
     private List<PaymentHistoryItem>? _historyTransactions;
     private decimal _advanceBalance;
     private List<BillingBatch>? _existingBatches;
+
+    // Adjust Modal
+    private bool _isAdjustModalOpen;
+    private Invoice? _adjustingInvoice;
+    private List<InvoiceLineItem> _adjustingLineItems = new();
 
 
     protected override async Task OnInitializedAsync()
@@ -556,7 +660,11 @@
 
         // Search/Filters
         if (!string.IsNullOrWhiteSpace(_searchTerm)) filters.Add($"searchTerm={Uri.EscapeDataString(_searchTerm)}");
-        if (!string.IsNullOrWhiteSpace(_statusFilter)) filters.Add($"status={_statusFilter}");
+        if (!string.IsNullOrWhiteSpace(_statusFilter)) 
+        {
+            filters.Add($"status={_statusFilter}");
+            if (_statusFilter == "Draft") filters.Add("includeDrafts=true");
+        }
 
         string url = $"{baseUrl}?{string.Join("&", filters)}";
         var response = await Api.GetAsync<PagedResult<Invoice>>(url);
@@ -792,6 +900,7 @@
     {
         _isCreateModalOpen = false;
         _isHistoryModalOpen = false;
+        _isAdjustModalOpen = false;
     }
 
     private string GetPaymentStatusClass(string status) => status switch
@@ -813,8 +922,44 @@
         "Paid" => "bg-success-subtle text-success",
         "Unpaid" => "bg-danger-subtle text-danger",
         "Partial" => "bg-warning-subtle text-warning",
+        "Draft" => "bg-info-subtle text-info border-info",
         _ => "bg-secondary-subtle text-secondary"
     };
+
+    private void ShowAdjustModal(Invoice invoice)
+    {
+        _adjustingInvoice = invoice;
+        _adjustingLineItems = invoice.LineItems.ToList();
+        _isAdjustModalOpen = true;
+    }
+
+    private async Task SaveAdjustment()
+    {
+        if (_adjustingInvoice == null) return;
+        var success = await Api.PutAsync($"api/finance/invoices/{_adjustingInvoice.InvoiceId}/review", _adjustingLineItems);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Invoice adjusted successfully."));
+            _isAdjustModalOpen = false;
+            if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteInvoice(Invoice invoice)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete this pro-forma invoice for {invoice.AssetName}?");
+        if (confirmed)
+        {
+            var success = await Api.DeleteAsync($"api/finance/invoices/{invoice.InvoiceId}");
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Draft invoice deleted."));
+                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+                await LoadData();
+            }
+        }
+    }
 
     private async Task PreviewBatch()
     {
@@ -837,7 +982,7 @@
         }
     }
 
-    private async Task CommitBatch()
+    private async Task CreateDraftBatch()
     {
         _isProcessingBatch = true;
         try 
@@ -846,11 +991,8 @@
             var result = await Api.PostAsync<InvoiceBatchRequest, InvoiceBatchResult>("api/finance/batch-generate", _batchRequest);
             if (result != null)
             {
-                _toastService.Notify(new(ToastType.Success, result.Message));
+                _toastService.Notify(new(ToastType.Success, "Draft batch created. Please review and post to ledger."));
                 _batchResult = null;
-                _activeTab = "invoices";
-                _payments = null;
-                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
                 await LoadData();
             }
         }
@@ -858,6 +1000,35 @@
         {
             _isProcessingBatch = false;
         }
+    }
+
+    private async Task FinalizeBatch(BillingBatch batch)
+    {
+        _isProcessingBatch = true;
+        try
+        {
+            var success = await Api.PostAsync($"api/finance/batches/{batch.BillingBatchId}/commit", new { });
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Batch posted to ledger successfully!"));
+                _activeTab = "invoices";
+                await LoadData();
+                if (invoiceGrid != null) await invoiceGrid.RefreshDataAsync();
+            }
+        }
+        finally
+        {
+            _isProcessingBatch = false;
+        }
+    }
+
+    private void ViewDraftDetails(BillingBatch batch)
+    {
+        // For now, we reuse the invoices tab but filter for drafts
+        _activeTab = "invoices";
+        _statusFilter = "Draft";
+        _searchTerm = ""; // Clear search
+        // We'll need to make sure the grid shows drafts
     }
 
     private async Task DownloadInvoice(Invoice invoice)

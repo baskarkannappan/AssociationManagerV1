@@ -16,7 +16,7 @@ BEGIN
         FROM assoc.Invoices i
         WHERE i.TenantId = @TenantId 
         AND i.AssociationId = @AssociationId 
-        AND i.Status NOT IN ('Paid', 'Cancelled', 'Void')
+        AND i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft')
     )
     SELECT 
         SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) BETWEEN 0 AND 30 THEN TotalDue ELSE 0 END) AS Bucket0_30,
@@ -41,6 +41,7 @@ BEGIN
             SUM(Amount + ISNULL((SELECT SUM(li.Amount) FROM assoc.InvoiceLineItems li WHERE li.InvoiceId = i.InvoiceId AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%')), 0)) as TotalBilled
         FROM assoc.Invoices i
         WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
+        AND i.Status != 'Draft'
         GROUP BY DATEPART(MONTH, CreatedDate), DATEPART(YEAR, CreatedDate)
     ),
     MonthlyCollected AS (
@@ -66,6 +67,6 @@ BEGIN
     -- 3. High Level Stats
     SELECT 
         (SELECT ISNULL(SUM(Amount), 0) FROM assoc.Payments WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Status IN ('Paid', 'Completed', 'Captured')) as TotalCollectedAllTime,
-        (SELECT ISNULL(SUM(Amount), 0) FROM assoc.Invoices WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Status NOT IN ('Paid', 'Cancelled')) as TotalUnpaidPrincipal
+        (SELECT ISNULL(SUM(Amount), 0) FROM assoc.Invoices WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Status NOT IN ('Paid', 'Cancelled', 'Draft')) as TotalUnpaidPrincipal
 END
 GO

@@ -20,6 +20,7 @@ public class FinanceService : IFinanceService
     private readonly IFineService _fineService;
     private readonly IAssetRepository _assetRepository;
     private readonly IAuditService _auditService;
+    private readonly IBillingBatchRepository _billingBatchRepository;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -30,7 +31,8 @@ public class FinanceService : IFinanceService
         IOccupancyRepository occupancyRepository,
         IFineService fineService,
         IAssetRepository assetRepository,
-        IAuditService auditService)
+        IAuditService auditService,
+        IBillingBatchRepository billingBatchRepository)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -41,6 +43,7 @@ public class FinanceService : IFinanceService
         _fineService = fineService;
         _assetRepository = assetRepository;
         _auditService = auditService;
+        _billingBatchRepository = billingBatchRepository;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -137,7 +140,7 @@ public class FinanceService : IFinanceService
 
         if (assetId.HasValue)
         {
-            unpaidInvoices = (await GetInvoicesByAssetIdAsync(assetId.Value, associationId)).Where(i => i.Status != "Paid");
+            unpaidInvoices = (await GetInvoicesByAssetIdAsync(assetId.Value, associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
         }
         else if (assetIds != null && assetIds.Any())
         {
@@ -146,12 +149,12 @@ public class FinanceService : IFinanceService
             {
                 allInUserScope.AddRange(await GetInvoicesByAssetIdAsync(id, associationId));
             }
-            unpaidInvoices = allInUserScope.Where(i => i.Status != "Paid");
+            unpaidInvoices = allInUserScope.Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
         }
         else
         {
             // STAFF/GLOBAL VIEW
-            unpaidInvoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
+            unpaidInvoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
         }
 
         // SMART SUM: Amount (Principal) + all Fine items + any virtual items
@@ -201,7 +204,8 @@ public class FinanceService : IFinanceService
         }
 
         // Record Ledger Entry (Debit) via LedgerService
-        if (invoice.AssetId.HasValue)
+        // ONLY if the invoice is NOT a Draft
+        if (invoice.AssetId.HasValue && invoice.Status != "Draft")
         {
             await _ledgerService.RecordTransactionAsync(new Transaction
             {
@@ -501,7 +505,7 @@ public class FinanceService : IFinanceService
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
         // 1. Unified Unpaid Invoices (including fines)
-        var invoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid");
+        var invoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
         decimal totalOutstanding = 0;
         foreach (var inv in invoices)
         {
@@ -681,5 +685,71 @@ public class FinanceService : IFinanceService
         }
 
         return totalPostedCount;
+    }
+
+    public async Task<bool> CommitBatchAsync(int batchId)
+    {
+        var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, CurrentAssociationId);
+        if (batch == null || batch.Status != "Draft") return false;
+
+        // 1. Update Batch Status
+        await _billingBatchRepository.UpdateStatusAsync(batchId, "Committed", CurrentTenantId, CurrentAssociationId);
+
+        // 2. Transmit Invoices to Ledger
+        var invoices = await _invoiceRepository.GetByBatchIdAsync(batchId, CurrentTenantId);
+        foreach (var inv in invoices)
+        {
+            if (inv.Status == "Draft")
+            {
+                // Update Status to Unpaid (or Paid if we eventually want immediate auto-settle here)
+                await _invoiceRepository.UpdateStatusAsync(inv.InvoiceId, "Unpaid", CurrentTenantId, CurrentAssociationId);
+
+                // Record Ledger Transaction (Debit)
+                if (inv.AssetId.HasValue)
+                {
+                    await _ledgerService.RecordTransactionAsync(new Transaction
+                    {
+                        AssetId = inv.AssetId.Value,
+                        InvoiceId = inv.InvoiceId,
+                        Type = "Debit",
+                        Amount = inv.Amount,
+                        Category = "Billing",
+                        Description = $"Batch Billing Committed: {inv.Title}"
+                    });
+                }
+            }
+        }
+
+        await _auditService.LogAsync($"Committed Billing Batch #{batchId}", "BillingBatch", batchId);
+        return true;
+    }
+
+    public async Task<bool> AdjustInvoiceLineItemsAsync(int invoiceId, IEnumerable<InvoiceLineItem> items)
+    {
+        var invoice = await GetInvoiceByIdAsync(invoiceId);
+        if (invoice == null || invoice.Status != "Draft") return false;
+
+        // 1. Clear existing line items
+        // (Assuming we have a DeleteLineItemsByInvoiceId or we just create a new list)
+        // For simplicity, we can implement a Sync method in Repository or just loop.
+        // Let's assume we need to handle this via Repository.
+        
+        // Actually, let's just implement the logic:
+        await _invoiceRepository.DeleteAllLineItemsAsync(invoiceId);
+
+        decimal newTotal = 0;
+        foreach (var item in items)
+        {
+            item.InvoiceId = invoiceId;
+            await _invoiceRepository.CreateLineItemAsync(item);
+            newTotal += item.Amount;
+        }
+
+        // 2. Update Invoice Amount
+        invoice.Amount = newTotal;
+        await _invoiceRepository.UpdateAsync(invoice);
+
+        await _auditService.LogAsync($"Adjusted Draft Invoice #{invoiceId} Line Items", "Invoice", invoiceId, assetId: invoice.AssetId);
+        return true;
     }
 }

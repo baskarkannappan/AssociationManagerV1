@@ -166,7 +166,7 @@ public class DashboardController : ControllerBase
         var finSummary = await _financeService.GetFinanceSummaryAsync(associationId, assetIds: assetIds);
         decimal totalCredit = finSummary.TotalAdvanceCredits;
 
-        var unpaidInvoices = invoices.Where(i => i.Status != "Paid");
+        var unpaidInvoices = invoices.Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
         // SMART SUM: Amount (Principal) + all Fine items + any virtual items
         var totalBalanceDue = unpaidInvoices.Sum(i => i.Amount + 
             i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount));

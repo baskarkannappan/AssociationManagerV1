@@ -332,7 +332,7 @@
     <Build Include="assoc\Stored Procedures\sp_Occupancy_Update.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
     <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
@@ -381,5 +381,10 @@
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetCommitteeCount_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_Update_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetUnpaidOverdue_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetByBatchId_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_DeleteByInvoiceId_1.sql" />
   </ItemGroup>
 </Project>

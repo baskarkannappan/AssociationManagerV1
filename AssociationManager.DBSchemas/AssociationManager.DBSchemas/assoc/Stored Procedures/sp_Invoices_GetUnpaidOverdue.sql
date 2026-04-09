@@ -23,7 +23,7 @@ BEGIN
         CreatedDate,
         IsAdvancePaid
     FROM assoc.Invoices
-    WHERE [Status] NOT IN ('Paid', 'Cancelled', 'Void')
+    WHERE [Status] NOT IN ('Paid', 'Cancelled', 'Void', 'Draft')
     AND DueDate < GETUTCDATE();
 END
 GO
