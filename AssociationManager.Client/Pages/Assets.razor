@@ -23,8 +23,11 @@
                     <AssetTree Hierarchy="AssetState.Hierarchy" 
                                SelectedAsset="AssetState.SelectedAsset" 
                                ExpandedIds="AssetState.ExpandedIds" 
+                               CanManage="AssetState.CanManageAssets"
                                OnSelected="AssetState.SelectAssetAsync" 
                                OnToggleExpand="AssetState.ToggleExpand"
+                               OnAddRoot="AssetState.CreateRootProperty"
+                               OnBulkCreate="() => _bulkModal.ShowAsync()"
                                OnCollapse="() => AssetState.IsSidebarCollapsed = true" />
                 </div>
 

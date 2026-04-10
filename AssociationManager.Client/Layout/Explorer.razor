@@ -40,22 +40,15 @@
                 </AuthorizeView>
 
                 <AuthorizeView Policy="ShowMenu_Finance" Context="financeMenuContext">
-                    <AuthorizeView Policy="RequireManagement" Context="mgmtBillingContext">
-                        <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
-                            <i class="bi bi-cash-stack text-success"></i>
-                            <span>Finance</span>
-                        </NavLink>
-                    </AuthorizeView>
+                    <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
+                        <i class="bi bi-cash-stack text-success"></i>
+                        <span>Finance</span>
+                    </NavLink>
+                    
                     <NavLink href="finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
                         <i class="bi bi-wallet2 text-success"></i>
                         <span class="small">Advance Ledgers</span>
                     </NavLink>
-                    <AuthorizeView Policy="RequireManagement" Context="mgmtReportsContext">
-                        <NavLink href="finance/reports" class="vscode-tree-item ms-3 text-decoration-none">
-                            <i class="bi bi-graph-up-arrow text-success"></i>
-                            <span class="small">Financial Reports</span>
-                        </NavLink>
-                    </AuthorizeView>
                 </AuthorizeView>
 
                 <AuthorizeView Policy="RequireResident" Context="residentWalletContext">

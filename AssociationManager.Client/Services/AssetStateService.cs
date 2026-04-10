@@ -32,11 +32,42 @@ namespace AssociationManager.Client.Services
 
         // State
         public List<Asset>? Hierarchy { get; private set; }
-        public Asset? SelectedAsset { get; set; }
-        public bool IsNew { get; set; }
-        public string ActiveTab { get; set; } = "details";
-        public bool ShowDetailOnMobile { get; set; }
-        public bool IsSidebarCollapsed { get; set; }
+        
+        private Asset? _selectedAsset;
+        public Asset? SelectedAsset 
+        { 
+            get => _selectedAsset; 
+            set { _selectedAsset = value; NotifyStateChanged(); } 
+        }
+
+        private bool _isNew;
+        public bool IsNew 
+        { 
+            get => _isNew; 
+            set { _isNew = value; NotifyStateChanged(); } 
+        }
+
+        private string _activeTab = "details";
+        public string ActiveTab 
+        { 
+            get => _activeTab; 
+            set { _activeTab = value; NotifyStateChanged(); } 
+        }
+
+        private bool _showDetailOnMobile;
+        public bool ShowDetailOnMobile 
+        { 
+            get => _showDetailOnMobile; 
+            set { _showDetailOnMobile = value; NotifyStateChanged(); } 
+        }
+
+        private bool _isSidebarCollapsed;
+        public bool IsSidebarCollapsed 
+        { 
+            get => _isSidebarCollapsed; 
+            set { _isSidebarCollapsed = value; NotifyStateChanged(); } 
+        }
+
         public HashSet<int> ExpandedIds { get; } = new();
 
         // Unit-specific Data

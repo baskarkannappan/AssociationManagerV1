@@ -10,5 +10,6 @@ public interface ILedgerService
     Task<long> RecordTransactionAsync(Transaction transaction);
     Task<decimal> GetAssetBalanceAsync(int assetId);
     Task<IEnumerable<Transaction>> GetAssetTransactionsAsync(int assetId);
+    Task<IEnumerable<Transaction>> GetTransactionsByInvoiceIdAsync(int invoiceId);
     Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null);
 }

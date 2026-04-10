@@ -83,33 +83,33 @@
         <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
             @if (context.Status == "Unpaid")
             {
-                <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)">
+                <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true">
                     <i class="bi bi-credit-card-2-back"></i>
                 </button>
                 @if (BillingService.AdvanceBalance >= (context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)))
                 {
-                    <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => OnPayWithAdvance.InvokeAsync(context)">
+                    <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true">
                         <i class="bi bi-patch-check"></i>
                     </button>
                 }
                 <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
-                    <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => OnRecordManualPayment.InvokeAsync(context)">
+                    <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => OnRecordManualPayment.InvokeAsync(context)" @onclick:stopPropagation="true">
                         <i class="bi bi-cash-stack"></i>
                     </button>
                 </AuthorizeView>
             }
-            <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => BillingService.LoadHistoryAsync(context)">
+            <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => BillingService.LoadHistoryAsync(context)" @onclick:stopPropagation="true">
                 <i class="bi bi-clock-history"></i>
             </button>
-            <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Download PDF Invoice" @onclick="() => OnDownloadInvoice.InvokeAsync(context)">
+            <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Download PDF Invoice" @onclick="() => OnDownloadInvoice.InvokeAsync(context)" @onclick:stopPropagation="true">
                 <i class="bi bi-file-earmark-pdf"></i>
             </button>
             @if (context.Status == "Draft")
             {
-                <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Adjust Line Items" @onclick='() => { BillingService.IdToAdjust = context.InvoiceId; BillingService.AdjustingInvoice = context; BillingService.AdjustingLineItems = context.LineItems.ToList(); BillingService.ShowAdjustModal = true; }'>
+                <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Adjust Line Items" @onclick='() => { BillingService.IdToAdjust = context.InvoiceId; BillingService.AdjustingInvoice = context; BillingService.AdjustingLineItems = context.LineItems.ToList(); BillingService.ShowAdjustModal = true; }' @onclick:stopPropagation="true">
                     <i class="bi bi-pencil-square"></i>
                 </button>
-                <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Delete Draft" @onclick="() => HandleDelete(context)">
+                <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Delete Draft" @onclick="() => HandleDelete(context)" @onclick:stopPropagation="true">
                     <i class="bi bi-trash"></i>
                 </button>
             }

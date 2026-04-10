@@ -33,7 +33,7 @@
                          <h5 class="mb-0 fw-bold">@TariffState.SelectedGroup.Name Layers</h5>
                          <span class="modern-badge modern-badge-outline">@(TariffState.Layers?.Count ?? 0) Active</span>
                     </div>
-                    <button class="btn btn-sm btn-vscode px-3" @onclick='() => { TariffState.NewLayer = new(); TariffState.ShowLayerModal = true; }'>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick='() => TariffState.ToggleLayerModal(true)'>
                         <i class="bi bi-plus me-1"></i> New Layer
                     </button>
                 </div>
@@ -72,7 +72,7 @@
                         <div class="col-md-7 d-flex justify-content-end">
                             @if (TariffState.SelectedLayerId > 0)
                             {
-                                <button class="btn btn-sm btn-vscode px-3" @onclick="() => TariffState.ShowBulkAssignModal = true">
+                                <button class="btn btn-sm btn-vscode px-3" @onclick="() => TariffState.ToggleBulkAssignModal(true)">
                                     <i class="bi bi-plus-circle me-1"></i> Bulk Assign
                                 </button>
                             }

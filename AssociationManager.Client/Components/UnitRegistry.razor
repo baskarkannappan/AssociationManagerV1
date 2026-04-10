@@ -11,41 +11,51 @@
     </div>
 
     <div class="p-0">
-        <Tabs @ref="tabs" EnableFadeEffect="true" NavStyle="NavStyle.Tabs" Class="premium-tabs">
-            <Tab Title="Occupants" IsActive="true">
-                <Content>
-                    <div class="p-4">
-                        <OccupancyList 
-                            AssetId="AssetId" 
-                            Occupants="Occupants" 
-                            OnDelete="HandleDeleteOccupant" 
-                            OnDataChanged="RefreshData" />
-                    </div>
-                </Content>
-            </Tab>
-            <Tab Title="Vehicles">
-                <Content>
-                    <div class="p-4">
-                        <VehicleList 
-                            AssetId="AssetId" 
-                            Vehicles="Vehicles" 
-                            OnDelete="HandleDeleteVehicle" 
-                            OnDataChanged="RefreshData" />
-                    </div>
-                </Content>
-            </Tab>
-            <Tab Title="Pets">
-                <Content>
-                    <div class="p-4">
-                        <PetList 
-                            AssetId="AssetId" 
-                            Pets="Pets" 
-                            OnDelete="HandleDeletePet" 
-                            OnDataChanged="RefreshData" />
-                    </div>
-                </Content>
-            </Tab>
-        </Tabs>
+        @if (Occupants != null)
+        {
+            <Tabs @ref="tabs" EnableFadeEffect="true" NavStyle="NavStyle.Tabs" Class="premium-tabs">
+                <Tab Title="Occupants">
+                    <Content>
+                        <div class="p-4">
+                            <OccupancyList 
+                                AssetId="AssetId" 
+                                Occupants="Occupants" 
+                                OnDelete="HandleDeleteOccupant" 
+                                OnDataChanged="RefreshData" />
+                        </div>
+                    </Content>
+                </Tab>
+                <Tab Title="Vehicles">
+                    <Content>
+                        <div class="p-4">
+                            <VehicleList 
+                                AssetId="AssetId" 
+                                Vehicles="Vehicles" 
+                                OnDelete="HandleDeleteVehicle" 
+                                OnDataChanged="RefreshData" />
+                        </div>
+                    </Content>
+                </Tab>
+                <Tab Title="Pets">
+                    <Content>
+                        <div class="p-4">
+                            <PetList 
+                                AssetId="AssetId" 
+                                Pets="Pets" 
+                                OnDelete="HandleDeletePet" 
+                                OnDataChanged="RefreshData" />
+                        </div>
+                    </Content>
+                </Tab>
+            </Tabs>
+        }
+        else
+        {
+            <div class="p-5 text-center text-muted">
+                <div class="spinner-border spinner-border-sm mb-2"></div>
+                <div>Loading unit registry...</div>
+            </div>
+        }
     </div>
 </div>
 

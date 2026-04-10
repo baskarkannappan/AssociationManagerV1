@@ -15,72 +15,81 @@
 
 <AuthorizeView Context="authContext">
     <Authorized>
-        @{
+        @if (_isInitialLoading)
+        {
+            <div class="d-flex flex-column align-items-center justify-content-center vh-100 text-muted">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <div class="fw-bold h5">Preparing Dashboard...</div>
+                <div class="small opacity-50">Syncing association context and rules</div>
+            </div>
+        }
+        else
+        {
             var assocIdClaim = authContext.User.FindFirst("AssociationId")?.Value;
             bool hasAssociation = !string.IsNullOrEmpty(assocIdClaim) && assocIdClaim != "0";
             bool isSystemAdmin = _isSystemAdmin;
             bool isPending = !isSystemAdmin && !hasAssociation;
-        }
 
-        @if (!hasAssociation && !isSystemAdmin)
-        {
-            @if (isPending)
+            @if (!hasAssociation && !isSystemAdmin)
             {
-                <PendingDashboard UserEmail="@authContext.User.FindFirst("email")?.Value" />
-            }
-            else
-            {
-                { Navigation.NavigateTo("/context-selection"); }
-                <div class="d-flex flex-column align-items-center justify-content-center vh-100 text-muted">
-                    <div class="spinner-border spinner-border-sm mb-3" role="status"></div>
-                    <span>Redirecting to context selection...</span>
-                </div>
-            }
-        }
-        else
-        {
-            @if (_isResident)
-            {
-                <ResidentDashboard @ref="_residentDashboard"
-                                   OnTopUpClicked="ShowAdvanceModal" 
-                                   OnPayNow="OnInvoicePayNow" 
-                                   OnPayWithAdvance="OnPayWithAdvance" />
-
-                @if (_isAdvanceModalOpen)
+                @if (isPending)
                 {
-                    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow">
-                                <div class="premium-card-header">
-                                    <h6 class="premium-card-title"><i class="bi bi-plus-circle-fill me-2"></i>Pay Advance / Top Up Wallet</h6>
-                                    <button type="button" class="btn-close" @onclick="HideAdvanceModal"></button>
-                                </div>
-                                <div class="p-4">
-                                    <p class="text-muted small mb-3">Add money to your unit's credit balance. This will be automatically applied to future invoices.</p>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small">Amount (₹)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">₹</span>
-                                            <input type="number" class="form-control" @bind="_advanceAmount" placeholder="Enter amount" />
-                                        </div>
-                                    </div>
-                                    <div class="d-grid mt-4">
-                                        <button class="btn btn-vscode py-2 fw-bold" @onclick="ProcessAdvancePayment" disabled="@(_advanceAmount <= 0)">
-                                            Proceed to Razorpay Payment
-                                        </button>
-                                    </div>
-                                    <div class="mt-3 text-center">
-                                        <button class="btn btn-link btn-sm text-muted text-decoration-none" @onclick="HideAdvanceModal">Cancel</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <PendingDashboard UserEmail="@authContext.User.FindFirst("email")?.Value" />
+                }
+                else
+                {
+                    { Navigation.NavigateTo("/context-selection"); }
+                    <div class="d-flex flex-column align-items-center justify-content-center vh-100 text-muted">
+                        <div class="spinner-border spinner-border-sm mb-3" role="status"></div>
+                        <span>Redirecting to context selection...</span>
                     </div>
                 }
             }
             else
             {
-                <AdminDashboard />
+                @if (_isResident)
+                {
+                    <ResidentDashboard @ref="_residentDashboard"
+                                       OnTopUpClicked="ShowAdvanceModal" 
+                                       OnPayNow="OnInvoicePayNow" 
+                                       OnPayWithAdvance="OnPayWithAdvance" />
+
+                    @if (_isAdvanceModalOpen)
+                    {
+                        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); z-index: 1050;">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="premium-card-header">
+                                        <h6 class="premium-card-title"><i class="bi bi-plus-circle-fill me-2"></i>Pay Advance / Top Up Wallet</h6>
+                                        <button type="button" class="btn-close" @onclick="HideAdvanceModal"></button>
+                                    </div>
+                                    <div class="p-4">
+                                        <p class="text-muted small mb-3">Add money to your unit's credit balance. This will be automatically applied to future invoices.</p>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small">Amount (₹)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">₹</span>
+                                                <input type="number" class="form-control" @bind="_advanceAmount" placeholder="Enter amount" />
+                                            </div>
+                                        </div>
+                                        <div class="d-grid mt-4">
+                                            <button class="btn btn-vscode py-2 fw-bold" @onclick="ProcessAdvancePayment" disabled="@(_advanceAmount <= 0)">
+                                                Proceed to Razorpay Payment
+                                            </button>
+                                        </div>
+                                        <div class="mt-3 text-center">
+                                            <button class="btn btn-link btn-sm text-muted text-decoration-none" @onclick="HideAdvanceModal">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <AdminDashboard />
+                }
             }
         }
     </Authorized>
@@ -100,6 +109,7 @@
     private RazorpayCheckout _razorpayCheckout = default!;
     private bool _isAdvanceModalOpen;
     private decimal _advanceAmount;
+    private bool _isInitialLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,8 +137,10 @@
         if (TenantContext.AssociationId != 0 || _isSystemAdmin)
         {
             await DashboardService.InitializeAsync(isManagement, _isResident);
-            StateHasChanged();
         }
+        
+        _isInitialLoading = false;
+        StateHasChanged();
     }
 
     private void ShowAdvanceModal() => _isAdvanceModalOpen = true;

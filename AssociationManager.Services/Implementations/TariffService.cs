@@ -51,6 +51,7 @@ public class TariffService : ITariffService
     public async Task<int> CreateTariffLayerAsync(TariffLayer layer)
     {
         layer.TenantId = _tenantContext.TenantId;
+        layer.AssociationId ??= _tenantContext.AssociationId;
         return await _tariffRepository.CreateLayerAsync(layer);
     }
 

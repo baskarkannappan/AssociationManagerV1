@@ -82,19 +82,19 @@
 
                 <GridColumn TItem="Invoice" HeaderText="Actions">
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-link p-0 text-primary" @onclick="() => ShowDetails(context)" title="View Details">
+                        <button class="btn btn-sm btn-link p-0 text-primary" @onclick="() => ShowDetails(context)" @onclick:stopPropagation="true" title="View Details">
                             <i class="bi bi-info-circle"></i> Breakdown
                         </button>
                         @if (context.Status != "Paid")
                         {
                             @if (CreditAvailable >= GetTotalAmount(context))
                             {
-                                <button class="btn btn-sm btn-outline-primary py-0 px-2" @onclick="async () => await OnPayWithAdvance.InvokeAsync(context)" style="font-size: 10px;" title="Pay using your advance credit">
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2" @onclick="async () => await OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true" style="font-size: 10px;" title="Pay using your advance credit">
                                     <i class="bi bi-wallet2 pe-1"></i> Pay with Advance
                                 </button>
                             }
                             
-                            <button class="btn btn-sm btn-vscode py-0 px-2" @onclick="async () => await StartPayment(context)" style="font-size: 10px;">
+                            <button class="btn btn-sm btn-vscode py-0 px-2" @onclick="async () => await StartPayment(context)" @onclick:stopPropagation="true" style="font-size: 10px;">
                                 <i class="bi bi-credit-card pe-1"></i> Pay Now
                             </button>
                         }

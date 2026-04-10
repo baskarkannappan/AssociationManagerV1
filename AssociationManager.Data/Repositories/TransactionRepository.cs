@@ -56,6 +56,14 @@ public class TransactionRepository : ITransactionRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<IEnumerable<Transaction>> GetByInvoiceIdAsync(int invoiceId, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Transaction>(
+            "SELECT * FROM assoc.Transactions WHERE InvoiceId = @InvoiceId AND TenantId = @TenantId AND AssociationId = @AssociationId ORDER BY TransactionDate DESC", 
+            new { invoiceId, tenantId, associationId });
+    }
+
     public async Task<decimal> GetBalanceByAssetIdAsync(int? assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();

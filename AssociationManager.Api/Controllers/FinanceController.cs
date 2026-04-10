@@ -53,6 +53,24 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
     }
 
+    [HttpPost("batches/preview")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> PreviewBatch([FromBody] InvoiceBatchRequest request)
+    {
+        request.DryRun = true;
+        var result = await _batchService.ProcessBatchAsync(request, _tenantContext.TenantId);
+        return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
+    }
+
+    [HttpPost("batches/draft")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> CreateDraftBatch([FromBody] InvoiceBatchRequest request)
+    {
+        request.DryRun = false;
+        var result = await _batchService.ProcessBatchAsync(request, _tenantContext.TenantId);
+        return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
+    }
+
     [HttpGet("batches")]
     [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> GetBatches([FromQuery] int associationId)
@@ -61,7 +79,7 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<IEnumerable<BillingBatch>>.SuccessResponse(result));
     }
 
-    [HttpPost("batches/{id}/commit")]
+    [HttpPost("batches/{id}/finalize")]
     [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> CommitBatch(int id)
     {
@@ -85,49 +103,25 @@ public class FinanceController : ControllerBase
         [FromQuery] string sortDirection = "DESC",
         [FromQuery] bool includeDrafts = false)
     {
-        var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
-                              .Select(c => c.Value);
-
-        var securityContext = new SecurityContext
-        {
-            UserRole = string.Join(",", roles),
-            UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId,
-            Action = "View",
-            Resource = "Invoice"
-        };
-
-        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        var userLevel = AppRole.GetMaxLevel(User.Claims);
+        bool isStaff = userLevel >= AppRole.LevelFinanceManager;
         
         if (!isStaff)
         {
-             var userIdStr = User.FindFirst("UserId")?.Value;
-             if (int.TryParse(userIdStr, out int userId))
-             {
-                 var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                 var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
-                 
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var allowedAssetIds = await GetUserAssetIdsAsync(userId);
                 if (assetId.HasValue)
                 {
-                    securityContext.AssetId = assetId.Value;
-                    securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
-                    if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
-                    {
-                        return Forbid();
-                    }
+                    if (!allowedAssetIds.Contains(assetId.Value)) return Forbid();
                 }
                 else
                 {
-                    // No specific assetId, default to ALL user assets
                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
-                    // The criteria uses this assetId further down. 
-                    // I will modify the criteria logic later or loop here.
-                    // Actually, I'll pass multiple IDs if needed or update the service.
+                    // Criteria will pick this up via .AssetIds further down
                 }
-                // Update criteria to handle null AssetId for residents
-                // by using allowedAssetIds if assetId is null
-                var residentAssetIds = assetId.HasValue ? new List<int> { assetId.Value } : allowedAssetIds;
-             }
+            }
         }
 
         var criteria = new InvoiceSearchCriteria
@@ -152,17 +146,11 @@ public class FinanceController : ControllerBase
         }
         else
         {
-            // Gather userId to find all assets for multi-asset residents
             var userIdStr = User.FindFirst("UserId")?.Value;
             if (!isStaff && int.TryParse(userIdStr, out int userId))
             {
-                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
-
-                if (!allowedAssetIds.Any())
-                {
-                    return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
-                }
+                var allowedAssetIds = await GetUserAssetIdsAsync(userId);
+                if (!allowedAssetIds.Any()) return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(new PagedResult<Invoice>()));
 
                 criteria.AssetIds = allowedAssetIds;
                 var result = await _financeService.GetPagedInvoicesAsync(criteria);
@@ -179,28 +167,72 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetSummary([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
     {
-        IEnumerable<int>? assetIds = null;
         if (!assetId.HasValue)
         {
-            var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
-                                  .Select(c => c.Value);
-            var securityContext = new SecurityContext
-            {
-                UserRole = string.Join(",", roles),
-                UserLevel = AppRole.GetMaxLevel(User.Claims),
-                AssociationId = _tenantContext.AssociationId
-            };
-
-            // Delegate ALL resident asset resolution (Occupancy + Payment History) to the FinanceService 
-            // This handles both official occupants and Admins who have topped up a wallet.
             var userId = _tenantContext.UserId;
             var summaryWithUser = await _financeService.GetFinanceSummaryAsync(associationId, assetId, userId: userId);
             return Ok(ApiResponse<FinanceSummary>.SuccessResponse(summaryWithUser));
         }
 
-        // Specific asset summary
         var summary = await _financeService.GetFinanceSummaryAsync(associationId, assetId);
         return Ok(ApiResponse<FinanceSummary>.SuccessResponse(summary));
+    }
+
+    [HttpGet("overview")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetBillingOverview([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
+    {
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var userId = _tenantContext.UserId;
+
+        // Resolve AssetIds for Residents to enforce data isolation
+        List<int>? residentAssetIds = null;
+        var userLevel = AppRole.GetMaxLevel(User.Claims);
+        if (userLevel < AppRole.LevelFinanceManager)
+        {
+            var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+            residentAssetIds = occupancies.Select(o => o.AssetId).ToList();
+            
+            // If they have no assets, they shouldn't see anything
+            if (!residentAssetIds.Any())
+            {
+                return Ok(ApiResponse<BillingOverview>.SuccessResponse(new BillingOverview 
+                { 
+                    RecentPayments = new List<Payment>(),
+                    Invoices = new PagedResult<Invoice>()
+                }));
+            }
+        }
+
+        // Parallel fetch all billing components
+        var paymentsTask = _financeService.GetPaymentsAsync(assetIds: residentAssetIds);
+        var balanceTask = _financeService.GetFinanceSummaryAsync(aid, assetId, assetIds: residentAssetIds, userId: userId);
+        var batchesTask = _batchService.GetBatchesAsync(aid, _tenantContext.TenantId);
+        
+        // Initial page of invoices
+        var criteria = new InvoiceSearchCriteria
+        {
+            AssociationId = aid,
+            AssetId = assetId,
+            AssetIds = residentAssetIds,
+            PageNumber = 1,
+            PageSize = 10,
+            SortColumn = "CreatedDate",
+            SortDirection = "DESC"
+        };
+        var invoicesTask = _financeService.GetPagedInvoicesAsync(criteria);
+
+        await Task.WhenAll(paymentsTask, balanceTask, batchesTask, invoicesTask);
+
+        var overview = new BillingOverview
+        {
+            RecentPayments = (await paymentsTask).Where(p => !assetId.HasValue || p.AssetId == assetId.Value).ToList(),
+            AdvanceBalance = (await balanceTask).TotalAdvanceCredits,
+            ExistingBatches = (await batchesTask).ToList(),
+            Invoices = await invoicesTask
+        };
+
+        return Ok(ApiResponse<BillingOverview>.SuccessResponse(overview));
     }
 
 
@@ -236,13 +268,20 @@ public class FinanceController : ControllerBase
         return CreatedAtAction(nameof(GetInvoice), new { id }, ApiResponse<int>.SuccessResponse(id, "Invoice created successfully."));
     }
 
-    [HttpPut("invoices/{id}/review")]
+    [HttpPost("invoices/adjust")]
     [Authorize(Policy = "RequireFinanceManager")]
-    public async Task<IActionResult> AdjustDraftInvoice(int id, [FromBody] IEnumerable<InvoiceLineItem> items)
+    public async Task<IActionResult> AdjustDraftInvoice([FromBody] AdjustInvoiceRequest request)
     {
-        var success = await _financeService.AdjustInvoiceLineItemsAsync(id, items);
+        var success = await _financeService.AdjustInvoiceLineItemsAsync(request.InvoiceId, request.LineItems);
         if (!success) return BadRequest(ApiResponse.FailureResponse("Failed to adjust invoice. It may not exist or is not in Draft status."));
         return Ok(ApiResponse.SuccessResponse("Invoice adjusted successfully."));
+    }
+
+    [HttpGet("invoices/{id}/history")]
+    public async Task<IActionResult> GetInvoiceHistory(int id)
+    {
+        var history = await _financeService.GetInvoicePaymentHistoryAsync(id);
+        return Ok(ApiResponse<IEnumerable<PaymentHistoryItem>>.SuccessResponse(history));
     }
 
     [HttpPost("invoices/{id}/settled-with-advance")]
@@ -263,30 +302,19 @@ public class FinanceController : ControllerBase
         var roles = User.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
                               .Select(c => c.Value);
 
-        var securityContext = new SecurityContext
-        {
-            UserRole = string.Join(",", roles),
-            UserLevel = AppRole.GetMaxLevel(User.Claims),
-            AssociationId = _tenantContext.AssociationId,
-            Action = "View",
-            Resource = "Payment"
-        };
-
-        bool isStaff = await _ruleEngine.EvaluateRuleAsync("IsStaff", securityContext);
+        var userLevel = AppRole.GetMaxLevel(User.Claims);
+        bool isStaff = userLevel >= AppRole.LevelFinanceManager;
         
         if (!isStaff)
         {
             var userIdStr = User.FindFirst("UserId")?.Value;
             if (int.TryParse(userIdStr, out int userId))
             {
-                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
+                var allowedAssetIds = await GetUserAssetIdsAsync(userId);
                 
                 if (assetId.HasValue)
                 {
-                    securityContext.AssetId = assetId.Value;
-                    securityContext.IsPrimaryResident = allowedAssetIds.Contains(assetId.Value);
-                    if (!await _ruleEngine.EvaluateRuleAsync("CanViewAsset", securityContext))
+                    if (!allowedAssetIds.Contains(assetId.Value))
                     {
                         return Forbid();
                     }
@@ -294,7 +322,6 @@ public class FinanceController : ControllerBase
                 else
                 {
                     if (!allowedAssetIds.Any()) return Ok(ApiResponse<IEnumerable<Payment>>.SuccessResponse(new List<Payment>()));
-                    assetId = allowedAssetIds.First();
                 }
             }
         }
@@ -347,8 +374,7 @@ public class FinanceController : ControllerBase
             if (int.TryParse(userIdStr, out int uid))
             {
                 userId = uid;
-                var occupancies = await _peopleService.GetOccupancyByUserIdAsync(uid);
-                var allowedAssetIds = occupancies.Select(o => o.AssetId).ToList();
+                var allowedAssetIds = await GetUserAssetIdsAsync(uid);
                 
                 if (assetId.HasValue && !allowedAssetIds.Contains(assetId.Value))
                 {
@@ -526,5 +552,11 @@ public class FinanceController : ControllerBase
     {
         var count = await _financeService.PostOverdueFinesAsync();
         return Ok(ApiResponse<int>.SuccessResponse(count, $"Batch processed fine posting. {count} new fine items recorded in the ledger."));
+    }
+
+    private async Task<List<int>> GetUserAssetIdsAsync(int userId)
+    {
+        var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
+        return occupancies.Select(o => o.AssetId).ToList();
     }
 }

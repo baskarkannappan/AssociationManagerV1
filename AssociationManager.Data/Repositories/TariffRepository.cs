@@ -70,6 +70,7 @@ public class TariffRepository : ITariffRepository
             { 
                 layer.TariffGroupId, 
                 layer.TenantId, 
+                layer.AssociationId,
                 layer.Name, 
                 layer.BaseRate, 
                 layer.Frequency, 
@@ -148,7 +149,7 @@ public class TariffRepository : ITariffRepository
         string sql = @"
             SELECT at.*, a.Name as AssetName 
             FROM assoc.AssetTariffs at
-            INNER JOIN Assets a ON at.AssetId = a.AssetId
+            INNER JOIN assoc.Assets a ON at.AssetId = a.AssetId
             WHERE at.TariffLayerId = @layerId AND at.IsActive = 1";
             
         return await connection.QueryAsync<AssetTariff>(sql, new { layerId });

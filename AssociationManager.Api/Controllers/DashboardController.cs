@@ -28,6 +28,8 @@ public class DashboardController : ControllerBase
     private readonly ITransactionRepository _transactionRepository;
     private readonly IDashboardService _dashboardService;
     private readonly IDashboardRepository _dashboardRepository;
+    private readonly IGovernanceService _governanceService;
+    private readonly IAssetService _assetService;
 
     public DashboardController(
         IPersonRepository personRepository,
@@ -40,7 +42,9 @@ public class DashboardController : ControllerBase
         ITenantContext tenantContext,
         ITransactionRepository transactionRepository,
         IDashboardService dashboardService,
-        IDashboardRepository dashboardRepository)
+        IDashboardRepository dashboardRepository,
+        IGovernanceService governanceService,
+        IAssetService assetService)
     {
         _personRepository = personRepository;
         _invoiceRepository = invoiceRepository;
@@ -53,6 +57,8 @@ public class DashboardController : ControllerBase
         _transactionRepository = transactionRepository;
         _dashboardService = dashboardService;
         _dashboardRepository = dashboardRepository;
+        _governanceService = governanceService;
+        _assetService = assetService;
     }
 
     [HttpGet("admin/metrics")]
@@ -130,9 +136,124 @@ public class DashboardController : ControllerBase
         return Ok(ApiResponse<object>.SuccessResponse(new { TotalAdvanceCredits = amount, UnitsWithCredit = units }));
     }
 
+    [HttpGet("admin/overview")]
+    [Authorize(Policy = "RequireManagement")]
+    public async Task<IActionResult> GetAdminOverview([FromQuery] int? associationId = null)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var aid = associationId ?? _tenantContext.AssociationId;
+
+        // Parallel fetch all dashboard components
+        var metricsTask = GetAdminMetricsDataAsync(aid);
+        var membersCountTask = _dashboardRepository.GetTotalMembersAsync(tenantId, aid);
+        var committeeCountTask = _dashboardRepository.GetCommitteeCountAsync(tenantId, aid);
+        var revenue30DTask = _dashboardRepository.GetRevenue30DAsync(tenantId, aid);
+        var outstandingTask = _financeService.GetFinanceSummaryAsync(aid);
+        var advanceMoneyTask = _dashboardRepository.GetHeldAdvanceMoneyAsync(tenantId, aid);
+        var profileTask = _governanceService.GetProfileAsync(aid);
+        var committeeListTask = _governanceService.GetCommitteeMembersAsync(aid, true);
+        var meetingsTask = _governanceService.GetMeetingsAsync(aid);
+
+        await Task.WhenAll(
+            metricsTask, membersCountTask, committeeCountTask, 
+            revenue30DTask, outstandingTask, advanceMoneyTask,
+            profileTask, committeeListTask, meetingsTask);
+
+        var overview = new AdminDashboardOverview
+        {
+            Metrics = await metricsTask,
+            TotalMembers = await membersCountTask,
+            CommitteeCount = await committeeCountTask,
+            Revenue30D = await revenue30DTask,
+            NetOutstanding = (await outstandingTask).TotalUnpaid,
+            HeldAdvanceMoney = (await advanceMoneyTask).amount,
+            UnitsWithCredit = (await advanceMoneyTask).units,
+            Profile = await profileTask,
+            Committee = (await committeeListTask).ToList(),
+            UpcomingMeetings = (await meetingsTask).ToList()
+        };
+
+        return Ok(ApiResponse<AdminDashboardOverview>.SuccessResponse(overview));
+    }
+
+    private async Task<AssociationDashboardMetrics> GetAdminMetricsDataAsync(int associationId)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var membersTask = _personRepository.GetAllAsync(tenantId, associationId);
+        var invoicesTask = _invoiceRepository.GetAllAsync(tenantId, associationId);
+        var paymentsTask = _paymentRepository.GetByTenantIdAsync(tenantId, associationId);
+        var workOrdersTask = _workOrderRepository.GetAllAsync(tenantId, associationId);
+        var activityTask = _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
+        var finSummaryTask = _financeService.GetAssociationFinanceSummaryAsync(associationId, tenantId);
+
+        await Task.WhenAll(membersTask, invoicesTask, paymentsTask, workOrdersTask, activityTask, finSummaryTask);
+
+        return new AssociationDashboardMetrics
+        {
+            TotalMembers = (await membersTask).Count(),
+            TotalRevenueCollected = (await paymentsTask).Where(p => p.Status == "Paid" || p.Status == "Completed").Sum(p => p.Amount),
+            TotalOutstanding = (await finSummaryTask).TotalOutstanding,
+            TotalAdvanceCredits = (await finSummaryTask).TotalCredits,
+            UnitsWithCredit = (await finSummaryTask).UnitsWithCredit,
+            PendingWorkOrders = (await workOrdersTask).Count(w => w.Status != "Completed" && w.Status != "Closed"),
+            RecentActivity = (await activityTask).OrderByDescending(a => a.Timestamp).Take(5).ToList()
+        };
+    }
+
     [HttpGet("resident/metrics")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetResidentMetrics([FromQuery] int? assetId = null)
+    {
+        var metrics = await CalculateResidentMetricsAsync(assetId);
+        return Ok(ApiResponse<ResidentDashboardMetrics>.SuccessResponse(metrics));
+    }
+
+    [HttpGet("resident/overview")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> GetResidentOverview()
+    {
+        var tenantId = _tenantContext.TenantId;
+        var associationId = _tenantContext.AssociationId;
+        var userIdStr = User.FindFirst("UserId")?.Value;
+
+        if (!int.TryParse(userIdStr, out int userId))
+            return Unauthorized();
+
+        // 1. Fetch Occupancies First (Base dependency)
+        var occupancies = (await _peopleService.GetOccupancyByUserIdAsync(userId))
+            .Where(o => associationId == 0 || o.AssociationId == associationId)
+            .ToList();
+
+        var overview = new ResidentDashboardOverview { Occupancies = occupancies };
+        if (!occupancies.Any())
+            return Ok(ApiResponse<ResidentDashboardOverview>.SuccessResponse(overview));
+
+        // 2. Parallelize everything else
+        var assetIds = occupancies.Select(o => o.AssetId).ToList();
+        
+        var metricsTask = CalculateResidentMetricsAsync();
+        var invoicesTask = _financeService.GetInvoicesByAssetIdAsync(assetIds.First(), associationId); // Simplified for MVP: primary asset invoices
+        var balanceTask = _financeService.GetFinanceSummaryAsync(associationId, assetIds: assetIds);
+        var profileTask = _governanceService.GetProfileAsync(associationId);
+        Task<Asset>? unitTask = null;
+        if (occupancies.Count == 1)
+        {
+            unitTask = _assetService.GetByIdAsync(occupancies[0].AssetId);
+        }
+
+        await Task.WhenAll(metricsTask, invoicesTask, balanceTask, profileTask);
+        if (unitTask != null) await unitTask;
+
+        overview.Metrics = await metricsTask;
+        overview.RecentInvoices = (await invoicesTask).Take(50).ToList();
+        overview.MyBalance = (await balanceTask).TotalAdvanceCredits; // Summing total advance money
+        overview.Profile = await profileTask;
+        if (unitTask != null) overview.MyUnit = await unitTask;
+
+        return Ok(ApiResponse<ResidentDashboardOverview>.SuccessResponse(overview));
+    }
+
+    private async Task<ResidentDashboardMetrics> CalculateResidentMetricsAsync(int? assetId = null)
     {
         var tenantId = _tenantContext.TenantId;
         var associationId = _tenantContext.AssociationId;
@@ -148,7 +269,6 @@ public class DashboardController : ControllerBase
             if (int.TryParse(userIdStr, out int userId))
             {
                 var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
-                // SCOPE: Only include assets in the current association
                 var currentAssocOccupancies = occupancies
                     .Where(o => associationId == 0 || o.AssociationId == associationId)
                     .Select(o => o.AssetId);
@@ -156,10 +276,7 @@ public class DashboardController : ControllerBase
             }
         }
 
-        if (!assetIds.Any()) 
-        {
-            return Ok(ApiResponse<ResidentDashboardMetrics>.SuccessResponse(new ResidentDashboardMetrics()));
-        }
+        if (!assetIds.Any()) return new ResidentDashboardMetrics();
 
         var invoices = new List<Invoice>();
         var workOrders = new List<WorkOrder>();
@@ -177,11 +294,10 @@ public class DashboardController : ControllerBase
         decimal totalCredit = finSummary.TotalAdvanceCredits;
 
         var unpaidInvoices = invoices.Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        // SMART SUM: Amount (Principal) + all Fine items + any virtual items
         var totalBalanceDue = unpaidInvoices.Sum(i => i.Amount + 
             i.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount));
 
-        var metrics = new ResidentDashboardMetrics
+        return new ResidentDashboardMetrics
         {
             BalanceDue = totalBalanceDue,
             CreditAvailable = totalCredit,
@@ -189,7 +305,5 @@ public class DashboardController : ControllerBase
             PendingInvoices = unpaidInvoices.Count(),
             ActiveWorkOrders = workOrders.Count(w => w.Status != "Completed" && w.Status != "Closed")
         };
-
-        return Ok(ApiResponse<ResidentDashboardMetrics>.SuccessResponse(metrics));
     }
 }

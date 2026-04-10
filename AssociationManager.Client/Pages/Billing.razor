@@ -1,5 +1,5 @@
 @page "/billing"
-@attribute [Authorize(Policy = "RequireManagement")]
+@attribute [Authorize(Policy = "RequireResident")]
 @using AssociationManager.Client.Components.Billing
 @using AssociationManager.Client.Components.Base
 @using AssociationManager.Shared.Models
@@ -10,41 +10,48 @@
 @inject ApiService ApiService
 @inject ToastService _toastService
 
-<AuthorizeView Policy="RequireManagement">
-    <Authorized>
-        <div class="h-100 d-flex flex-column bg-white forced-text-dark">
-            <div class="flex-grow-1 d-flex overflow-hidden">
-                <!-- Sidebar: Recent/Payment Activity -->
-                <PaymentHistoryPanel />
+<div class="h-100 d-flex flex-column bg-white forced-text-dark">
+    <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
-                <!-- Main Content Area -->
-                <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
-                    <div class="premium-tab-container">
-                        <div class="premium-tab @(BillingState.ActiveTab == "invoices" ? "active" : "")" @onclick='() => BillingState.ActiveTab = "invoices"'>Invoices</div>
+    <div class="flex-grow-1 d-flex overflow-hidden">
+        <!-- Sidebar: Recent/Payment Activity -->
+        <PaymentHistoryPanel />
+
+        <!-- Main Content Area -->
+        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
+            <div class="premium-tab-container-wrapper px-4 pt-3">
+                <div class="premium-tab-container border-bottom-0 pb-0">
+                    <div class="premium-tab @(BillingState.ActiveTab == "invoices" ? "active" : "")" @onclick='() => BillingState.ActiveTab = "invoices"'>Invoices</div>
+                    <AuthorizeView Policy="RequireManagement">
                         <div class="premium-tab @(BillingState.ActiveTab == "generation" ? "active" : "")" @onclick='() => BillingState.ActiveTab = "generation"'>Batch Generation</div>
-                    </div>
-
-                    <div class="flex-grow-1 overflow-auto p-4 custom-scrollbar">
-                        @if (BillingState.ActiveTab == "invoices")
-                        {
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="mb-0 fw-bold">All Association Invoices</h5>
-                                <button class="btn btn-sm btn-vscode px-3" @onclick="() => BillingState.ShowCreateInvoiceModal = true">
-                                    <i class="bi bi-plus-circle me-1"></i> Manual Invoice
-                                </button>
-                            </div>
-                            <InvoiceGrid />
-                        }
-                        else
-                        {
-                            <BatchGenerator />
-                        }
-                    </div>
+                    </AuthorizeView>
                 </div>
             </div>
+
+            <div class="flex-grow-1 overflow-auto p-4 custom-scrollbar">
+                @if (BillingState.ActiveTab == "invoices")
+                {
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="mb-0 fw-bold">Financial History</h5>
+                        <AuthorizeView Policy="RequireManagement">
+                            <button class="btn btn-sm btn-vscode px-3" @onclick="() => BillingState.ShowCreateInvoiceModal = true">
+                                <i class="bi bi-plus-circle me-1"></i> Manual Invoice
+                            </button>
+                        </AuthorizeView>
+                    </div>
+                    <InvoiceGrid @ref="_invoiceGrid"
+                                 OnInitiatePayment="OnInvoicePayNow" 
+                                 OnPayWithAdvance="OnPayWithAdvance" 
+                                 OnDownloadInvoice="OnDownloadPdf" />
+                }
+                else
+                {
+                    <BatchGenerator />
+                }
+            </div>
         </div>
-    </Authorized>
-</AuthorizeView>
+    </div>
+</div>
 
 @if (BillingState.ShowCreateInvoiceModal)
 {
@@ -62,6 +69,9 @@
 }
 
 @code {
+    private RazorpayCheckout _razorpayCheckout = default!;
+    private InvoiceGrid _invoiceGrid = default!;
+
     protected override async Task OnInitializedAsync()
     {
         RegisterStateService(BillingState);
@@ -82,5 +92,45 @@
         }
     }
 
+    private async Task OnInvoicePayNow(Invoice invoice)
+    {
+        var totalAmount = invoice.Amount + invoice.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount);
+        
+        try
+        {
+            var request = new RazorpayOrderRequest { Amount = totalAmount, Currency = "INR", InvoiceId = invoice.InvoiceId, AssetId = invoice.AssetId, Description = $"Payment for Invoice #{invoice.InvoiceId}" };
+            var response = await ApiService.PostAsync<RazorpayOrderRequest, RazorpayOrderResponse>("api/payments/create-order", request);
+            if (response != null)
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                await _razorpayCheckout.InitializePayment(response, authState.User.Identity?.Name ?? "Resident", request.Description, authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", "");
+            }
+        }
+        catch (Exception ex) { _toastService.Notify(new(ToastType.Danger, $"Payment Failed: {ex.Message}")); }
+    }
 
+    private async Task OnPayWithAdvance(Invoice invoice)
+    {
+        if (await BillingState.SettleInvoiceWithAdvanceAsync(invoice.InvoiceId))
+        {
+            await _invoiceGrid.RefreshAsync();
+        }
+    }
+
+    private async Task OnDownloadPdf(Invoice invoice)
+    {
+        await BillingState.DownloadInvoicePdfAsync(invoice.InvoiceId);
+    }
+
+    private async Task OnPaymentProcessed(string paymentId)
+    {
+        _toastService.Notify(new(ToastType.Success, $"Payment recorded successfully! ID: {paymentId}"));
+        await BillingState.InitializeAsync();
+        await _invoiceGrid.RefreshAsync();
+    }
+
+    private void OnPaymentFailed()
+    {
+        _toastService.Notify(new(ToastType.Danger, "Payment failed or was cancelled."));
+    }
 }

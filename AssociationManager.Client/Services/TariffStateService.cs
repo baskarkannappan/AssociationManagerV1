@@ -47,16 +47,61 @@ namespace AssociationManager.Client.Services
         
         public string GroupFilter { get; set; } = "";
         public string AssetFilter { get; set; } = "";
-        public string ActiveTab { get; set; } = "layers";
-        public bool ShowWorkbenchOnMobile { get; set; }
+        private string _activeTab = "layers";
+        public string ActiveTab 
+        { 
+            get => _activeTab; 
+            set { _activeTab = value; NotifyStateChanged(); } 
+        }
+
+        private bool _showWorkbenchOnMobile;
+        public bool ShowWorkbenchOnMobile 
+        { 
+            get => _showWorkbenchOnMobile; 
+            set { _showWorkbenchOnMobile = value; NotifyStateChanged(); } 
+        }
         
         // Modal State
-        public bool ShowGroupModal { get; set; }
-        public bool ShowLayerModal { get; set; }
-        public bool ShowBulkAssignModal { get; set; }
+        private bool _showGroupModal;
+        public bool ShowGroupModal 
+        { 
+            get => _showGroupModal; 
+            set { _showGroupModal = value; NotifyStateChanged(); } 
+        }
+
+        private bool _showLayerModal;
+        public bool ShowLayerModal 
+        { 
+            get => _showLayerModal; 
+            set { _showLayerModal = value; NotifyStateChanged(); } 
+        }
+
+        private bool _showBulkAssignModal;
+        public bool ShowBulkAssignModal 
+        { 
+            get => _showBulkAssignModal; 
+            set { _showBulkAssignModal = value; NotifyStateChanged(); } 
+        }
         
         public TariffGroup NewGroup { get; set; } = new();
         public TariffLayer NewLayer { get; set; } = new();
+
+        public void ToggleGroupModal(bool show)
+        {
+            if (show) NewGroup = new();
+            ShowGroupModal = show;
+        }
+
+        public void ToggleLayerModal(bool show)
+        {
+            if (show) NewLayer = new();
+            ShowLayerModal = show;
+        }
+
+        public void ToggleBulkAssignModal(bool show)
+        {
+            ShowBulkAssignModal = show;
+        }
 
         public bool ParseQueryParameters()
         {
@@ -195,6 +240,13 @@ namespace AssociationManager.Client.Services
         public async Task CreateGroupAsync()
         {
             if (string.IsNullOrWhiteSpace(NewGroup.Name)) return;
+
+            // Ensure AssociationId is explicitly set if in association scope
+            if (Scope == "association")
+            {
+                NewGroup.AssociationId = _tenantContext.AssociationId;
+            }
+
             var success = await _api.PostAsync("api/tariff/groups", NewGroup);
             if (success)
             {
@@ -202,18 +254,30 @@ namespace AssociationManager.Client.Services
                 ShowGroupModal = false;
                 await LoadGroupsAsync();
             }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to create billing group. Permissions or constraints might be blocking this action."));
+            }
         }
 
         public async Task CreateLayerAsync()
         {
             if (string.IsNullOrWhiteSpace(NewLayer.Name) || SelectedGroup == null) return;
             NewLayer.TariffGroupId = SelectedGroup.TariffGroupId;
+
+            // Ensure AssociationId is inherited from Group or Context
+            NewLayer.AssociationId = SelectedGroup.AssociationId ?? _tenantContext.AssociationId;
+
             var success = await _api.PostAsync("api/tariff/layers", NewLayer);
             if (success)
             {
                 _toastService.Notify(new(ToastType.Success, "Tariff layer added."));
                 ShowLayerModal = false;
                 await SelectGroupAsync(SelectedGroup);
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to create tariff layer."));
             }
         }
 

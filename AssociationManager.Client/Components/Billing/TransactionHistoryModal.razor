@@ -1,5 +1,6 @@
 @using AssociationManager.Client.Services
 @using AssociationManager.Shared.Models
+@inherits StatefulComponentBase
 @inject BillingStateService BillingService
 
 <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
@@ -87,6 +88,11 @@
 </div>
 
 @code {
+    protected override void OnInitialized()
+    {
+        RegisterStateService(BillingService);
+    }
+
     private void OnCloseClick()
     {
         BillingService.ShowTransactionHistory = false;

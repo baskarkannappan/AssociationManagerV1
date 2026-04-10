@@ -18,9 +18,10 @@ public interface IFinanceService
     Task<bool> DeleteInvoiceAsync(int id, int? associationId = null);
     Task<bool> CommitBatchAsync(int batchId);
     Task<bool> AdjustInvoiceLineItemsAsync(int invoiceId, IEnumerable<InvoiceLineItem> items);
+    Task<IEnumerable<PaymentHistoryItem>> GetInvoicePaymentHistoryAsync(int invoiceId);
 
     // Payment Operations
-    Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null);
+    Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null, IEnumerable<int>? assetIds = null);
     Task<int> CreatePaymentAsync(Payment payment);
 
     // Ledger & Transactions

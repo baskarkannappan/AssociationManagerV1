@@ -235,9 +235,16 @@ public class FinanceService : IFinanceService
         return await _invoiceRepository.DeleteAsync(id, CurrentTenantId, associationId ?? CurrentAssociationId);
     }
 
-    public async Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null)
+    public async Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null, IEnumerable<int>? assetIds = null)
     {
-        return await _paymentRepository.GetByTenantIdAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
+        var payments = await _paymentRepository.GetByTenantIdAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
+        
+        if (assetIds != null && assetIds.Any())
+        {
+            return payments.Where(p => p.AssetId.HasValue && assetIds.Contains(p.AssetId.Value));
+        }
+        
+        return payments;
     }
 
     public async Task<int> CreatePaymentAsync(Payment payment)
@@ -751,5 +758,47 @@ public class FinanceService : IFinanceService
 
         await _auditService.LogAsync($"Adjusted Draft Invoice #{invoiceId} Line Items", "Invoice", invoiceId, assetId: invoice.AssetId);
         return true;
+    }
+
+    public async Task<IEnumerable<PaymentHistoryItem>> GetInvoicePaymentHistoryAsync(int invoiceId)
+    {
+        var history = new List<PaymentHistoryItem>();
+
+        // 1. Fetch Ledger Transactions (Settlements)
+        var transactions = await _ledgerService.GetTransactionsByInvoiceIdAsync(invoiceId);
+        foreach (var tx in transactions.Where(t => t.Type == "Credit" && t.Category == "Credit Settlement"))
+        {
+            history.Add(new PaymentHistoryItem
+            {
+                CreatedDate = tx.TransactionDate,
+                Amount = tx.Amount,
+                Status = "Success",
+                ReferenceId = $"SETTLE-{tx.TransactionId}",
+                PaymentMethod = "Advance Credit",
+                Method = "Internal"
+            });
+        }
+
+        // 2. Fetch Gateway Payments
+        // We use a broader fetch because we don't have a specific GetByInvoiceId in PaymentRepository yet, 
+        // but we can filter the association's payments for efficiency.
+        var associationId = _tenantContext.AssociationId;
+        var allPayments = await _paymentRepository.GetByTenantIdAsync(_tenantContext.TenantId, associationId);
+        var invoicePayments = allPayments.Where(p => p.InvoiceId == invoiceId);
+
+        foreach (var p in invoicePayments)
+        {
+            history.Add(new PaymentHistoryItem
+            {
+                CreatedDate = p.CreatedDate,
+                Amount = p.Amount,
+                Status = p.Status,
+                ReferenceId = p.GatewayReference ?? $"PAY-{p.PaymentId}",
+                PaymentMethod = "Razorpay",
+                Method = "Card/UPI/NetBanking"
+            });
+        }
+
+        return history.OrderByDescending(h => h.CreatedDate);
     }
 }

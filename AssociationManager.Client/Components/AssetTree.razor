@@ -3,8 +3,17 @@
 <div class="asset-tree-pane custom-scrollbar">
     <div class="tree-header d-flex justify-content-between align-items-center">
         <span class="header-text">EXPLORER</span>
-        <div class="d-flex gap-2">
-            <button class="btn btn-link p-0 text-secondary" style="font-size: 14px;" @onclick="OnCollapse">
+        <div class="d-flex align-items-center gap-2">
+            @if (CanManage)
+            {
+                <button class="btn btn-link p-0 text-vscode-accent" title="Add Root Asset" @onclick="OnAddRoot">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+                <button class="btn btn-link p-0 text-vscode-accent" title="Bulk Create" @onclick="OnBulkCreate">
+                    <i class="bi bi-cloud-upload"></i>
+                </button>
+            }
+            <button class="btn btn-link p-0 text-secondary ms-1" style="font-size: 14px;" @onclick="OnCollapse">
                 <i class="bi bi-layout-sidebar-inset-reverse"></i>
             </button>
         </div>
@@ -91,9 +100,12 @@
     [Parameter] public List<Asset>? Hierarchy { get; set; }
     [Parameter] public Asset? SelectedAsset { get; set; }
     [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
+    [Parameter] public bool CanManage { get; set; }
     [Parameter] public EventCallback<Asset> OnSelected { get; set; }
     [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
     [Parameter] public EventCallback OnCollapse { get; set; }
+    [Parameter] public EventCallback OnAddRoot { get; set; }
+    [Parameter] public EventCallback OnBulkCreate { get; set; }
 
     private string _searchTerm = "";
 

@@ -40,6 +40,11 @@ public class LedgerService : ILedgerService
         return await _transactionRepository.GetByAssetIdAsync(assetId, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
+    public async Task<IEnumerable<Transaction>> GetTransactionsByInvoiceIdAsync(int invoiceId)
+    {
+        return await _transactionRepository.GetByInvoiceIdAsync(invoiceId, _tenantContext.TenantId, _tenantContext.AssociationId);
+    }
+
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
     {
         return await _transactionRepository.GetByTenantIdAsync(_tenantContext.TenantId, _tenantContext.AssociationId, start, end);

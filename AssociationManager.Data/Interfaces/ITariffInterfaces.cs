@@ -32,5 +32,6 @@ public interface ITransactionRepository
     Task<long> CreateTransactionAsync(Transaction transaction);
     Task<IEnumerable<Transaction>> GetByAssetIdAsync(int? assetId, int tenantId, int associationId);
     Task<IEnumerable<Transaction>> GetByTenantIdAsync(int tenantId, int associationId, DateTime? startDate = null, DateTime? endDate = null);
+    Task<IEnumerable<Transaction>> GetByInvoiceIdAsync(int invoiceId, int tenantId, int associationId);
     Task<decimal> GetBalanceByAssetIdAsync(int? assetId, int tenantId, int associationId);
 }
