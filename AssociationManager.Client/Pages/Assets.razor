@@ -17,7 +17,7 @@
     <Authorized>
         <div class="assets-page h-100 d-flex flex-column bg-white forced-text-dark">
             <div class="premium-page-header border-bottom px-4 py-3 mb-0">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                     <div>
                         <h1 class="premium-page-title mb-0 d-flex align-items-center gap-2">
                             <i class="bi bi-diagram-3 me-1"></i> Asset Registry
@@ -26,20 +26,20 @@
                     @if (_canAddGlobalAssets)
                     {
                         <div class="actions d-flex gap-2">
-                            <button class="btn-vscode" @onclick="() => _bulkModal.ShowAsync()">
-                                <i class="bi bi-grid-3x3-gap"></i> Select from Template
+                            <button class="btn-vscode btn-sm flex-grow-1 flex-md-grow-0" @onclick="() => _bulkModal.ShowAsync()">
+                                <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Select from Template</span><span class="d-inline d-sm-none">Template</span>
                             </button>
-                            <button class="btn-vscode" @onclick="CreateRootProperty">
-                                <i class="bi bi-plus"></i> New Property
+                            <button class="btn-vscode btn-sm flex-grow-1 flex-md-grow-0" @onclick="CreateRootProperty">
+                                <i class="bi bi-plus"></i> <span class="d-none d-sm-inline">New Property</span><span class="d-inline d-sm-none">Property</span>
                             </button>
                         </div>
                     }
                 </div>
             </div>
 
-            <div class="flex-grow-1 d-flex overflow-hidden">
+            <div class="flex-grow-1 d-flex overflow-hidden @(_showDetailOnMobile ? "mobile-detail-active" : "")">
                 <!-- Asset Tree Pane -->
-                <div class="sidebar-wrapper @(_isSidebarCollapsed ? "collapsed" : "")">
+                <div class="asset-tree-wrapper @(_isSidebarCollapsed ? "collapsed" : "") @(_showDetailOnMobile ? "d-none d-lg-block" : "w-explorer")" style="flex-shrink: 0;">
                     <AssetTree Hierarchy="_hierarchy" 
                                SelectedAsset="_selectedAsset" 
                                ExpandedIds="_expandedIds" 
@@ -49,57 +49,37 @@
                 </div>
 
                 <!-- Detail/Editor Pane -->
-                <div class="detail-pane flex-grow-1 p-4 custom-scrollbar forced-text-dark" style="background: #fdfdfd;">
-                    @if (_isSidebarCollapsed)
-                    {
-                        <div class="mb-3">
-                            <button class="btn btn-sm btn-light border d-flex align-items-center gap-2 text-secondary" 
-                                    @onclick="() => _isSidebarCollapsed = false">
-                                <i class="bi bi-layout-sidebar-inset"></i>
-                                <span class="small font-monospace fw-bold" style="font-size: 10px;">EXPAND EXPLORER</span>
-                            </button>
-                        </div>
-                    }
+                <div class="detail-pane flex-grow-1 custom-scrollbar forced-text-dark @(_showDetailOnMobile ? "d-block" : "d-none d-lg-block")" style="background: #ffffff;">
                     @if (_selectedAsset != null)
                     {
-                        <div class="premium-property-card mx-auto" style="max-width: 900px; border: 1px solid #e2e8f0;">
-                            <div class="d-flex align-items-center gap-3 mb-4">
-                                <div class="premium-header-icon @GetIconColorClass(_selectedAsset.AssetType)">
-                                    <i class="bi @GetIconClass(_selectedAsset.AssetType)"></i>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <h3 class="mb-0 fw-bold">@(_isNew ? "Create New" : _selectedAsset.Name)</h3>
-                                        @if (!_isNew)
-                                        {
-                                            <span class="badge bg-opacity-10 bg-primary text-primary border border-primary border-opacity-20 px-2">ID: @_selectedAsset.AssetId</span>
-                                        }
-                                    </div>
-                                    <div class="text-secondary small d-flex align-items-center gap-2">
-                                        <i class="bi bi-tag-fill opacity-50"></i>
-                                        <span>@_selectedAsset.AssetType</span>
-                                        @if (_selectedAsset.ParentId != null)
-                                        {
-                                            <span class="mx-1 opacity-30">|</span>
-                                            <i class="bi bi-arrow-return-right opacity-50"></i>
-                                            <span>Sub-component of Registry</span>
-                                        }
-                                    </div>
-                                </div>
+                        <div class="premium-detail-header">
+                            <div class="premium-breadcrumb">
+                                PROPERTIES <i class="bi bi-chevron-right"></i> @(_selectedAsset.Name.ToUpper())
                             </div>
-
-                            <div class="vscode-tabs mb-3 border-bottom">
-                                <div class="vscode-tab @(_activeTab == "details" ? "active" : "")" @onclick='() => _activeTab = "details"'>Details</div>
-                                @if (!_isNew && IsUnitType(_selectedAsset.AssetType))
+                            <div class="d-flex align-items-center gap-3">
+                                <h1 class="mb-0 fw-bold" style="font-size: 28px; letter-spacing: -0.5px;">@(_isNew ? "Initialize New Asset" : _selectedAsset.Name)</h1>
+                                @if (!_isNew)
                                 {
-                                    <div class="vscode-tab @(_activeTab == "occupants" ? "active" : "")" @onclick='() => _activeTab = "occupants"'>Occupants</div>
-                                    <div class="vscode-tab @(_activeTab == "vehicles" ? "active" : "")" @onclick='() => _activeTab = "vehicles"'>Vehicles</div>
-                                    <div class="vscode-tab @(_activeTab == "pets" ? "active" : "")" @onclick='() => _activeTab = "pets"'>Pets</div>
-                                    <div class="vscode-tab @(_activeTab == "announcements" ? "active" : "")" @onclick='() => _activeTab = "announcements"'>Announcements</div>
-                                    <div class="vscode-tab @(_activeTab == "history" ? "active" : "")" @onclick='() => _activeTab = "history"'>History</div>
+                                    <span class="modern-badge modern-badge-alt">@_selectedAsset.AssetType</span>
+                                    <span class="modern-badge modern-badge-outline ms-auto">ID: @_selectedAsset.AssetId</span>
                                 }
                             </div>
+                        </div>
 
+                        <div class="premium-tab-container">
+                            <div class="premium-tab @(_activeTab == "details" ? "active" : "")" @onclick='() => _activeTab = "details"'>Details</div>
+                            @if (!_isNew)
+                            {
+                                <div class="premium-tab @(_activeTab == "governance" ? "active" : "")" @onclick='() => _activeTab = "governance"'>Governance</div>
+                                <div class="premium-tab @(_activeTab == "finance" ? "active" : "")" @onclick='() => _activeTab = "finance"'>Finance</div>
+                                <div class="premium-tab @(_activeTab == "rules" ? "active" : "")" @onclick='() => _activeTab = "rules"'>Rules</div>
+                                <div class="premium-tab @(_activeTab == "task" ? "active" : "")" @onclick='() => _activeTab = "task"'>Task</div>
+                                <div class="premium-tab @(_activeTab == "assignments" ? "active" : "")" @onclick='() => _activeTab = "assignments"'>Asset Assignments</div>
+                                <div class="premium-tab @(_activeTab == "metrics" ? "active" : "")" @onclick='() => _activeTab = "metrics"'>Metrics</div>
+                            }
+                        </div>
+
+                        <div class="p-0">
                             @if (_activeTab == "details" || _isNew)
                             {
                                 <AssetDetailForm Asset="_selectedAsset" 
@@ -109,54 +89,51 @@
                                                 OnAddChild="CreateChild" 
                                                 OnDelete="HandleDelete" />
                             }
-                            else if (_activeTab == "occupants")
+                            else if (_activeTab == "governance")
                             {
-                                <OccupancyList AssetId="_selectedAsset.AssetId" 
-                                               Occupants="_occupants" 
-                                               OnDelete="RemoveOccupant" 
-                                               OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
-                            }
-                            else if (_activeTab == "vehicles")
-                            {
-                                <VehicleList AssetId="_selectedAsset.AssetId" 
-                                             Vehicles="_vehicles" 
-                                             OnDelete="RemoveVehicle" 
-                                             OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
-                            }
-                            else if (_activeTab == "pets")
-                            {
-                                <PetList AssetId="_selectedAsset.AssetId" 
-                                         Pets="_pets" 
-                                         OnDelete="RemovePet" 
-                                         OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
-                            }
-                            else if (_activeTab == "announcements")
-                            {
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="fw-bold small mb-0">Unit Announcements</h6>
-                                    @if (_canManageAssets)
-                                    {
-                                        <button class="btn btn-sm btn-vscode" @onclick="() => _assetBroadcastList?.ShowCreateModal()">
-                                            <i class="bi bi-plus"></i> Post to Unit
-                                        </button>
-                                    }
+                                <div class="p-4">
+                                    <OccupancyList AssetId="_selectedAsset.AssetId" 
+                                                   Occupants="_occupants" 
+                                                   OnDelete="RemoveOccupant" 
+                                                   OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
                                 </div>
-                                <BroadcastList @ref="_assetBroadcastList" AssetId="_selectedAsset.AssetId" />
                             }
-                            else if (_activeTab == "history")
+                            else if (_activeTab == "finance")
                             {
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <h6 class="fw-bold small mb-2">Service Requests</h6>
-                                        <WorkOrderList WorkOrders="_workOrders" />
+                                <div class="p-4">
+                                    <InvoiceList Invoices="_invoices" 
+                                                 CreditAvailable="_assetMetrics?.CreditAvailable ?? 0"
+                                                 OnPayNow="OnInvoicePayNow" 
+                                                 OnPayWithAdvance="OnPayWithAdvance" />
+                                </div>
+                            }
+                            else if (_activeTab == "rules")
+                            {
+                                <div class="p-4 text-center py-5 opacity-50">
+                                    <i class="bi bi-shield-check display-1"></i>
+                                    <p>Security Rules & Automation Policies</p>
+                                </div>
+                            }
+                            else if (_activeTab == "task")
+                            {
+                                <div class="p-4">
+                                    <WorkOrderList WorkOrders="_workOrders" />
+                                </div>
+                            }
+                            else if (_activeTab == "assignments")
+                            {
+                                <div class="p-4">
+                                    <div class="row g-3">
+                                        <div class="col-md-6"><VehicleList AssetId="_selectedAsset.AssetId" Vehicles="_vehicles" OnDelete="RemoveVehicle" OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" /></div>
+                                        <div class="col-md-6"><PetList AssetId="_selectedAsset.AssetId" Pets="_pets" OnDelete="RemovePet" OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" /></div>
                                     </div>
-                                    <div class="col-12 pt-3 border-top">
-                                        <h6 class="fw-bold small mb-2">Billing History</h6>
-                                        <InvoiceList Invoices="_invoices" 
-                                                     CreditAvailable="_assetMetrics?.CreditAvailable ?? 0"
-                                                     OnPayNow="OnInvoicePayNow" 
-                                                     OnPayWithAdvance="OnPayWithAdvance" />
-                                    </div>
+                                </div>
+                            }
+                            else if (_activeTab == "metrics")
+                            {
+                                <div class="p-4 text-center py-5 opacity-50">
+                                    <i class="bi bi-graph-up display-1"></i>
+                                    <p>Performance & Resource Consumption Metrics</p>
                                 </div>
                             }
                         </div>
@@ -165,7 +142,7 @@
                     {
                         <div class="h-100 d-flex flex-column align-items-center justify-content-center text-muted">
                             <i class="bi bi-diagram-3" style="font-size: 4rem; opacity: 0.1;"></i>
-                            <p class="mt-3">Select an asset to view details or create a new one.</p>
+                            <p class="mt-3">Select an asset from the explorer to begin management.</p>
                         </div>
                     }
                 </div>
@@ -190,7 +167,7 @@
     .vscode-tabs .vscode-tab:hover { background: #e8e8e8; }
     
     .sidebar-wrapper {
-        width: 280px;
+        width: 240px;
         transition: width 0.3s ease, margin-left 0.3s ease;
         overflow: hidden;
         background: #f1f5f9;
@@ -201,6 +178,13 @@
         width: 0;
         margin-left: -1px;
     }
+
+    @@media (max-width: 991px) {
+        .sidebar-wrapper:not(.collapsed) {
+            width: 100%;
+        }
+        .w-lg-280 { width: 100% !important; }
+    }
 </style>
 
 @code {
@@ -209,6 +193,7 @@
     private bool _isNew;
     private bool _isResident;
     private string _activeTab = "details";
+    private bool _showDetailOnMobile;
     private bool _isSidebarCollapsed;
     private HashSet<int> _expandedIds = new();
 
@@ -220,7 +205,6 @@
     private IEnumerable<Invoice>? _invoices;
     private ResidentDashboardMetrics? _assetMetrics;
 
-    private BroadcastList? _assetBroadcastList;
     private BulkCreateModal _bulkModal = default!;
     private RazorpayCheckout _razorpayCheckout = default!;
     private int? _currentlyPayingInvoiceId;
@@ -279,6 +263,7 @@
         _selectedAsset = asset;
         _isNew = false;
         _activeTab = "details";
+        _showDetailOnMobile = true;
         
         if (IsUnitType(asset.AssetType))
         {
@@ -309,9 +294,10 @@
 
     private void CreateRootProperty()
     {
-        _selectedAsset = new Asset { AssetType = AssetType.Property };
+        _selectedAsset = new Asset { AssetType = AssociationManager.Shared.Enums.AssetType.Property };
         _isNew = true;
         _activeTab = "details";
+        _showDetailOnMobile = true;
     }
 
     private void CreateChild()
@@ -325,6 +311,7 @@
         };
         _isNew = true;
         _activeTab = "details";
+        _showDetailOnMobile = true;
     }
 
     private async Task HandleSave()
@@ -495,37 +482,37 @@
         }
     }
 
-    private bool IsUnitType(AssetType type) => type == AssetType.Unit || type == AssetType.Villa;
+    private bool IsUnitType(AssociationManager.Shared.Enums.AssetType type) => type == AssociationManager.Shared.Enums.AssetType.Unit || type == AssociationManager.Shared.Enums.AssetType.Villa;
 
-    private string GetIconClass(AssetType type) => type switch
+    private string GetIconClass(AssociationManager.Shared.Enums.AssetType type) => type switch
     {
-        AssetType.Property => "bi-geo-alt",
-        AssetType.Building => "bi-building",
-        AssetType.Floor => "bi-layers",
-        AssetType.Unit => "bi-door-closed",
-        AssetType.Villa => "bi-house-heart",
-        AssetType.CommonArea => "bi-tree",
-        AssetType.Amenity => "bi-water",
-        AssetType.SecurityGate => "bi-shield-lock",
+        AssociationManager.Shared.Enums.AssetType.Property => "bi-geo-alt",
+        AssociationManager.Shared.Enums.AssetType.Building => "bi-building",
+        AssociationManager.Shared.Enums.AssetType.Floor => "bi-layers",
+        AssociationManager.Shared.Enums.AssetType.Unit => "bi-door-closed",
+        AssociationManager.Shared.Enums.AssetType.Villa => "bi-house-heart",
+        AssociationManager.Shared.Enums.AssetType.CommonArea => "bi-tree",
+        AssociationManager.Shared.Enums.AssetType.Amenity => "bi-water",
+        AssociationManager.Shared.Enums.AssetType.SecurityGate => "bi-shield-lock",
         _ => "bi-box"
     };
 
-    private string GetIconColorClass(AssetType type) => type switch
+    private string GetIconColorClass(AssociationManager.Shared.Enums.AssetType type) => type switch
     {
-        AssetType.Property => "asset-icon-property",
-        AssetType.Building => "asset-icon-building",
-        AssetType.Floor => "asset-icon-floor",
-        AssetType.Unit => "asset-icon-unit",
-        AssetType.Villa => "asset-icon-villa",
-        AssetType.CommonArea => "asset-icon-common",
+        AssociationManager.Shared.Enums.AssetType.Property => "asset-icon-property",
+        AssociationManager.Shared.Enums.AssetType.Building => "asset-icon-building",
+        AssociationManager.Shared.Enums.AssetType.Floor => "asset-icon-floor",
+        AssociationManager.Shared.Enums.AssetType.Unit => "asset-icon-unit",
+        AssociationManager.Shared.Enums.AssetType.Villa => "asset-icon-villa",
+        AssociationManager.Shared.Enums.AssetType.CommonArea => "asset-icon-common",
         _ => ""
     };
 
-    private AssetType GetDefaultChildType(AssetType parentType) => parentType switch
+    private AssociationManager.Shared.Enums.AssetType GetDefaultChildType(AssociationManager.Shared.Enums.AssetType parentType) => parentType switch
     {
-        AssetType.Property => AssetType.Building,
-        AssetType.Building => AssetType.Floor,
-        AssetType.Floor => AssetType.Unit,
-        _ => AssetType.Unit
+        AssociationManager.Shared.Enums.AssetType.Property => AssociationManager.Shared.Enums.AssetType.Building,
+        AssociationManager.Shared.Enums.AssetType.Building => AssociationManager.Shared.Enums.AssetType.Floor,
+        AssociationManager.Shared.Enums.AssetType.Floor => AssociationManager.Shared.Enums.AssetType.Unit,
+        _ => AssociationManager.Shared.Enums.AssetType.Unit
     };
 }

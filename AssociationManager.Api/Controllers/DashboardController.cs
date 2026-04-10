@@ -174,7 +174,7 @@ public class DashboardController : ControllerBase
         var metrics = new ResidentDashboardMetrics
         {
             BalanceDue = totalBalanceDue,
-            WalletBalance = totalCredit,
+            CreditAvailable = totalCredit,
             NetPosition = totalCredit - totalBalanceDue,
             PendingInvoices = unpaidInvoices.Count(),
             ActiveWorkOrders = workOrders.Count(w => w.Status != "Completed" && w.Status != "Closed")

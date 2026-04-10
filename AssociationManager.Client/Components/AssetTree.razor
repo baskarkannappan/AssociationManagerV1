@@ -3,9 +3,23 @@
 <div class="asset-tree-pane custom-scrollbar">
     <div class="tree-header d-flex justify-content-between align-items-center">
         <span class="header-text">EXPLORER</span>
-        <button class="btn btn-link p-0 text-secondary" style="font-size: 14px;" @onclick="OnCollapse">
-            <i class="bi bi-layout-sidebar-inset-reverse"></i>
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-link p-0 text-secondary" style="font-size: 14px;" @onclick="OnCollapse">
+                <i class="bi bi-layout-sidebar-inset-reverse"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="explorer-search-container">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute" style="left: 10px; top: 7px; font-size: 11px; opacity: 0.5;"></i>
+            <input type="text" 
+                   class="explorer-search-input" 
+                   placeholder="Filter assets..." 
+                   style="padding-left: 28px;"
+                   @bind="_searchTerm" 
+                   @bind:event="oninput" />
+        </div>
     </div>
     
     <div class="tree-content">
@@ -26,14 +40,15 @@
         else
         {
             <div class="tree-container">
-                @foreach (var root in Hierarchy)
+                @foreach (var root in GetFilteredHierarchy())
                 {
                     <AssetTreeNode Asset="root" 
                                    Level="0"
                                    OnSelected="OnSelected" 
                                    SelectedAsset="SelectedAsset"
                                    ExpandedIds="ExpandedIds"
-                                   OnToggleExpand="OnToggleExpand" />
+                                   OnToggleExpand="OnToggleExpand"
+                                   SearchTerm="@_searchTerm" />
                 }
             </div>
         }
@@ -79,4 +94,55 @@
     [Parameter] public EventCallback<Asset> OnSelected { get; set; }
     [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
     [Parameter] public EventCallback OnCollapse { get; set; }
+
+    private string _searchTerm = "";
+
+    private List<Asset> GetFilteredHierarchy()
+    {
+        if (Hierarchy == null) return new();
+        if (string.IsNullOrWhiteSpace(_searchTerm)) return Hierarchy;
+        
+        return Hierarchy.Select(a => FilterAsset(a, _searchTerm))
+                        .Where(a => a != null)
+                        .Cast<Asset>()
+                        .ToList();
+    }
+
+    private Asset? FilterAsset(Asset asset, string term)
+    {
+        // Recursively filter children first
+        var filteredChildren = asset.Children
+            .Select(c => FilterAsset(c, term))
+            .Where(c => c != null)
+            .Cast<Asset>()
+            .ToList();
+
+        // If name matches OR any child matches, keep this asset
+        if (asset.Name.Contains(term, StringComparison.OrdinalIgnoreCase) || filteredChildren.Any())
+        {
+            var clone = new Asset 
+            {
+                AssetId = asset.AssetId,
+                ParentId = asset.ParentId,
+                TenantId = asset.TenantId,
+                AssociationId = asset.AssociationId,
+                Name = asset.Name,
+                Description = asset.Description,
+                AssetType = asset.AssetType,
+                MetadataJson = asset.MetadataJson,
+                IsActive = asset.IsActive,
+                Children = filteredChildren
+            };
+            
+            // Auto-expand if children match
+            if (filteredChildren.Any() && !string.IsNullOrWhiteSpace(term))
+            {
+                ExpandedIds.Add(asset.AssetId);
+            }
+            
+            return clone;
+        }
+
+        return null;
+    }
 }

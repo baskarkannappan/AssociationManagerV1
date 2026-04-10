@@ -8,24 +8,36 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
-<div class="premium-page-header border-bottom px-4 py-3 mb-0">
-    <div class="d-flex align-items-center gap-2">
-        <h1 class="premium-page-title mb-0">
-            <i class="bi bi-wallet2 me-2 opacity-50"></i>
-            @(_scope == "tenant" ? "Corporate Tariff Management" : "Association Tariff Management")
-        </h1>
-    </div>
-</div>
+<AuthorizeView Policy="RequireFinanceManager">
+    <Authorized>
+        <div class="h-100 d-flex flex-column bg-white forced-text-dark">
+            <div class="premium-detail-header border-bottom">
+                <div class="premium-breadcrumb">
+                    BILLING <i class="bi bi-chevron-right"></i> TARIFF MANAGEMENT
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <h1 class="mb-0 fw-bold" style="font-size: 28px; letter-spacing: -0.5px;">
+                        @(_scope == "tenant" ? "Corporate Tariffs" : "Association Tariffs")
+                    </h1>
+                </div>
+            </div>
 
-<div class="row g-0 flex-grow-1" style="height: calc(100vh - 41px); overflow: hidden;">
-    <!-- Groups Sidebar -->
-    <div class="col-md-3 border-end bg-light d-flex flex-column" style="height: 100%;">
-        <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-white">
-            <span class="small fw-bold text-uppercase text-muted">Billing Groups</span>
-            <button class="btn btn-sm btn-link p-0 text-vscode" @onclick="ShowCreateGroupForm">
-                <i class="bi bi-plus-circle"></i>
-            </button>
-        </div>
+    <div class="flex-grow-1 d-flex overflow-hidden @(_showWorkbenchOnMobile ? "mobile-workbench-active" : "")">
+        <!-- Groups Sidebar -->
+        <div class="tariff-sidebar-wrapper border-end bg-light d-flex flex-column @(_showWorkbenchOnMobile ? "d-none d-lg-flex" : "w-explorer")" style="flex-shrink: 0;">
+            <div class="tree-header d-flex justify-content-between align-items-center">
+                <span class="header-text">CATEGORIES</span>
+                <button class="btn btn-link p-0 text-vscode" @onclick="ShowCreateGroupForm">
+                    <i class="bi bi-plus-circle"></i>
+                </button>
+            </div>
+            
+            <div class="explorer-search-container">
+                <div class="position-relative">
+                    <i class="bi bi-search position-absolute" style="left: 10px; top: 7px; font-size: 11px; opacity: 0.5;"></i>
+                    <input type="text" class="explorer-search-input" placeholder="Filter groups..." style="padding-left: 28px;" @bind="_groupFilter" @bind:event="oninput" />
+                </div>
+            </div>
         
         <div class="flex-grow-1 overflow-auto p-2">
             @if (_groups == null)
@@ -38,53 +50,52 @@
             }
             else
             {
-                @foreach (var group in _groups)
+                @foreach (var group in GetFilteredGroups())
                 {
-                    <div class="p-2 mb-1 rounded cursor-pointer @(SelectedGroup?.TariffGroupId == group.TariffGroupId ? "bg-primary text-white" : "hover-bg-slate text-dark")"
+                    <div class="vscode-tree-item @(SelectedGroup?.TariffGroupId == group.TariffGroupId ? "active" : "")"
+                         style="margin: 2px 8px; border-radius: 4px;"
                          @onclick="() => SelectGroup(group)">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="small fw-medium">@group.Name</span>
-                            @if (SelectedGroup?.TariffGroupId == group.TariffGroupId)
-                            {
-                                <i class="bi bi-chevron-right small"></i>
-                            }
-                        </div>
+                        <i class="bi bi-folder2-open me-2 opacity-50"></i>
+                        <span class="flex-grow-1">@group.Name</span>
+                        @if (SelectedGroup?.TariffGroupId == group.TariffGroupId)
+                        {
+                            <i class="bi bi-chevron-right small opacity-50"></i>
+                        }
                     </div>
                 }
             }
+            </div>
         </div>
-    </div>
 
     <!-- Layers Workbench -->
-    <div class="col-md-9 bg-white d-flex flex-column" style="height: 100%;">
+    <div class="flex-grow-1 bg-white d-flex flex-column @(_showWorkbenchOnMobile ? "d-flex" : "d-none d-lg-flex")" style="min-width: 0;">
         @if (SelectedGroup == null)
         {
             <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
                 <i class="bi bi-layers display-1 mb-3"></i>
-                <p>Select a billing group to manage its tariffs.</p>
+                <p>Select a billing category from the explorer to manage its tariffs.</p>
             </div>
         }
         else
         {
-            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="mb-0">@SelectedGroup.Name</h5>
-                    <small class="text-muted">@SelectedGroup.Description</small>
-                </div>
-                <div class="nav nav-pills small-pills">
-                    <button class="nav-link @(_activeTab == "layers" ? "active" : "")" @onclick='() => _activeTab = "layers"'>Layers</button>
-                    <button class="nav-link @(_activeTab == "assignments" ? "active" : "")" @onclick='() => _activeTab = "assignments"'>Assignments</button>
-                </div>
+            <div class="premium-tab-container">
+                <div class="premium-tab @(_activeTab == "layers" ? "active" : "")" @onclick='() => _activeTab = "layers"'>Tariff Layers</div>
+                <div class="premium-tab @(_activeTab == "assignments" ? "active" : "")" @onclick='() => _activeTab = "assignments"'>Asset Assignments</div>
             </div>
 
-            <div class="flex-grow-1 overflow-auto p-3">
+            <div class="flex-grow-1 overflow-auto p-4">
                 @if (_activeTab == "layers")
                 {
-                    <div class="mb-3 d-flex justify-content-end">
-                        <button class="btn btn-sm btn-vscode" @onclick="ShowCreateLayerForm">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex align-items-center gap-2">
+                             <h5 class="mb-0 fw-bold">@SelectedGroup.Name Layers</h5>
+                             <span class="modern-badge modern-badge-outline">@(_layers?.Count ?? 0) Active</span>
+                        </div>
+                        <button class="btn btn-sm btn-vscode px-3" @onclick="ShowCreateLayerForm">
                             <i class="bi bi-plus me-1"></i> New Layer
                         </button>
                     </div>
+                    
                     @if (_layers == null)
                     {
                         <div class="text-center py-5 opacity-50"><div class="spinner-border"></div></div>
@@ -103,63 +114,80 @@
                 }
                 else
                 {
-                    <p class="small text-muted mb-3">Select a layer to manage asset assignments.</p>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <select class="form-select form-select-sm" @bind="_selectedLayerIdForAssignment">
-                                <option value="0">-- Select Layer --</option>
-                                @foreach (var layer in _layers ?? new())
+                    <div class="mb-4">
+                        <p class="small text-muted mb-3">Map assets to specific tariff layers for recurring or one-time billing.</p>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-5">
+                                <label class="horizontal-form-label mb-2">Target Layer</label>
+                                <select class="form-select form-select-sm" @bind="_selectedLayerIdForAssignment">
+                                    <option value="0">-- Select Layer --</option>
+                                    @foreach (var layer in _layers ?? new())
+                                    {
+                                        <option value="@layer.TariffLayerId">@layer.Name (₹@layer.BaseRate)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-7 d-flex justify-content-end">
+                                @if (_selectedLayerIdForAssignment > 0)
                                 {
-                                    <option value="@layer.TariffLayerId">@layer.Name (₹@layer.BaseRate)</option>
+                                    <button class="btn btn-sm btn-vscode px-3" @onclick="ShowBulkAssignModal">
+                                        <i class="bi bi-plus-circle me-1"></i> Bulk Assign
+                                    </button>
                                 }
-                            </select>
+                            </div>
                         </div>
-                        <div class="col-md-8">
-                            @if (_selectedLayerIdForAssignment > 0)
+                    </div>
+
+                    @if (_selectedLayerIdForAssignment > 0)
+                    {
+                        <div class="p-3 border rounded bg-white">
+                            @if (_assignedAssets == null)
                             {
-                                <div class="p-3 border rounded bg-light">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="small fw-bold">Assigned Assets</span>
-                                        <button class="btn btn-sm btn-vscode" @onclick="ShowBulkAssignModal">
-                                            <i class="bi bi-plus-circle me-1"></i> Bulk Assign
-                                        </button>
-                                    </div>
-                                    
-                                    @if (_assignedAssets == null)
+                                <div class="text-center py-4 opacity-50 small">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>Loading mappings...
+                                </div>
+                            }
+                            else if (!_assignedAssets.Any())
+                            {
+                                <div class="text-center py-5 border border-dashed rounded bg-light small text-muted">
+                                    <i class="bi bi-link-45deg display-4 mb-2 d-block opacity-20"></i>
+                                    No assets assigned to this layer yet.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var asset in _assignedAssets)
                                     {
-                                        <div class="text-center py-2 opacity-50 small">Loading mappings...</div>
-                                    }
-                                    else if (!_assignedAssets.Any())
-                                    {
-                                        <div class="text-center py-3 border border-dashed rounded bg-white small text-muted">
-                                            No assets assigned to this layer yet.
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="d-flex flex-wrap gap-2">
-                                            @foreach (var asset in _assignedAssets)
+                                        <div class="modern-badge modern-badge-outline d-flex align-items-center gap-2 bg-light p-2" style="font-size: 11px;">
+                                            <i class="bi bi-box-seam text-primary"></i>
+                                            <span class="fw-bold">@asset.AssetName</span>
+                                            @if (!asset.IsRecurring)
                                             {
-                                                <span class="badge bg-secondary-subtle text-secondary border d-flex align-items-center gap-2" style="font-size: 11px;">
-                                                    @asset.AssetName
-                                                    @if (!asset.IsRecurring)
-                                                    {
-                                                        <span class="ms-1 px-1 rounded-pill bg-warning text-dark" style="font-size: 8px;">ONE-TIME</span>
-                                                    }
-                                                    <i class="bi bi-x cursor-pointer" @onclick="() => RemoveAssignment(asset)"></i>
-                                                </span>
+                                                <span class="ms-1 px-1 rounded bg-warning text-dark px-2" style="font-size: 8px; font-weight: 800;">ONE-TIME</span>
                                             }
+                                            <i class="bi bi-x-circle cursor-pointer text-danger ms-1" @onclick="() => RemoveAssignment(asset)"></i>
                                         </div>
                                     }
                                 </div>
                             }
                         </div>
-                    </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5 opacity-20">
+                            <i class="bi bi-arrow-up-circle display-1"></i>
+                            <p>Select a layer to manage assignments</p>
+                        </div>
+                    }
                 }
             </div>
         }
+            </div>
+        </div>
     </div>
-</div>
+</Authorized>
+</AuthorizeView>
 
 <!-- Bulk Assign Modal -->
 @if (_showBulkAssignModal)
@@ -328,7 +356,7 @@
     private bool _allSelected = false;
     private bool _isProcessing = false;
     private bool _isRecurringForAssignment = true;
-
+    private bool _showWorkbenchOnMobile;
     private TariffGroup? SelectedGroup;
 
     private bool _showGroupModal = false;
@@ -337,6 +365,14 @@
     private TariffGroup _newGroup = new();
     private TariffLayer _newLayer = new();
     private string _scope = "tenant";
+    private string _groupFilter = "";
+
+    private IEnumerable<TariffGroup> GetFilteredGroups()
+    {
+        if (_groups == null) return Enumerable.Empty<TariffGroup>();
+        if (string.IsNullOrWhiteSpace(_groupFilter)) return _groups;
+        return _groups.Where(g => g.Name.Contains(_groupFilter, StringComparison.OrdinalIgnoreCase));
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -387,6 +423,7 @@
     {
         SelectedGroup = group;
         _layers = null;
+        _showWorkbenchOnMobile = true;
         _layers = await ApiService.GetAsync<List<TariffLayer>>($"api/tariff/groups/{group.TariffGroupId}/layers");
     }
 
@@ -490,7 +527,7 @@
             var assets = await ApiService.GetAsync<List<Asset>>($"api/assets/hierarchy?associationId={associationId}");
             if (assets != null)
             {
-                _allPossibleAssets = Flatten(assets).Where(a => a.AssetType == AssetType.Unit || a.AssetType == AssetType.Villa || a.AssetType == AssetType.Property).ToList();
+                _allPossibleAssets = Flatten(assets).Where(a => a.AssetType == AssociationManager.Shared.Enums.AssetType.Unit || a.AssetType == AssociationManager.Shared.Enums.AssetType.Villa || a.AssetType == AssociationManager.Shared.Enums.AssetType.Property).ToList();
             }
         }
     }
