@@ -1,3 +1,4 @@
+using AssociationManager.Api.Middlewares;
 using AssociationManager.Auth.Interfaces;
 using AssociationManager.Auth.Models;
 using AssociationManager.Auth.Services;
@@ -39,8 +40,8 @@ builder.Services.Configure<GoogleSettings>(builder.Configuration.GetSection("Goo
 builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<IGlobalUserRepository, GlobalUserRepository>();
-builder.Services.AddScoped<IUserRepository>(sp => new UserRepository(sp.GetRequiredService<DbConnectionFactory>(), "assoc"));
 builder.Services.AddScoped<IAssocUserRepository, AssocUserRepository>();
+builder.Services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<IAssocUserRepository>());
 builder.Services.AddScoped<IAssociationRepository>(sp => new AssociationRepository(sp.GetRequiredService<DbConnectionFactory>(), sp.GetRequiredService<ITenantContext>(), "assoc"));
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
@@ -61,7 +62,6 @@ builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
-builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
@@ -225,6 +225,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowClient");

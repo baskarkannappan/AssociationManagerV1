@@ -1,4 +1,5 @@
 using AssociationManager.Client;
+using Microsoft.Extensions.Http.Resilience;
 using AssociationManager.Client.Services;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Web;
@@ -107,7 +108,8 @@ builder.Services.AddHttpClient("GatewayClient", client =>
     {
         client.BaseAddress = new Uri(gatewayUrl);
     })
-    .AddHttpMessageHandler<AuthHeaderHandler>();
+    .AddHttpMessageHandler<AuthHeaderHandler>()
+    .AddStandardResilienceHandler();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("GatewayClient"));
 

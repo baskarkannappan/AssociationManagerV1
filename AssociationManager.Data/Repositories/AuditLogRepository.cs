@@ -38,6 +38,7 @@ public class AuditLogRepository : IAuditLogRepository
                 log.Entity, 
                 log.EntityId, 
                 log.IpAddress, 
+                log.CorrelationId,
                 log.Timestamp 
             },
             commandType: CommandType.StoredProcedure);

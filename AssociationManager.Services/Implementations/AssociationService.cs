@@ -80,32 +80,52 @@ public class AssociationService : IAssociationService
         if (!string.IsNullOrEmpty(association.AdminEmail))
         {
             var adminEmail = association.AdminEmail.Trim();
-            var user = await _assocUserRepository.GetByEmailAsync(adminEmail);
-            int userId;
-            if (user == null)
+            
+            // 1. Resolve Global User (Identity in corp schema)
+            var globalUser = await _globalUserRepository.GetByEmailAsync(adminEmail);
+            int globalUserId;
+            if (globalUser == null)
             {
-                // Create user if they don't exist in assoc schema
-                userId = await _assocUserRepository.CreateAsync(new User
+                globalUserId = await _globalUserRepository.CreateAsync(new User
                 {
                     Email = adminEmail,
-                    Name = adminEmail.Split('@')[0], // Default name from email
-                    Role = "AssociationAdmin", // Provision as AssociationAdmin
+                    Name = adminEmail.Split('@')[0],
+                    Role = "AssociationAdmin",
                     CreatedDate = DateTime.UtcNow,
                     IsActive = true
                 });
             }
             else
             {
-                userId = user.UserId;
+                globalUserId = globalUser.UserId;
+            }
+
+            // 2. Resolve Local User (Identity in assoc schema)
+            var localUser = await _assocUserRepository.GetByEmailAsync(adminEmail);
+            int localUserId;
+            if (localUser == null)
+            {
+                localUserId = await _assocUserRepository.CreateAsync(new User
+                {
+                    Email = adminEmail,
+                    Name = adminEmail.Split('@')[0],
+                    Role = "AssociationAdmin",
+                    CreatedDate = DateTime.UtcNow,
+                    IsActive = true
+                });
+            }
+            else
+            {
+                localUserId = localUser.UserId;
             }
 
             // Two-Level Mapping for Option B (Standalone Associations):
             
             // 1. GLOBAL LEVEL: Map user to the brand new Tenant (for corporate/billing context)
-            await _globalUserRepository.AddUserToTenantAsync(userId, tenantId, "AssociationAdmin");
+            await _globalUserRepository.AddUserToTenantAsync(globalUserId, tenantId, "AssociationAdmin");
 
             // 2. LOCAL LEVEL: Map user to the brand new Association (for resident/asset management)
-            await _assocUserRepository.AddUserToTenantAsync(userId, id, "AssociationAdmin");
+            await _assocUserRepository.AddUserToTenantAsync(localUserId, id, "AssociationAdmin");
         }
         
         await InvalidateCache();

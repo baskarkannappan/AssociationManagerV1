@@ -13,5 +13,6 @@ public class AuditLog
     public string? Entity { get; set; }
     public int? EntityId { get; set; }
     public string? IpAddress { get; set; }
+    public string? CorrelationId { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

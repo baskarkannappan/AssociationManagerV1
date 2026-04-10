@@ -1,4 +1,5 @@
 using AssociationManager.Client.Services;
+using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -19,6 +20,12 @@ public class AuthHeaderHandler : DelegatingHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        // Correlation ID for distributed tracing
+        if (!request.Headers.Contains("X-Correlation-ID"))
+        {
+            request.Headers.Add("X-Correlation-ID", Guid.NewGuid().ToString());
+        }
+
         // Avoid infinite loop: don't refresh if we are already calling the auth endpoints
         var requestPath = request.RequestUri?.ToString() ?? "";
         if (!requestPath.Contains("api/auth/refresh") && !requestPath.Contains("api/auth/google"))

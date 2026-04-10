@@ -39,7 +39,7 @@ builder.Services.Configure<GoogleSettings>(builder.Configuration.GetSection("Goo
 builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<IGlobalUserRepository, GlobalUserRepository>();
-builder.Services.AddScoped<IUserRepository>(sp => new UserRepository(sp.GetRequiredService<DbConnectionFactory>(), "corp"));
+builder.Services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<IGlobalUserRepository>());
 builder.Services.AddScoped<IAssocUserRepository, AssocUserRepository>();
 builder.Services.AddScoped<IAssociationRepository>(sp => new AssociationRepository(sp.GetRequiredService<DbConnectionFactory>(), sp.GetRequiredService<ITenantContext>(), "corp"));
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
