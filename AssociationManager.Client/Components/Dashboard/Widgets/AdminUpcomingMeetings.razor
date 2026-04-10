@@ -1,0 +1,27 @@
+@using AssociationManager.Client.Services
+@inherits StatefulComponentBase
+@inject DashboardStateService DashboardService
+
+@code {
+    protected override void OnInitialized() => RegisterStateService(DashboardService);
+}
+
+<DashboardWidget Title="Upcoming Meetings" Icon="bi-calendar-event">
+    <ChildContent>
+        @if (DashboardService.Meetings?.Any(x => x.MeetingDate >= DateTime.Now) == true)
+        {
+            @foreach (var m in DashboardService.Meetings.Where(x => x.MeetingDate >= DateTime.Now).Take(2))
+            {
+                <div class="mb-3">
+                    <div class="fw-bold small text-primary">@m.MeetingDate.ToString("MMM dd, HH:mm")</div>
+                    <div class="fw-medium small">@m.Title</div>
+                </div>
+            }
+            <a href="/governance/meetings" class="btn btn-sm btn-outline-secondary w-100" style="font-size: 11px;">All Meetings</a>
+        }
+        else
+        {
+            <div class="text-muted small italic">No upcoming meetings scheduled.</div>
+        }
+    </ChildContent>
+</DashboardWidget>

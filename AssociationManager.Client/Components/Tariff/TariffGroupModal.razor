@@ -1,0 +1,27 @@
+@using AssociationManager.Client.Services
+@inject TariffStateService TariffState
+
+<div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">New Billing Group</h6>
+                <button type="button" class="btn-close small" @onclick="() => TariffState.ShowGroupModal = false"></button>
+            </div>
+            <div class="modal-body compact-form">
+                <div class="mb-3">
+                    <label class="form-label small mb-1">Group Name</label>
+                    <input @bind="TariffState.NewGroup.Name" class="form-control" placeholder="e.g. Maintenance Fees" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small mb-1">Description</label>
+                    <textarea @bind="TariffState.NewGroup.Description" class="form-control" placeholder="Optional details..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-secondary" @onclick="() => TariffState.ShowGroupModal = false">Cancel</button>
+                <button class="btn btn-sm btn-vscode px-3" @onclick="TariffState.CreateGroupAsync">Create Group</button>
+            </div>
+        </div>
+    </div>
+</div>

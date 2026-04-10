@@ -34,7 +34,7 @@ public static class AppRole
     public const int LevelCorporateAuditor = 5;
     public const int LevelGuest = 0;
 
-    public static int GetLevel(string? role) => (role?.Trim().ToLowerInvariant()) switch
+    public static int GetLevel(string? role) => (role?.Trim().ToLowerInvariant().Replace(" ", "")) switch
     {
         "platformadmin" => LevelPlatformAdmin,
         "systemadmin" => LevelSystemAdmin,

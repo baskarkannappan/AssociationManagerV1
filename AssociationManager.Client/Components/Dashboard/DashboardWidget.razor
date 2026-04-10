@@ -1,0 +1,39 @@
+<div class="border bg-white @Class" style="@Style">
+    @if (!string.IsNullOrEmpty(Title) || HeaderContent != null)
+    {
+        <div class="premium-card-header d-flex justify-content-between align-items-center">
+            @if (HeaderContent != null)
+            {
+                @HeaderContent
+            }
+            else
+            {
+                <h6 class="premium-card-title">
+                    @if (!string.IsNullOrEmpty(Icon))
+                    {
+                        <i class="bi @Icon me-2"></i>
+                    }
+                    @Title
+                </h6>
+            }
+            @if (HeaderAction != null)
+            {
+                @HeaderAction
+            }
+        </div>
+    }
+    <div class="@BodyClass">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = string.Empty;
+    [Parameter] public string Class { get; set; } = string.Empty;
+    [Parameter] public string BodyClass { get; set; } = "p-3";
+    [Parameter] public string Style { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+    [Parameter] public RenderFragment? HeaderAction { get; set; }
+}

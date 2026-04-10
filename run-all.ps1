@@ -28,28 +28,24 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "--- Starting Services ---" -ForegroundColor Cyan
 
-# 1. API
-Write-Host "[1/6] Starting Association API (Port 5001)..."
+# 1. API (Hosts Data, Logic + SignalR Hubs)
+Write-Host "[1/5] Starting Association API (Port 5001)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Api\AssociationManager.Api.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 2. Corporate API
-Write-Host "[2/6] Starting Corporate API (Port 7010)..."
+Write-Host "[2/5] Starting Corporate API (Port 7010)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Corporate.Api\AssociationManager.Corporate.Api.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
-# 3. Realtime
-Write-Host "[3/6] Starting Realtime Service (Port 6001)..."
-Start-Process dotnet -ArgumentList "run --project AssociationManager.Realtime\AssociationManager.Realtime.csproj --no-build --launch-profile https" -WindowStyle Minimized
-
 # 4. Gateway
-Write-Host "[4/6] Starting API Gateway (Port 7000)..."
+Write-Host "[3/5] Starting API Gateway (Port 7000)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Gateway\AssociationManager.Gateway.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 5. Association Client
-Write-Host "[5/6] Starting Association Client (Port 7001)..."
+Write-Host "[4/5] Starting Association Client (Port 7001)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Client\AssociationManager.Client.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 6. Corporate Client
-Write-Host "[6/6] Starting Corporate Client (Port 7011)..."
+Write-Host "[5/5] Starting Corporate Client (Port 7011)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Corporate.Client\AssociationManager.Corporate.Client.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 Write-Host "`nInitialization complete!" -ForegroundColor Green
@@ -77,7 +73,6 @@ $services = @(
     @{ Name = "Gateway (7000)"; Url = "https://localhost:7000" },
     @{ Name = "Assoc API (5001)"; Url = "https://localhost:5001/swagger/index.html" },
     @{ Name = "Corp API (7010)"; Url = "https://localhost:7010/swagger/index.html" },
-    @{ Name = "Realtime (6001)"; Url = "https://localhost:6001/hubs/notifications" },
     @{ Name = "Assoc Client (7001)"; Url = "https://localhost:7001" },
     @{ Name = "Corp Client (7011)"; Url = "https://localhost:7011" }
 )

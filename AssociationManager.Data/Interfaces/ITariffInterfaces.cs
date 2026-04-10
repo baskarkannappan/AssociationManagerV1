@@ -24,6 +24,7 @@ public interface ITariffRepository
     Task<bool> UpsertAssetTariffAsync(AssetTariff assetTariff);
     Task<bool> RemoveAssetTariffAsync(int assetId, int layerId);
     Task<IEnumerable<AssetTariff>> GetActiveTariffsByTenantIdAsync(int tenantId);
+    Task<IEnumerable<AssetTariff>> GetAssignmentsByLayerIdAsync(int layerId);
 }
 
 public interface ITransactionRepository

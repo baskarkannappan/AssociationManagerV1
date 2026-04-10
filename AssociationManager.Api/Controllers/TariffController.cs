@@ -85,6 +85,13 @@ public class TariffController : ControllerBase
         return Ok(ApiResponse<IEnumerable<AssetTariff>>.SuccessResponse(tariffs));
     }
 
+    [HttpGet("layers/{layerId}/assignments")]
+    public async Task<IActionResult> GetLayerAssignments(int layerId)
+    {
+        var assignments = await _tariffService.GetLayerAssignmentsAsync(layerId);
+        return Ok(ApiResponse<IEnumerable<AssetTariff>>.SuccessResponse(assignments));
+    }
+
     [HttpPost("assets/assign")]
     public async Task<IActionResult> AssignTariff([FromBody] AssetTariff tariff)
     {

@@ -1,0 +1,39 @@
+@inherits StatefulComponentBase
+@inject BillingStateService BillingService
+
+@code {
+    protected override void OnInitialized()
+    {
+        RegisterStateService(BillingService);
+    }
+}
+
+<div class="compact-card">
+    <h6 class="m-0 fw-semibold mb-3">Recent Payments</h6>
+    @if (BillingService.RecentPayments == null)
+    {
+        <div class="text-center py-3 opacity-50">Loading...</div>
+    }
+    else if (!BillingService.RecentPayments.Any())
+    {
+        <div class="text-muted small">No payment history.</div>
+    }
+    else
+    {
+        <div class="list-group list-group-flush">
+            @foreach (var pay in BillingService.RecentPayments.OrderByDescending(p => p.CreatedDate).Take(10))
+            {
+                <div class="list-group-item px-0 py-2 border-0">
+                    <div class="d-flex justify-content-between">
+                        <span class="small fw-medium">Manual Payment</span>
+                        <span class="small fw-bold text-success">+₹@pay.Amount</span>
+                    </div>
+                    <div class="d-flex justify-content-between opacity-50" style="font-size: 10px;">
+                        <span>@pay.CreatedDate.ToString("g")</span>
+                        <span>@pay.Currency</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

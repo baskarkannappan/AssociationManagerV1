@@ -96,31 +96,16 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                 var key = kvp.Key;
                 var value = kvp.Value.ToString()!;
 
-                // Map standard JWT claim names to ClaimTypes URIs for Blazor's Authorize attribute compatibility
-                if (key == "role" || key == "Role" || key == ClaimTypes.Role || key == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                // 1. Role Normalization (Array or String)
+                if (key == "role" || key == "Role" || key == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" || key == ClaimTypes.Role)
                 {
-                    if (kvp.Value is JsonElement element && element.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in element.EnumerateArray())
-                        {
-                            claims.Add(new Claim("role", item.GetString() ?? ""));
-                        }
-                    }
-                    else
-                    {
-                        var roleStr = value.ToString()!;
-                        if (roleStr.Contains(','))
-                        {
-                            foreach (var r in roleStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                            {
-                                claims.Add(new Claim("role", r));
-                            }
-                        }
-                        else
-                        {
-                            claims.Add(new Claim("role", roleStr));
-                        }
-                    }
+                    AddRoleClaims(claims, kvp.Value);
+                }
+                // 2. ContextRole Normalization
+                else if (key == "ContextRole")
+                {
+                    claims.Add(new Claim("ContextRole", value));
+                    claims.Add(new Claim("role", value)); // Also treat as a role for standard auth
                 }
                 else if (key == "unique_name" || key == "name") claims.Add(new Claim("name", value));
                 else if (key == "email") claims.Add(new Claim(ClaimTypes.Email, value));
@@ -129,6 +114,25 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             }
         }
         return claims;
+    }
+
+    private void AddRoleClaims(List<Claim> claims, object value)
+    {
+        if (value is JsonElement element && element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                claims.Add(new Claim("role", item.GetString() ?? ""));
+            }
+        }
+        else
+        {
+            var roleStr = value.ToString()!;
+            foreach (var r in roleStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                claims.Add(new Claim("role", r));
+            }
+        }
     }
 
     private byte[] ParseBase64WithoutPadding(string base64)

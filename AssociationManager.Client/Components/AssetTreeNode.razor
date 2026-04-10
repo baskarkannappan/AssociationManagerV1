@@ -16,13 +16,15 @@
         <i class="bi @GetIconClass() @GetIconColorClass() asset-icon"></i>
         
         <span class="asset-name">
-            @Asset.Name
+            @if (string.IsNullOrWhiteSpace(SearchTerm))
+            {
+                @Asset.Name
+            }
+            else
+            {
+                @GetHighlightedText(Asset.Name, SearchTerm)
+            }
         </span>
-
-        @if (Asset.Children.Any())
-        {
-            <span class="tree-count">@Asset.Children.Count</span>
-        }
         
         <span class="tree-type-badge">@Asset.AssetType</span>
     </div>
@@ -37,7 +39,8 @@
                                OnSelected="OnSelected" 
                                SelectedAsset="SelectedAsset"
                                ExpandedIds="ExpandedIds"
-                               OnToggleExpand="OnToggleExpand" />
+                               OnToggleExpand="OnToggleExpand"
+                               SearchTerm="@SearchTerm" />
             }
         </div>
     }
@@ -61,10 +64,10 @@
         background-color: #e2e8f0;
     }
     .vscode-tree-item.active {
-        background-color: #cbd5e1;
-        color: #0f172a;
-        font-weight: 500;
-    }
+    background-color: #e0f2fe;
+    color: #0369a1;
+    font-weight: 600;
+}
     .expand-icon-container {
         width: 16px;
         height: 16px;
@@ -117,6 +120,7 @@
     
     [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
     [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
+    [Parameter] public string SearchTerm { get; set; } = "";
 
     private bool IsExpanded => ExpandedIds.Contains(Asset.AssetId);
     private bool IsSelected => SelectedAsset?.AssetId == Asset.AssetId;
@@ -131,25 +135,42 @@
 
     private string GetIconClass() => Asset.AssetType switch
     {
-        AssetType.Property => "bi-geo-alt",
-        AssetType.Building => "bi-building",
-        AssetType.Floor => "bi-layers",
-        AssetType.Unit => "bi-door-closed",
-        AssetType.Villa => "bi-house-heart",
-        AssetType.CommonArea => "bi-tree",
-        AssetType.Amenity => "bi-water",
-        AssetType.SecurityGate => "bi-shield-lock",
+        AssociationManager.Shared.Enums.AssetType.Property => "bi-geo-alt",
+        AssociationManager.Shared.Enums.AssetType.Building => "bi-building",
+        AssociationManager.Shared.Enums.AssetType.Floor => "bi-layers",
+        AssociationManager.Shared.Enums.AssetType.Unit => "bi-door-closed",
+        AssociationManager.Shared.Enums.AssetType.Villa => "bi-house-heart",
+        AssociationManager.Shared.Enums.AssetType.CommonArea => "bi-tree",
+        AssociationManager.Shared.Enums.AssetType.Amenity => "bi-water",
+        AssociationManager.Shared.Enums.AssetType.SecurityGate => "bi-shield-lock",
         _ => "bi-box"
     };
 
     private string GetIconColorClass() => Asset.AssetType switch
     {
-        AssetType.Property => "asset-icon-property",
-        AssetType.Building => "asset-icon-building",
-        AssetType.Floor => "asset-icon-floor",
-        AssetType.Unit => "asset-icon-unit",
-        AssetType.Villa => "asset-icon-villa",
-        AssetType.CommonArea => "asset-icon-common",
+        AssociationManager.Shared.Enums.AssetType.Property => "asset-icon-property",
+        AssociationManager.Shared.Enums.AssetType.Building => "asset-icon-building",
+        AssociationManager.Shared.Enums.AssetType.Floor => "asset-icon-floor",
+        AssociationManager.Shared.Enums.AssetType.Unit => "asset-icon-unit",
+        AssociationManager.Shared.Enums.AssetType.Villa => "asset-icon-villa",
+        AssociationManager.Shared.Enums.AssetType.CommonArea => "asset-icon-common",
         _ => ""
+    };
+
+    private RenderFragment GetHighlightedText(string text, string term) => builder =>
+    {
+        var index = text.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+        if (index == -1)
+        {
+            builder.AddContent(0, text);
+            return;
+        }
+
+        builder.AddContent(1, text.Substring(0, index));
+        builder.OpenElement(2, "span");
+        builder.AddAttribute(3, "style", "background: #fff9c4; font-weight: 700;");
+        builder.AddContent(4, text.Substring(index, term.Length));
+        builder.CloseElement();
+        builder.AddContent(5, text.Substring(index + term.Length));
     };
 }

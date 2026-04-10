@@ -1,0 +1,119 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject TariffStateService TariffState
+@inject ApiService Api
+@inject ToastService _toastService
+
+<div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-light py-2">
+                <h6 class="modal-title fw-bold">Bulk Assign Layer</h6>
+                <button type="button" class="btn-close small" @onclick="() => TariffState.ShowBulkAssignModal = false"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-3 bg-white sticky-top border-bottom">
+                     <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control border-start-0" placeholder="Filter assets..." @bind="TariffState.AssetFilter" @bind:event="oninput" />
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" checked="@_allSelected" @onchange="ToggleSelectAll" id="selectAllAssets">
+                            <label class="form-check-label small fw-semibold" for="selectAllAssets">Select All Billable Assets</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_isRecurring" id="recurringCharge">
+                            <label class="form-check-label small fw-semibold text-primary" for="recurringCharge">Recurring Charge</label>
+                        </div>
+                        <span class="small text-muted">@_selectedAssetIds.Count selected</span>
+                    </div>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 400px;">
+                    @foreach (var asset in GetFilteredAssets())
+                    {
+                        <label class="list-group-item d-flex align-items-center py-2 hover-bg-slate cursor-pointer">
+                            <input class="form-check-input me-3" type="checkbox" 
+                                   checked="@_selectedAssetIds.Contains(asset.AssetId)" 
+                                   @onchange='(e) => ToggleAssetSelection(asset.AssetId, (bool)e.Value!)'>
+                            <div>
+                                <div class="fw-medium small">@asset.Name</div>
+                                <div class="text-muted" style="font-size: 10px;">@asset.AssetType | @asset.Description</div>
+                            </div>
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light py-2">
+                <button class="btn btn-sm btn-secondary" @onclick="() => TariffState.ShowBulkAssignModal = false">Cancel</button>
+                <button class="btn btn-sm btn-vscode px-4" @onclick="ExecuteBulkAssign" disabled="@(!_selectedAssetIds.Any() || _isProcessing)">
+                    @if (_isProcessing) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    Confirm Assignment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int LayerId { get; set; }
+    [Parameter] public EventCallback OnSuccess { get; set; }
+
+    private HashSet<int> _selectedAssetIds = new();
+    private bool _allSelected = false;
+    private bool _isProcessing = false;
+    private bool _isRecurring = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TariffState.LoadAllPossibleAssetsAsync();
+    }
+
+    private IEnumerable<Asset> GetFilteredAssets()
+    {
+        if (TariffState.AllPossibleAssets == null) return Enumerable.Empty<Asset>();
+        if (string.IsNullOrWhiteSpace(TariffState.AssetFilter)) return TariffState.AllPossibleAssets;
+        return TariffState.AllPossibleAssets.Where(a => a.Name.Contains(TariffState.AssetFilter, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ToggleAssetSelection(int assetId, bool selected)
+    {
+        if (selected) _selectedAssetIds.Add(assetId);
+        else _selectedAssetIds.Remove(assetId);
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        _allSelected = (bool)e.Value!;
+        _selectedAssetIds.Clear();
+        if (_allSelected)
+        {
+            foreach (var a in GetFilteredAssets()) _selectedAssetIds.Add(a.AssetId);
+        }
+    }
+
+    private async Task ExecuteBulkAssign()
+    {
+        if (!_selectedAssetIds.Any() || LayerId == 0) return;
+        _isProcessing = true;
+        try
+        {
+            var assignments = _selectedAssetIds.Select(id => new AssetTariff
+            {
+                AssetId = id,
+                TariffLayerId = LayerId,
+                IsActive = true,
+                IsRecurring = _isRecurring,
+                CreatedDate = DateTime.UtcNow
+            }).ToList();
+
+            var success = await Api.PostAsync("api/tariff/assets/bulk-assign", assignments);
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, $"Assigned to {assignments.Count} assets."));
+                await OnSuccess.InvokeAsync();
+            }
+        }
+        finally { _isProcessing = false; }
+    }
+}

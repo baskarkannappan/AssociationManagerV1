@@ -62,6 +62,7 @@ public class InvoiceRepository : IInvoiceRepository
         parameters.Add("@PageSize", criteria.PageSize);
         parameters.Add("@SortColumn", criteria.SortColumn);
         parameters.Add("@SortDirection", criteria.SortDirection);
+        parameters.Add("@IncludeDraft", criteria.IncludeDrafts);
 
         var result = new PagedResult<Invoice>
         {
@@ -198,5 +199,44 @@ public class InvoiceRepository : IInvoiceRepository
         return await connection.QueryAsync<Invoice>(
             "assoc.sp_Invoices_GetUnpaidOverdue",
             commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<IEnumerable<Invoice>> GetByBatchIdAsync(int batchId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Invoice>(
+            "assoc.sp_Invoices_GetByBatchId",
+            new { BatchId = batchId, TenantId = tenantId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> UpdateAsync(Invoice invoice)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "assoc.sp_Invoices_Update",
+            new
+            {
+                Id = invoice.InvoiceId,
+                invoice.TenantId,
+                invoice.AssociationId,
+                invoice.AssetId,
+                invoice.BillingBatchId,
+                invoice.Title,
+                invoice.Description,
+                invoice.Amount,
+                invoice.DueDate,
+                invoice.Status
+            },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
+
+    public async Task<bool> DeleteAllLineItemsAsync(int invoiceId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteAsync(
+            "assoc.sp_InvoiceLineItems_DeleteByInvoiceId",
+            new { InvoiceId = invoiceId },
+            commandType: CommandType.StoredProcedure) > 0;
     }
 }

@@ -2,8 +2,10 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Client.Services
 @using BlazorBootstrap
+@inherits StatefulComponentBase
 @inject ApiService ApiService
 @inject ITenantContext TenantContext
+@inject LayoutStateService LayoutState
 @attribute [Authorize(Policy = "RequireFinanceManager")]
 
 <div class="reports-container p-4 animate-fade-in">
@@ -193,6 +195,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        LayoutState.SetPageMetadata("Financial Analytics", "bi-graph-up-arrow", new List<AppBreadcrumbItem> {
+            new AppBreadcrumbItem { Text = "Association" },
+            new AppBreadcrumbItem { Text = "Finance" },
+            new AppBreadcrumbItem { Text = "Reports", IsActive = true }
+        });
+
         await LoadData();
     }
 

@@ -19,6 +19,7 @@ public interface ITariffService
 
     // Assignment
     Task<IEnumerable<AssetTariff>> GetAssetTariffsAsync(int assetId);
+    Task<IEnumerable<AssetTariff>> GetLayerAssignmentsAsync(int layerId);
     Task<bool> AssignTariffToAssetAsync(AssetTariff assetTariff);
     Task<bool> RemoveTariffFromAssetAsync(int assetId, int layerId);
 

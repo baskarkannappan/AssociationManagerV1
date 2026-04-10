@@ -1,0 +1,110 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Client.Components.Dashboard.Widgets
+@inject DashboardStateService DashboardService
+@inject ITenantContext TenantContext
+
+<div class="resident-dashboard p-3 animate-fade-in">
+    <div class="premium-page-header border-bottom px-4 py-3 mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem;">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="premium-page-title mb-0">
+                <i class="bi bi-house-heart-fill me-2 opacity-50"></i>
+                Resident Dashboard - @(DashboardService.MyUnit?.Name ?? "My Unit")
+            </h1>
+            <div class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+                <i class="bi bi-person-check-fill me-1"></i> Verified Resident
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Financial Summary -->
+        @if (DashboardService.ResidentMetrics != null && DashboardService.ResidentMetrics.CreditAvailable > 0)
+        {
+            <AuthorizeView Policy="ShowWidget_FinancialSummary">
+                <div class="col-lg-4 animate-fade-in">
+                    <ResidentWalletCard OnTopUpClicked="OnTopUpClicked" />
+                </div>
+            </AuthorizeView>
+        }
+
+        <!-- Quick Info Summary -->
+        <div class="@(DashboardService.ResidentMetrics != null && DashboardService.ResidentMetrics.CreditAvailable > 0 ? "col-lg-8" : "col-lg-12")">
+            <ResidentMetricsSummary OnTopUpClicked="OnTopUpClicked" />
+
+            <!-- News/Broadcasts -->
+            <AuthorizeView Policy="ShowWidget_Announcements">
+                <DashboardWidget Title="Recent Announcements" Icon="bi-megaphone" BodyClass="p-3" Style="margin-top: 1rem;">
+                    @if (DashboardService.AdminMetrics?.RecentActivity?.Any() == true)
+                    {
+                        var latest = DashboardService.AdminMetrics.RecentActivity.First();
+                        <div class="d-flex gap-3 align-items-center mb-0">
+                            <div class="pulse-dot"></div>
+                            <div class="flex-grow-1">
+                                <div class="fw-medium small">@latest.Action (@latest.Entity)</div>
+                                <div class="text-muted" style="font-size: 10px;">@DashboardService.GetTimeAgo(latest.Timestamp) • System Audit</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small italic">No recent announcements.</div>
+                    }
+                </DashboardWidget>
+            </AuthorizeView>
+        </div>
+
+        <!-- Main Content - Invoices -->
+        <AuthorizeView Policy="ShowWidget_FinancialSummary">
+            <div class="col-lg-12">
+                <DashboardWidget Icon="bi-bank" BodyClass="p-3">
+                    <HeaderContent>
+                        <h6 class="premium-card-title"><i class="bi bi-bank me-2 text-primary"></i>My Financial History</h6>
+                    </HeaderContent>
+                    <HeaderAction>
+                         <span class="small text-muted">
+                            @if (DashboardService.Occupancies != null && DashboardService.Occupancies.Count > 1)
+                            {
+                                var assetList = string.Join(", ", DashboardService.Occupancies.Select(o => o.AssetName ?? $"Unit {o.AssetId}"));
+                                <i class="bi bi-info-circle me-1"></i><span>Consolidated view for: @assetList</span>
+                            }
+                            else
+                            {
+                                <span>Showing all invoices for your unit</span>
+                            }
+                        </span>
+                    </HeaderAction>
+                    <ChildContent>
+                         <InvoiceList @ref="_invoiceList"
+                                     Invoices="DashboardService.MyInvoices" 
+                                     CreditAvailable="DashboardService.ResidentMetrics?.CreditAvailable ?? 0m"
+                                     OnPayNow="OnPayNow" 
+                                     OnPayWithAdvance="OnPayWithAdvance" />
+                    </ChildContent>
+                </DashboardWidget>
+            </div>
+        </AuthorizeView>
+
+        @if (DashboardService.IsPrimaryOwner && DashboardService.MyUnit != null)
+        {
+            <div class="col-lg-12 mt-4 animate-fade-in">
+                <UnitRegistry AssetId="DashboardService.MyUnit.AssetId" />
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnTopUpClicked { get; set; }
+    [Parameter] public EventCallback<Invoice> OnPayNow { get; set; }
+    [Parameter] public EventCallback<Invoice> OnPayWithAdvance { get; set; }
+
+    private InvoiceList _invoiceList = default!;
+
+    public async Task RefreshInvoiceListAsync()
+    {
+        if (_invoiceList != null)
+        {
+            await _invoiceList.RefreshAsync();
+        }
+    }
+}

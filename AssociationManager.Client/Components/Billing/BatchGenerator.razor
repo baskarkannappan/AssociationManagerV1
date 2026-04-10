@@ -1,0 +1,126 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject BillingStateService BillingService
+
+<div class="compact-card">
+    <div class="row align-items-end g-3 mb-4">
+        <div class="col-md-3">
+            <label class="small fw-bold text-muted mb-1 d-block text-uppercase">Month</label>
+            <select class="form-select form-select-sm" @bind="BillingService.BatchRequest.Month">
+                @for (int i = 1; i <= 12; i++)
+                {
+                    var monthValue = i;
+                    var isBilled = BillingService.ExistingBatches?.Any(b => b.Month == monthValue && b.Year == BillingService.BatchRequest.Year) ?? false;
+                    if (!isBilled)
+                    {
+                        <option value="@monthValue">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(monthValue)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="small fw-bold text-muted mb-1 d-block text-uppercase">Year</label>
+            <select class="form-select form-select-sm" @bind="BillingService.BatchRequest.Year">
+                @for (int i = DateTime.Today.Year - 1; i <= DateTime.Today.Year + 1; i++)
+                {
+                    <option value="@i">@i</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="small fw-bold text-muted mb-1 d-block text-uppercase">Due Date</label>
+            <input type="date" class="form-control form-control-sm" @bind="BillingService.BatchRequest.DueDate" />
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="BillingService.PreviewBatchAsync" disabled="@BillingService.IsProcessingBatch">
+                @if (BillingService.IsProcessingBatch) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-eye me-1"></i> Preview Generation
+            </button>
+            @if (BillingService.BatchResult != null && BillingService.BatchResult.Previews.Any() && !BillingService.BatchResult.IsLocked)
+            {
+                <button class="btn btn-sm btn-vscode flex-grow-1" @onclick="BillingService.CreateDraftBatchAsync" disabled="@BillingService.IsProcessingBatch">
+                    <i class="bi bi-file-earmark-plus me-1"></i> Create Draft Batch
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (BillingService.ExistingBatches != null && BillingService.ExistingBatches.Any(b => b.Status == "Draft"))
+    {
+        <div class="mb-4">
+            <h6 class="small fw-bold text-muted text-uppercase mb-3"><i class="bi bi-clock-history me-1"></i> Batches Pending Review</h6>
+            <div class="row g-3">
+                @foreach (var draft in BillingService.ExistingBatches.Where(b => b.Status == "Draft"))
+                {
+                    <div class="col-md-4">
+                        <div class="compact-card border-warning border-opacity-25" style="border-left: 3px solid var(--bs-warning) !important;">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <div class="fw-bold">@System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(draft.Month) @draft.Year</div>
+                                    <div class="extra-small text-muted">@draft.InvoicesGenerated Invoices • ₹@draft.TotalAmount.ToString("N0")</div>
+                                </div>
+                                <span class="badge bg-warning-subtle text-warning" style="font-size: 9px;">PRO-FORMA</span>
+                            </div>
+                            <div class="d-flex gap-2 mt-2">
+                                <button class="btn btn-xs btn-vscode w-100" @onclick="() => BillingService.FinalizeBatchAsync(draft)">
+                                    <i class="bi bi-check2-all me-1"></i> Post to Ledger
+                                </button>
+                                <button class="btn btn-xs btn-outline-secondary" @onclick="() => OnViewDetails.InvokeAsync(draft)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (BillingService.BatchResult != null)
+    {
+        @if (BillingService.BatchResult.IsLocked)
+        {
+            <div class="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center" style="font-size: 13px;">
+                <i class="bi bi-lock-fill me-2 fs-5"></i>
+                <div>
+                    <strong>Billing Locked:</strong> Invoices for this period have already been generated. 
+                    As per policy, no new generation is allowed.
+                </div>
+            </div>
+        }
+
+        <div class="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center" style="font-size: 13px;">
+            <div>
+                <i class="bi bi-info-circle me-2"></i>
+                @BillingService.BatchResult.Message
+            </div>
+            <div class="fw-bold">Total: ₹@BillingService.BatchResult.TotalAmount</div>
+        </div>
+
+        <div class="table-responsive border rounded" style="max-height: 400px;">
+            <table class="table table-sm table-hover mb-0" style="font-size: 12px;">
+                <thead class="bg-light sticky-top">
+                    <tr>
+                        <th>Asset</th>
+                        <th class="text-end">Amount</th>
+                        <th>Breakdown</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in BillingService.BatchResult.Previews)
+                    {
+                        <tr>
+                            <td><span class="tree-badge">@item.AssetName</span></td>
+                            <td class="text-end fw-bold">₹@item.Amount</td>
+                            <td class="text-muted small">@item.Description</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<BillingBatch> OnViewDetails { get; set; }
+}

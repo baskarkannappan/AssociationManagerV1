@@ -44,7 +44,16 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
             else workflowName = "RequireResident";
         }
 
-        // 3. Evaluate Rule
+        // 3. Evaluation Logic
+        // 3a. FAST PATH: If direct role level is already sufficient, succeed immediately.
+        // This removes dependency on database rules for basic hierarchy-based access.
+        if (securityContext.UserLevel >= requirement.RequiredLevel)
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        // 3b. RULE ENGINE: Use for complex/overridden rules if level check didn't pass or for specific workflows
         var isAuthorized = await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
 
         if (isAuthorized)

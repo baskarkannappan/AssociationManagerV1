@@ -1,0 +1,22 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject AssetStateService AssetState
+@inject ApiService Api
+@inject ToastService _toastService
+
+<div class="p-4">
+    <OccupancyList AssetId="AssetState.SelectedAsset!.AssetId" 
+                   Occupants="AssetState.Occupants" 
+                   OnDelete="RemoveOccupant" 
+                   OnDataChanged="() => AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId)" />
+</div>
+
+@code {
+    private async Task RemoveOccupant(int id) {
+        var success = await Api.DeleteAsync($"api/people/occupancy/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Occupant removed."));
+            await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId);
+        }
+    }
+}

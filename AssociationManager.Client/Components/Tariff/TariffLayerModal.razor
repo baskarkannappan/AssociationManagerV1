@@ -1,0 +1,52 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Enums
+@inject TariffStateService TariffState
+
+<div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">Add Layer to @TariffState.SelectedGroup?.Name</h6>
+                <button type="button" class="btn-close small" @onclick="() => TariffState.ShowLayerModal = false"></button>
+            </div>
+            <div class="modal-body compact-form">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">Layer Name</label>
+                        <input @bind="TariffState.NewLayer.Name" class="form-control" placeholder="e.g. Waste Management" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1">Accounting Category</label>
+                        <input @bind="TariffState.NewLayer.AccountingCategory" class="form-control" placeholder="e.g. Operational" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Base Rate (₹)</label>
+                        <input type="number" @bind="TariffState.NewLayer.BaseRate" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Frequency</label>
+                        <select @bind="TariffState.NewLayer.Frequency" class="form-select">
+                            @foreach (var f in Enum.GetValues<BillingFrequency>())
+                            {
+                                <option value="@f">@f</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Calc Type</label>
+                        <select @bind="TariffState.NewLayer.CalculationType" class="form-select">
+                            @foreach (var c in Enum.GetValues<CalculationType>())
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-secondary" @onclick="() => TariffState.ShowLayerModal = false">Cancel</button>
+                <button class="btn btn-sm btn-vscode px-3" @onclick="TariffState.CreateLayerAsync">Add Layer</button>
+            </div>
+        </div>
+    </div>
+</div>

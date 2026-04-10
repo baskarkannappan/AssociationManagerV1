@@ -19,7 +19,7 @@ public class ClientRuleEngineService : IRuleEngineService
                 "ShowMenu_Users" or "ShowMenu_Community" => 80,
                 "ShowWidget_AuditLog" => 60,
                 "ShowMenu_Tariffs" or "ShowMenu_Broadcasts" or "ShowWidget_Outstanding" => 40,
-                _ => 10 // Most menus/widgets are visible to residents (Level 10)
+                _ => 10 // Most other menus/widgets are visible to residents (Level 10)
             };
             result = context.UserLevel >= required;
         }

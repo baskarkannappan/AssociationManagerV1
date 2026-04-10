@@ -1,0 +1,40 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject AssetStateService AssetState
+@inject ApiService Api
+@inject ToastService _toastService
+
+<div class="p-4">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <VehicleList AssetId="AssetState.SelectedAsset!.AssetId" 
+                         Vehicles="AssetState.Vehicles" 
+                         OnDelete="RemoveVehicle" 
+                         OnDataChanged="() => AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId)" />
+        </div>
+        <div class="col-md-6">
+            <PetList AssetId="AssetState.SelectedAsset!.AssetId" 
+                     Pets="AssetState.Pets" 
+                     OnDelete="RemovePet" 
+                     OnDataChanged="() => AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId)" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private async Task RemoveVehicle(int id) {
+        var success = await Api.DeleteAsync($"api/people/vehicles/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Vehicle removed."));
+            await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId);
+        }
+    }
+
+    private async Task RemovePet(int id) {
+        var success = await Api.DeleteAsync($"api/people/pets/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Pet record removed."));
+            await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId);
+        }
+    }
+}

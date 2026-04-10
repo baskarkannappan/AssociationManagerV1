@@ -27,6 +27,7 @@ public class DashboardController : ControllerBase
     private readonly ITenantContext _tenantContext;
     private readonly ITransactionRepository _transactionRepository;
     private readonly IDashboardService _dashboardService;
+    private readonly IDashboardRepository _dashboardRepository;
 
     public DashboardController(
         IPersonRepository personRepository,
@@ -38,7 +39,8 @@ public class DashboardController : ControllerBase
         IPeopleService peopleService,
         ITenantContext tenantContext,
         ITransactionRepository transactionRepository,
-        IDashboardService dashboardService)
+        IDashboardService dashboardService,
+        IDashboardRepository dashboardRepository)
     {
         _personRepository = personRepository;
         _invoiceRepository = invoiceRepository;
@@ -50,31 +52,34 @@ public class DashboardController : ControllerBase
         _tenantContext = tenantContext;
         _transactionRepository = transactionRepository;
         _dashboardService = dashboardService;
+        _dashboardRepository = dashboardRepository;
     }
 
     [HttpGet("admin/metrics")]
     [Authorize(Policy = "RequireManagement")]
-    public async Task<IActionResult> GetAdminMetrics()
+    public async Task<IActionResult> GetAdminMetrics([FromQuery] int? associationId = null)
     {
         var tenantId = _tenantContext.TenantId;
-        var associationId = _tenantContext.AssociationId;
+        var aid = associationId ?? _tenantContext.AssociationId;
 
-        var members = await _personRepository.GetAllAsync(tenantId, associationId);
-        var invoices = await _invoiceRepository.GetAllAsync(tenantId, associationId);
-        var payments = await _paymentRepository.GetByTenantIdAsync(tenantId, associationId);
-        var workOrders = await _workOrderRepository.GetAllAsync(tenantId, associationId);
-        var activity = await _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
-        var finSummary = await _financeService.GetAssociationFinanceSummaryAsync(associationId, tenantId);
+        var membersTask = _personRepository.GetAllAsync(tenantId, aid);
+        var invoicesTask = _invoiceRepository.GetAllAsync(tenantId, aid);
+        var paymentsTask = _paymentRepository.GetByTenantIdAsync(tenantId, aid);
+        var workOrdersTask = _workOrderRepository.GetAllAsync(tenantId, aid);
+        var activityTask = _auditLogRepository.GetByTenantIdAsync(tenantId, aid);
+        var finSummaryTask = _financeService.GetAssociationFinanceSummaryAsync(aid, tenantId);
+
+        await Task.WhenAll(membersTask, invoicesTask, paymentsTask, workOrdersTask, activityTask, finSummaryTask);
 
         var metrics = new AssociationDashboardMetrics
         {
-            TotalMembers = members.Count(),
-            TotalRevenueCollected = payments.Where(p => p.Status == "Paid" || p.Status == "Completed").Sum(p => p.Amount),
-            TotalOutstanding = finSummary.TotalOutstanding,
-            TotalAdvanceCredits = finSummary.TotalCredits,
-            UnitsWithCredit = finSummary.UnitsWithCredit,
-            PendingWorkOrders = workOrders.Count(w => w.Status != "Completed" && w.Status != "Closed"),
-            RecentActivity = activity.OrderByDescending(a => a.Timestamp).Take(5).ToList()
+            TotalMembers = (await membersTask).Count(),
+            TotalRevenueCollected = (await paymentsTask).Where(p => p.Status == "Paid" || p.Status == "Completed").Sum(p => p.Amount),
+            TotalOutstanding = (await finSummaryTask).TotalOutstanding,
+            TotalAdvanceCredits = (await finSummaryTask).TotalCredits,
+            UnitsWithCredit = (await finSummaryTask).UnitsWithCredit,
+            PendingWorkOrders = (await workOrdersTask).Count(w => w.Status != "Completed" && w.Status != "Closed"),
+            RecentActivity = (await activityTask).OrderByDescending(a => a.Timestamp).Take(5).ToList()
         };
 
         return Ok(ApiResponse<AssociationDashboardMetrics>.SuccessResponse(metrics));
@@ -82,41 +87,46 @@ public class DashboardController : ControllerBase
 
     [HttpGet("admin/total-members")]
     [Authorize(Policy = "RequireManagement")]
-    public async Task<IActionResult> GetTotalMembers()
+    public async Task<IActionResult> GetTotalMembers([FromQuery] int? associationId = null)
     {
-        var count = await _dashboardService.GetTotalMembersAsync();
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var count = await _dashboardRepository.GetTotalMembersAsync(_tenantContext.TenantId, aid);
         return Ok(ApiResponse<int>.SuccessResponse(count));
     }
 
     [HttpGet("admin/committee-count")]
     [Authorize(Policy = "RequireManagement")]
-    public async Task<IActionResult> GetCommitteeCount()
+    public async Task<IActionResult> GetCommitteeCount([FromQuery] int? associationId = null)
     {
-        var count = await _dashboardService.GetCommitteeCountAsync();
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var count = await _dashboardRepository.GetCommitteeCountAsync(_tenantContext.TenantId, aid);
         return Ok(ApiResponse<int>.SuccessResponse(count));
     }
 
     [HttpGet("admin/revenue-30d")]
     [Authorize(Policy = "RequireManagement")]
-    public async Task<IActionResult> GetRevenue30D()
+    public async Task<IActionResult> GetRevenue30D([FromQuery] int? associationId = null)
     {
-        var revenue = await _dashboardService.GetRevenue30DAsync();
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var revenue = await _dashboardRepository.GetRevenue30DAsync(_tenantContext.TenantId, aid);
         return Ok(ApiResponse<decimal>.SuccessResponse(revenue));
     }
 
     [HttpGet("admin/outstanding")]
     [Authorize(Policy = "RequireManagement")]
-    public async Task<IActionResult> GetNetOutstanding()
+    public async Task<IActionResult> GetNetOutstanding([FromQuery] int? associationId = null)
     {
-        var outstanding = await _dashboardService.GetNetOutstandingAsync();
-        return Ok(ApiResponse<decimal>.SuccessResponse(outstanding));
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var summary = await _financeService.GetFinanceSummaryAsync(aid);
+        return Ok(ApiResponse<decimal>.SuccessResponse(summary.TotalUnpaid));
     }
 
     [HttpGet("admin/advance-money")]
     [Authorize(Policy = "RequireManagement")]
-    public async Task<IActionResult> GetHeldAdvanceMoney()
+    public async Task<IActionResult> GetHeldAdvanceMoney([FromQuery] int? associationId = null)
     {
-        var (amount, units) = await _dashboardService.GetHeldAdvanceMoneyAsync();
+        var aid = associationId ?? _tenantContext.AssociationId;
+        (decimal amount, int units) = await _dashboardRepository.GetHeldAdvanceMoneyAsync(_tenantContext.TenantId, aid);
         return Ok(ApiResponse<object>.SuccessResponse(new { TotalAdvanceCredits = amount, UnitsWithCredit = units }));
     }
 

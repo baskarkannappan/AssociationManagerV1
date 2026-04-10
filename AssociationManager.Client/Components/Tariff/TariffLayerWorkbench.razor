@@ -1,0 +1,132 @@
+@inherits StatefulComponentBase
+@inject TariffStateService TariffState
+@inject ApiService Api
+@inject ToastService _toastService
+
+@code {
+    protected override void OnInitialized()
+    {
+        RegisterStateService(TariffState);
+    }
+}
+
+<div class="flex-grow-1 bg-white d-flex flex-column @(TariffState.ShowWorkbenchOnMobile ? "d-flex" : "d-none d-lg-flex")" style="min-width: 0;">
+    @if (TariffState.SelectedGroup == null)
+    {
+        <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
+            <i class="bi bi-layers display-1 mb-3"></i>
+            <p>Select a billing category from the explorer to manage its tariffs.</p>
+        </div>
+    }
+    else
+    {
+        <div class="premium-tab-container">
+            <div class="premium-tab @(TariffState.ActiveTab == "layers" ? "active" : "")" @onclick='() => TariffState.ActiveTab = "layers"'>Tariff Layers</div>
+            <div class="premium-tab @(TariffState.ActiveTab == "assignments" ? "active" : "")" @onclick='() => TariffState.ActiveTab = "assignments"'>Asset Assignments</div>
+        </div>
+
+        <div class="flex-grow-1 overflow-auto p-4">
+            @if (TariffState.ActiveTab == "layers")
+            {
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center gap-2">
+                         <h5 class="mb-0 fw-bold">@TariffState.SelectedGroup.Name Layers</h5>
+                         <span class="modern-badge modern-badge-outline">@(TariffState.Layers?.Count ?? 0) Active</span>
+                    </div>
+                    <button class="btn btn-sm btn-vscode px-3" @onclick='() => { TariffState.NewLayer = new(); TariffState.ShowLayerModal = true; }'>
+                        <i class="bi bi-plus me-1"></i> New Layer
+                    </button>
+                </div>
+                
+                @if (TariffState.Layers == null)
+                {
+                    <div class="text-center py-5 opacity-50"><div class="spinner-border"></div></div>
+                }
+                else if (!TariffState.Layers.Any())
+                {
+                    <div class="p-5 text-center bg-light rounded border border-dashed text-muted">
+                        <i class="bi bi-info-circle mb-2 d-block"></i>
+                        No tariff layers defined in this group.
+                    </div>
+                }
+                else
+                {
+                    <TariffLayerList Layers="TariffState.Layers" OnDelete="TariffState.DeleteLayerAsync" />
+                }
+            }
+            else
+            {
+                <div class="mb-4">
+                    <p class="small text-muted mb-3">Map assets to specific tariff layers for recurring or one-time billing.</p>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="horizontal-form-label mb-2">Target Layer</label>
+                            <select class="form-select form-select-sm" @bind="TariffState.SelectedLayerId" @bind:after="() => TariffState.LoadAssignedAssetsAsync(TariffState.SelectedLayerId)">
+                                <option value="0">-- Select Layer --</option>
+                                @foreach (var layer in TariffState.Layers ?? new())
+                                {
+                                    <option value="@layer.TariffLayerId">@layer.Name (₹@layer.BaseRate)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-7 d-flex justify-content-end">
+                            @if (TariffState.SelectedLayerId > 0)
+                            {
+                                <button class="btn btn-sm btn-vscode px-3" @onclick="() => TariffState.ShowBulkAssignModal = true">
+                                    <i class="bi bi-plus-circle me-1"></i> Bulk Assign
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                @if (TariffState.SelectedLayerId > 0)
+                {
+                    <div class="p-3 border rounded bg-white">
+                        @if (TariffState.AssignedAssets == null)
+                        {
+                            <div class="text-center py-4 opacity-50 small">
+                                <div class="spinner-border spinner-border-sm me-2"></div>Loading mappings...
+                            </div>
+                        }
+                        else if (!TariffState.AssignedAssets.Any())
+                        {
+                            <div class="text-center py-5 border border-dashed rounded bg-light small text-muted">
+                                <i class="bi bi-link-45deg display-4 mb-2 d-block opacity-20"></i> No assets assigned.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var asset in TariffState.AssignedAssets)
+                                {
+                                    <div class="modern-badge modern-badge-outline d-flex align-items-center gap-2 bg-light p-2" style="font-size: 11px;">
+                                        <i class="bi bi-box-seam text-primary"></i>
+                                        <span class="fw-bold">@asset.AssetName</span>
+                                        @if (!asset.IsRecurring)
+                                        {
+                                            <span class="ms-1 px-1 rounded bg-warning text-dark px-2" style="font-size: 8px; font-weight: 800;">ONE-TIME</span>
+                                        }
+                                        <i class="bi bi-x-circle cursor-pointer text-danger ms-1" @onclick="() => RemoveAssignment(asset)"></i>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private async Task RemoveAssignment(AssetTariff assignment)
+    {
+        var success = await Api.DeleteAsync($"api/tariff/assets/{assignment.AssetId}/layers/{assignment.TariffLayerId}");
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Warning, "Assignment removed."));
+            await TariffState.LoadAssignedAssetsAsync(TariffState.SelectedLayerId);
+        }
+    }
+}

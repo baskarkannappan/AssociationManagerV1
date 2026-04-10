@@ -15,8 +15,11 @@ public class GovernanceService
     }
 
     // Profile
-    public async Task<AssociationProfile?> GetProfileAsync() 
-        => await _apiService.GetAsync<AssociationProfile>("api/governance/profile");
+    public async Task<AssociationProfile?> GetProfileAsync(int? associationId = null) 
+    {
+        var url = associationId.HasValue ? $"api/governance/profile?associationId={associationId}" : "api/governance/profile";
+        return await _apiService.GetAsync<AssociationProfile>(url);
+    }
 
     public async Task<bool> UpdateProfileAsync(AssociationProfile profile) 
         => await _apiService.PostAsync("api/governance/profile", profile);
@@ -25,8 +28,12 @@ public class GovernanceService
     public async Task<List<CommitteeRole>> GetCommitteeRolesAsync() 
         => await _apiService.GetAsync<List<CommitteeRole>>("api/governance/committee/roles") ?? new();
 
-    public async Task<List<CommitteeMember>> GetCommitteeMembersAsync(bool activeOnly = true) 
-        => await _apiService.GetAsync<List<CommitteeMember>>($"api/governance/committee/members?activeOnly={activeOnly}") ?? new();
+    public async Task<List<CommitteeMember>> GetCommitteeMembersAsync(bool activeOnly = true, int? associationId = null) 
+    {
+        var url = $"api/governance/committee/members?activeOnly={activeOnly}";
+        if (associationId.HasValue) url += $"&associationId={associationId}";
+        return await _apiService.GetAsync<List<CommitteeMember>>(url) ?? new();
+    }
 
     public async Task<bool> AddCommitteeMemberAsync(CommitteeMember member) 
         => await _apiService.PostAsync("api/governance/committee/members", member);
@@ -48,8 +55,11 @@ public class GovernanceService
         => await _apiService.DeleteAsync($"api/governance/byelaws/{id}");
 
     // Meetings
-    public async Task<List<Meeting>> GetMeetingsAsync() 
-        => await _apiService.GetAsync<List<Meeting>>("api/governance/meetings") ?? new();
+    public async Task<List<Meeting>> GetMeetingsAsync(int? associationId = null) 
+    {
+        var url = associationId.HasValue ? $"api/governance/meetings?associationId={associationId}" : "api/governance/meetings";
+        return await _apiService.GetAsync<List<Meeting>>(url) ?? new();
+    }
 
     public async Task<bool> CreateMeetingAsync(Meeting meeting) 
         => await _apiService.PostAsync("api/governance/meetings", meeting);

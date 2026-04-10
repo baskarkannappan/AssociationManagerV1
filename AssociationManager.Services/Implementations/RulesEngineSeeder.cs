@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace AssociationManager.Api.Authorization;
+namespace AssociationManager.Services.Implementations;
 
 public class RulesEngineSeeder
 {
@@ -149,6 +149,67 @@ public class RulesEngineSeeder
                         Rules = new[]
                         {
                             new { RuleName = "LevelCheck", Expression = "input1.UserLevel >= 90", SuccessEvent = "True" }
+                        }
+                    }
+                })
+            },
+            // --- CORPORATE WORKFLOWS ---
+            new AuthWorkflow
+            {
+                Name = "RequireCorporate",
+                Description = "Requires level 80 or higher (Corporate Manager)",
+                WorkflowJson = JsonSerializer.Serialize(new[]
+                {
+                    new {
+                        WorkflowName = "RequireCorporate",
+                        Rules = new[]
+                        {
+                            new { RuleName = "LevelCheck", Expression = "input1.UserLevel >= 80", SuccessEvent = "True" }
+                        }
+                    }
+                })
+            },
+            new AuthWorkflow
+            {
+                Name = "RequirePlanManagement",
+                Description = "Requires level 70 or higher (Subscription Manager)",
+                WorkflowJson = JsonSerializer.Serialize(new[]
+                {
+                    new {
+                        WorkflowName = "RequirePlanManagement",
+                        Rules = new[]
+                        {
+                            new { RuleName = "LevelCheck", Expression = "input1.UserLevel >= 70", SuccessEvent = "True" }
+                        }
+                    }
+                })
+            },
+            new AuthWorkflow
+            {
+                Name = "RequireUserManagement",
+                Description = "Requires level 90 or higher (Global User Manager)",
+                WorkflowJson = JsonSerializer.Serialize(new[]
+                {
+                    new {
+                        WorkflowName = "RequireUserManagement",
+                        Rules = new[]
+                        {
+                            new { RuleName = "LevelCheck", Expression = "input1.UserLevel >= 90", SuccessEvent = "True" }
+                        }
+                    }
+                })
+            },
+            new AuthWorkflow
+            {
+                Name = "RequirePlatformAdmin",
+                Description = "Requires level 100 or higher (Platform Admin)",
+                WorkflowJson = JsonSerializer.Serialize(new[]
+                {
+                    new {
+                        WorkflowName = "RequirePlatformAdmin",
+                        Rules = new[]
+                        {
+                            new { RuleName = "LevelCheck", Expression = "input1.UserLevel >= 100", SuccessEvent = "True" }
                         }
                     }
                 })

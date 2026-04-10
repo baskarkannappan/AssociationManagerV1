@@ -11,7 +11,6 @@ using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using AssociationManager.Api.Authorization;
 using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
@@ -91,7 +90,7 @@ builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();
-builder.Services.AddScoped<AssociationManager.Api.Authorization.RulesEngineSeeder>();
+builder.Services.AddScoped<RulesEngineSeeder>();
 builder.Services.AddHostedService<AssociationManager.Api.Workers.FinePostingWorker>();
 
 // Billing Strategies & Batch Service
@@ -241,7 +240,7 @@ app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notification
 // Seed Rules Engine
 using (var scope = app.Services.CreateScope())
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<AssociationManager.Api.Authorization.RulesEngineSeeder>();
+    var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
     await seeder.SeedAsync();
 }
 

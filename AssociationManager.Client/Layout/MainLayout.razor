@@ -1,37 +1,30 @@
-@implements IDisposable
 @inherits LayoutComponentBase
+@inject LayoutStateService LayoutState
+@inject EventBusService EventBus
 
 <div class="vscode-shell">
     <!-- Top Header Bar -->
     <header class="vscode-top-header">
         <div class="header-left">
-            <button class="mobile-menu-btn" @onclick="ToggleMobileMenu">
+            <button class="mobile-menu-btn desktop-only" @onclick="ToggleMobileMenu">
                 <i class="bi bi-list"></i>
             </button>
-            <svg viewBox="0 14 170 66" xmlns="http://www.w3.org/2000/svg" class="app-logo me-2">
-                <g transform="translate(0,0)">
-                    <rect x="0" y="20" width="35" height="60" fill="var(--vscode-text)"></rect>
-                    <ellipse cx="17.5" cy="20" rx="17.5" ry="6" fill="var(--vscode-text)"></ellipse>
-                    <ellipse cx="17.5" cy="20" rx="12" ry="4" fill="white"></ellipse>
-                </g>
-                <g transform="translate(45,0)">
-                    <rect x="0" y="20" width="35" height="60" fill="var(--vscode-accent)"></rect>
-                    <ellipse cx="17.5" cy="20" rx="17.5" ry="6" fill="var(--vscode-accent)"></ellipse>
-                    <ellipse cx="17.5" cy="20" rx="12" ry="4" fill="white"></ellipse>
-                </g>
-                <g transform="translate(90,0)">
-                    <rect x="0" y="20" width="35" height="60" fill="var(--vscode-text)"></rect>
-                    <ellipse cx="17.5" cy="20" rx="17.5" ry="6" fill="var(--vscode-text)"></ellipse>
-                    <ellipse cx="17.5" cy="20" rx="12" ry="4" fill="white"></ellipse>
-                </g>
-                <g transform="translate(135,0)">
-                    <rect x="0" y="20" width="35" height="60" fill="var(--vscode-accent)"></rect>
-                    <ellipse cx="17.5" cy="20" rx="17.5" ry="6" fill="var(--vscode-accent)"></ellipse>
-                    <ellipse cx="17.5" cy="20" rx="12" ry="4" fill="white"></ellipse>
-                </g>
-            </svg>
-            <span class="app-title fw-semibold">Association Manager</span>
-            <span class="ms-2 opacity-50" style="font-size: 11px;">(v1.0.4)</span>
+            <div class="d-flex align-items-center gap-2">
+                <svg viewBox="0 14 170 66" xmlns="http://www.w3.org/2000/svg" class="app-logo">
+                    <g transform="translate(0,0)">
+                        <rect x="0" y="20" width="35" height="60" fill="var(--vscode-text)"></rect>
+                        <ellipse cx="17.5" cy="20" rx="17.5" ry="6" fill="var(--vscode-text)"></ellipse>
+                        <ellipse cx="17.5" cy="20" rx="12" ry="4" fill="white"></ellipse>
+                    </g>
+                    <g transform="translate(45,0)">
+                        <rect x="0" y="20" width="35" height="60" fill="var(--vscode-accent)"></rect>
+                        <ellipse cx="17.5" cy="20" rx="17.5" ry="6" fill="var(--vscode-accent)"></ellipse>
+                        <ellipse cx="17.5" cy="20" rx="12" ry="4" fill="white"></ellipse>
+                    </g>
+                </svg>
+                <span class="app-title fw-semibold desktop-only">Association Manager</span>
+                <span class="app-title fw-semibold mobile-only" style="font-size: 11px;">AssocMgr</span>
+            </div>
         </div>
         <div class="header-right">
             <AuthorizeView Context="authContext">
@@ -39,7 +32,7 @@
                     @if (_userTenants != null && _userTenants.Any())
                     {
                         <div class="tenant-switcher-container">
-                            <i class="bi bi-diagram-3" style="font-size: 14px;"></i>
+                            <i class="bi bi-diagram-3 desktop-only" style="font-size: 14px;"></i>
                             <select @onchange="HandleTenantChange" class="tenant-select" value="@_currentAssociationId">
                                 @foreach (var assoc in _userTenants)
                                 {
@@ -48,12 +41,12 @@
                             </select>
                         </div>
                     }
-                    <div class="user-identity ms-3 me-2">
+                    <div class="user-identity ms-2 desktop-only">
                         <div class="d-flex flex-column align-items-end me-1">
                             <span class="user-email">@(authContext.User.FindFirst("email")?.Value ?? authContext.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value)</span>
-                            <span class="user-role badge bg-primary-subtle text-primary border-primary-subtle" style="font-size: 9px; padding: 1px 4px;">@_currentRole</span>
+                            <span class="user-role badge bg-primary-subtle text-primary" style="font-size: 8px;">@_currentRole</span>
                         </div>
-                        <i class="bi bi-person-circle fs-5 opacity-75"></i>
+                        <i class="bi bi-person-circle fs-6 opacity-75"></i>
                     </div>
                     <button class="logout-btn" @onclick="HandleLogout">
                         <i class="bi bi-box-arrow-right"></i>
@@ -81,24 +74,63 @@
         <div class="vscode-editor-pane">
             <Toasts class="p-3" AutoHide="true" Delay="10000" Placement="ToastsPlacement.TopRight" />
             <main class="vscode-content">
+                @if (!string.IsNullOrEmpty(LayoutState.PageTitle))
+                {
+                    <div class="premium-page-header border-bottom px-4 py-2 mb-0 d-none d-lg-block">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                @if (LayoutState.Breadcrumbs.Any())
+                                {
+                                    <div class="premium-breadcrumb mb-1">
+                                        @foreach (var crumb in LayoutState.Breadcrumbs)
+                                        {
+                                            @if (crumb.Url != null) { <a href="@crumb.Url" class="text-decoration-none text-muted">@crumb.Text.ToUpper()</a> }
+                                            else { <span>@crumb.Text.ToUpper()</span> }
+                                            @if (crumb != LayoutState.Breadcrumbs.Last()) { <i class="bi bi-chevron-right mx-1"></i> }
+                                        }
+                                    </div>
+                                }
+                                <h1 class="premium-page-title mb-0" style="font-size: 1.15rem;">
+                                    @if (!string.IsNullOrEmpty(LayoutState.PageIcon)) { <i class="bi @LayoutState.PageIcon me-2"></i> }
+                                    @LayoutState.PageTitle
+                                </h1>
+                            </div>
+                            <div id="header-actions"></div>
+                        </div>
+                    </div>
+                }
+                
+                @if (LayoutState.IsLoading)
+                {
+                    <div class="global-loader">
+                        <div class="loader-bar"></div>
+                    </div>
+                }
+                
                 @Body
             </main>
         </div>
     </div>
 
-    <!-- Status Bar
-    <footer class="vscode-statusbar">
-        <div class="section">
-            <i class="bi bi-check2-all"></i>
-            <span>Connected</span>
-            <span>UTF-8</span>
-        </div>
-        <div class="section">
-            <span>AssociationManager Project</span>
-            <i class="bi bi-bell"></i>
-        </div>
-    </footer>
-    -->
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="vscode-mobile-nav mobile-only">
+        <NavLink href="/" class="mobile-nav-item" Match="NavLinkMatch.All">
+            <i class="bi bi-house-door"></i>
+            <span>Home</span>
+        </NavLink>
+        <NavLink href="/finance/history" class="mobile-nav-item">
+            <i class="bi bi-cash-stack"></i>
+            <span>Finance</span>
+        </NavLink>
+        <NavLink href="/support" class="mobile-nav-item">
+            <i class="bi bi-question-circle"></i>
+            <span>Help</span>
+        </NavLink>
+        <button class="mobile-nav-item btn btn-link p-0 border-0" @onclick="ToggleMobileMenu">
+            <i class="bi bi-grid-3x3-gap"></i>
+            <span>Menu</span>
+        </button>
+    </nav>
 </div>
 
 <link href="css/vscode.css" rel="stylesheet" />
@@ -112,13 +144,19 @@
     
     .tenant-switcher-container { font-size: 11px; display: flex; align-items: center; gap: 6px; color: #666; }
     .tenant-select { background: #ffffff; color: #333; border: 1px solid #ddd; font-size: 11px; padding: 1px 4px; border-radius: 2px; }
-    .tenant-select:focus { outline: 1px solid var(--vscode-accent); border-color: transparent; }
+
+    .user-identity { display: flex; align-items: center; gap: 8px; cursor: default; }
+    .user-email { font-size: 11px; font-weight: 500; color: #333; line-height: 1; }
+    .user-role { padding: 1px 4px !important; border-radius: 2px !important; font-weight: 600 !important; }
+
+    .global-loader { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9999; background: rgba(0,122,204,0.1); }
+    .loader-bar { height: 100%; background: var(--vscode-accent); transition: width 0.3s ease; width: 0%; animation: loader-pulse 2s infinite ease-in-out; }
     
-    .user-identity { font-size: 11px; display: flex; align-items: center; gap: 8px; border-left: 1px solid #eee; padding-left: 10px; color: #333; }
-    .user-email { font-weight: 500; line-height: 1; margin-bottom: 2px; }
-    .user-role { text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-    .logout-btn { background: transparent; border: none; color: #666; padding: 0 5px; opacity: 0.8; transition: all 0.2s; }
-    .logout-btn:hover { opacity: 1; color: var(--vscode-accent); transform: scale(1.1); }
+    @@keyframes loader-pulse {
+        0% { width: 0%; left: 0; }
+        50% { width: 30%; left: 35%; }
+        100% { width: 0%; left: 100%; }
+    }
 
     .mobile-backdrop {
         position: fixed;
@@ -149,8 +187,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
         Navigation.LocationChanged += HandleLocationChanged;
+        LayoutState.OnChange += StateHasChanged;
         await LoadTenants();
     }
 
@@ -159,8 +199,6 @@
     private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         _isMobileMenuOpen = false;
-        
-        // Re-verify deactivation status on every navigation - UNIVERSAL REDIRECT
         if (_currentAssociationStatus == "Deactivated")
         {
             if (!Navigation.Uri.Contains("/deactivated") && !Navigation.Uri.Contains("/login"))
@@ -168,7 +206,6 @@
                 Navigation.NavigateTo("/deactivated");
             }
         }
-        
         await InvokeAsync(StateHasChanged);
     }
 
@@ -188,104 +225,42 @@
 
         try 
         {
-            if (authState == null)
-            {
-                authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            }
-            
+            if (authState == null) authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
+
             if (user.Identity?.IsAuthenticated == true)
             {
-                _currentTenantId = TenantContext.TenantId;
-                _currentAssociationId = TenantContext.AssociationId;
-
-                var contextRole = user.FindFirst(c => c.Type.Equals("ContextRole", StringComparison.OrdinalIgnoreCase))?.Value;
-                var displayRole = !string.IsNullOrEmpty(contextRole) ? contextRole : AppRole.GetHighestRole(user.Claims);
-                
-                if (_currentRole != displayRole && displayRole != "Guest")
-                {
-                    _currentRole = displayRole;
-                    ShowRoleCapabilities(displayRole);
-                }
-                
                 _userTenants = await ApiService.GetAsync<IEnumerable<Association>>("api/associations/my-tenants");
                 
-                var currentAssoc = _userTenants?.FirstOrDefault(a => a.AssociationId == _currentAssociationId);
-                _currentAssociationStatus = currentAssoc?.Status ?? "Active";
+                var aid = user.FindFirst("AssociationId")?.Value;
+                if (int.TryParse(aid, out int associationId)) _currentAssociationId = associationId;
 
-                if (_currentAssociationStatus == "Deactivated")
-                {
-                    if (!Navigation.Uri.Contains("/deactivated") && !Navigation.Uri.Contains("/login"))
-                    {
-                        Navigation.NavigateTo("/deactivated");
-                    }
-                }
-                
-                Console.WriteLine($"[Layout] Loaded {_userTenants?.Count() ?? 0} tenants for User. Status: {_currentAssociationStatus}");
-                
-                // Auto-select first association if none selected AND we aren't currently switching
+                var tid = user.FindFirst("TenantId")?.Value;
+                if (int.TryParse(tid, out int tenantId)) _currentTenantId = tenantId;
+
+                _currentRole = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+                _currentAssociationStatus = user.FindFirst("AssociationStatus")?.Value ?? "Active";
+
                 if (_currentAssociationId == 0 && _userTenants != null && _userTenants.Any())
                 {
-                    var firstAssoc = _userTenants.First();
-                    Console.WriteLine($"[Layout] No AssociationId in session. Auto-selecting First: {firstAssoc.Name} (ID: {firstAssoc.AssociationId})");
-                    
-                    // Trigger automatic switch to set session context
-                    var response = await AuthService.SwitchTenant(firstAssoc.TenantId, firstAssoc.AssociationId);
-                    if (response?.Success == true)
-                    {
-                        Console.WriteLine($"[Layout] SwitchTenant successful. Forcing reload to apply context...");
-                        // Update local State immediately to stop loop
-                        _currentAssociationId = firstAssoc.AssociationId;
-                        _currentTenantId = firstAssoc.TenantId;
-                        
-                        // Force load once to refresh all components with new context
-                        Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
-                    }
-                }
-                else if (_currentAssociationId != 0)
-                {
-                    Console.WriteLine($"[Layout] Active AssociationId: {_currentAssociationId}. No auto-select needed.");
+                    _currentAssociationId = _userTenants.First().AssociationId;
                 }
             }
-            else
-            {
-                _userTenants = null;
-                _currentRole = null;
-                _currentAssociationId = 0;
-                _currentTenantId = 0;
-            }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading tenants: {ex.Message}");
-            _userTenants = Enumerable.Empty<Association>();
-        }
-        finally
-        {
-            _isLoadingTenants = false;
-        }
-    }
-
-    private void ShowRoleCapabilities(string role)
-    {
-        _toastService.Notify(new(
-            ToastType.Info,
-            iconName: IconName.ShieldCheck,
-            title: "Access Granted",
-            message: $"You have signed in with {role} privileges."));
+        finally { _isLoadingTenants = false; }
     }
 
     private async Task HandleTenantChange(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out int newAssocId))
+        if (int.TryParse(e.Value?.ToString(), out int associationId))
         {
-            var assoc = _userTenants?.FirstOrDefault(a => a.AssociationId == newAssocId);
-            if (assoc != null)
+            var target = _userTenants?.FirstOrDefault(t => t.AssociationId == associationId);
+            if (target != null)
             {
-                var response = await AuthService.SwitchTenant(assoc.TenantId, assoc.AssociationId);
+                var response = await AuthService.SwitchTenant(target.TenantId, target.AssociationId);
                 if (response?.Success == true)
                 {
-                    Navigation.NavigateTo("/", forceLoad: true);
+                    Navigation.NavigateTo("/", true);
                 }
             }
         }
@@ -301,5 +276,6 @@
     {
         AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         Navigation.LocationChanged -= HandleLocationChanged;
+        LayoutState.OnChange -= StateHasChanged;
     }
 }

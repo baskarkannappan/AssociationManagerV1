@@ -1,12 +1,15 @@
 @page "/"
 @using AssociationManager.Client.Services
-@inject TokenService TokenService
-@inject NavigationManager Navigation
-@inject GovernanceService GovernanceService
-@inject IRuleEngineService RuleEngine
-@inject ITenantContext TenantContext
-@inject BlazorBootstrap.ToastService ToastService
+@using AssociationManager.Client.Components.Dashboard
+@using AssociationManager.Client.Components.Base
 @using AssociationManager.Shared.Interfaces
+@inherits StatefulComponentBase
+@inject LayoutStateService LayoutState
+@inject DashboardStateService DashboardService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ITenantContext TenantContext
+@inject IRuleEngineService RuleEngine
+@inject BlazorBootstrap.ToastService ToastService
 
 <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
@@ -23,40 +26,11 @@
         {
             @if (isPending)
             {
-                <div class="pending-dashboard animate-fade-in">
-                    <div class="welcome-container text-center p-5">
-                        <div class="mb-4">
-                            <div class="app-icon-large mx-auto mb-3">
-                                <i class="bi bi-shield-lock" style="font-size: 4rem; color: var(--vscode-accent);"></i>
-                            </div>
-                            <h1 class="display-5 fw-bold mb-3">Welcome to Association Manager</h1>
-                            <p class="lead text-muted mb-5">Your account has been successfully created, but it is currently pending activation.</p>
-                        </div>
-
-                        <div class="info-card mx-auto shadow-sm p-4 bg-white border rounded-3" style="max-width: 600px;">
-                            <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>What happens next?</h5>
-                            <p class="text-start">To access the association features, a system administrator or an association manager needs to assign you to a specific role and association.</p>
-                            
-                            <hr class="my-4" />
-                            
-                            <div class="contact-section text-start">
-                                <p class="fw-bold mb-2">Please contact your administrator:</p>
-                                <ul class="list-unstyled">
-                                    <li class="mb-2"><i class="bi bi-envelope me-2"></i> support@associationmanager.com</li>
-                                    <li><i class="bi bi-person-badge me-2"></i> Or your local Association Office</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div class="mt-5 text-muted small">
-                            Logged in as: <strong>@authContext.User.FindFirst("email")?.Value</strong>
-                        </div>
-                    </div>
-                </div>
+                <PendingDashboard UserEmail="@authContext.User.FindFirst("email")?.Value" />
             }
             else
             {
-                Navigation.NavigateTo("/context-selection");
+                { Navigation.NavigateTo("/context-selection"); }
                 <div class="d-flex flex-column align-items-center justify-content-center vh-100 text-muted">
                     <div class="spinner-border spinner-border-sm mb-3" role="status"></div>
                     <span>Redirecting to context selection...</span>
@@ -65,166 +39,12 @@
         }
         else
         {
-        @if (_isResident)
+            @if (_isResident)
             {
-                <div class="resident-dashboard p-3 animate-fade-in">
-                    <div class="premium-page-header border-bottom px-4 py-3 mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h1 class="premium-page-title mb-0">
-                                <i class="bi bi-house-heart-fill me-2 opacity-50"></i>
-                                Resident Dashboard - @(_myUnit?.Name ?? "My Unit")
-                            </h1>
-                            <div class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
-                                <i class="bi bi-person-check-fill me-1"></i> Verified Resident
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-3">
-                        <!-- Financial Summary - Only shown if there is credit -->
-                        @if (_residentMetrics != null && _residentMetrics.CreditAvailable > 0)
-                        {
-                            <AuthorizeView Policy="ShowWidget_FinancialSummary" Context="widgetContext">
-                                <div class="col-lg-4 animate-fade-in">
-                                    <div class="compact-card bg-white border h-100 p-4 d-flex flex-column justify-content-center align-items-center text-center">
-                                        <div class="text-muted small text-uppercase fw-bold mb-2">
-                                            <span class="text-secondary opacity-75"><i class="bi bi-wallet2 me-1"></i> MY WALLET</span>
-                                        </div>
-                                        <div class="display-5 fw-bold text-success">₹@(_residentMetrics.CreditAvailable.ToString("N0"))</div>
-                                        <div class="mt-3 w-100 d-grid gap-2">
-                                            <button class="btn btn-vscode w-100 py-2 fw-bold" @onclick="ShowAdvanceModal">
-                                                <i class="bi bi-plus-circle-fill me-2"></i> Pay Advance / Top-up
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </AuthorizeView>
-                        }
-
-                        <!-- Quick Info Tabs -->
-                        <div class="@(_residentMetrics != null && _residentMetrics.CreditAvailable > 0 ? "col-lg-8" : "col-lg-12")">
-                            <div class="row g-2">
-                                <AuthorizeView Policy="ShowWidget_FinancialSummary" Context="widgetContext">
-                                    <div class="@(_residentMetrics != null && _residentMetrics.CreditAvailable > 0 ? "col-md-4" : "col-md-3")">
-                                        <div class="compact-card bg-white border p-3 h-100">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="activity-icon bg-info bg-opacity-10 text-info">
-                                                    <i class="bi bi-receipt"></i>
-                                                </div>
-                                                <div>
-                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending Invoices</div>
-                                                    <div class="h5 mb-0 fw-bold">@(_residentMetrics?.PendingInvoices ?? 0)</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="@(_residentMetrics != null && _residentMetrics.CreditAvailable > 0 ? "col-md-4" : "col-md-3")">
-                                        <div class="compact-card bg-white border p-3 h-100">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="activity-icon @((_residentMetrics?.BalanceDue ?? 0) > 0 ? "bg-danger" : "bg-success") bg-opacity-10 @((_residentMetrics?.BalanceDue ?? 0) > 0 ? "text-danger" : "text-success")">
-                                                    <i class="bi bi-cash-stack"></i>
-                                                </div>
-                                                <div>
-                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending Amount</div>
-                                                    <div class="h5 mb-0 fw-bold @((_residentMetrics?.BalanceDue ?? 0) > 0 ? "text-danger" : "text-success")">₹@(_residentMetrics?.BalanceDue.ToString("N0") ?? "0")</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </AuthorizeView>
-
-                                <AuthorizeView Policy="ShowWidget_ActiveRequests" Context="widgetContext">
-                                    <div class="@(_residentMetrics != null && _residentMetrics.CreditAvailable > 0 ? "col-md-4" : "col-md-3")">
-                                        <div class="compact-card bg-white border p-3 h-100">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="activity-icon bg-warning bg-opacity-10 text-warning">
-                                                    <i class="bi bi-tools"></i>
-                                                </div>
-                                                <div>
-                                                    <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Active Requests</div>
-                                                    <div class="h5 mb-0 fw-bold">@(_residentMetrics?.ActiveWorkOrders ?? 0)</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </AuthorizeView>
-
-                                @if (_residentMetrics != null && _residentMetrics.CreditAvailable <= 0)
-                                {
-                                    <div class="col-md-3">
-                                        <div class="compact-card bg-white border p-3 h-100 d-flex align-items-center">
-                                            <button class="btn btn-vscode-outline w-100 py-1 fw-bold small" @onclick="ShowAdvanceModal">
-                                                <i class="bi bi-plus-circle-fill me-1"></i> TOP UP WALLET
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-
-                            <!-- News/Broadcasts -->
-                            <AuthorizeView Policy="ShowWidget_Announcements" Context="widgetContext">
-                                <div class="mt-3 border bg-white">
-                                    <div class="premium-card-header bg-light bg-opacity-50">
-                                        <h6 class="premium-card-title"><i class="bi bi-megaphone me-2"></i>Recent Announcements</h6>
-                                    </div>
-                                    <div class="p-3">
-                                        @if (_adminMetrics?.RecentActivity?.Any() == true)
-                                        {
-                                            var latest = _adminMetrics.RecentActivity.First();
-                                            <div class="d-flex gap-3 align-items-center mb-0">
-                                                <div class="pulse-dot"></div>
-                                                <div class="flex-grow-1">
-                                                    <div class="fw-medium small">@latest.Action (@latest.Entity)</div>
-                                                    <div class="text-muted" style="font-size: 10px;">@TimeAgo(latest.Timestamp) • System Audit</div>
-                                                </div>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="text-muted small italic">No recent announcements.</div>
-                                        }
-                                    </div>
-                                </div>
-                            </AuthorizeView>
-                        </div>
-
-                        <!-- Main Content - Invoices -->
-                        <AuthorizeView Policy="ShowWidget_FinancialSummary" Context="widgetContext">
-                            <div class="col-lg-12">
-                                <div class="border bg-white shadow-sm">
-                                    <div class="premium-card-header d-flex justify-content-between align-items-center">
-                                        <h6 class="premium-card-title"><i class="bi bi-bank me-2 text-primary"></i>My Financial History</h6>
-                                        <span class="small text-muted">
-                                            @if (_occupancies != null && _occupancies.Count > 1)
-                                            {
-                                                var assetList = string.Join(", ", _occupancies.Select(o => o.AssetName ?? $"Unit {o.AssetId}"));
-                                                <i class="bi bi-info-circle me-1"></i><span>Consolidated view for: @assetList</span>
-                                            }
-                                            else
-                                            {
-                                                <span>Showing all invoices for your unit</span>
-                                            }
-                                        </span>
-                                    </div>
-                                    <div class="p-3">
-                                        <InvoiceList @ref="_invoiceList"
-                                                     Invoices="_myInvoices" 
-                                                     CreditAvailable="_residentMetrics?.CreditAvailable ?? 0m"
-                                                     OnPayNow="OnInvoicePayNow" 
-                                                     OnPayWithAdvance="OnPayWithAdvance" />
-                                    </div>
-                                </div>
-                            </div>
-                        </AuthorizeView>
-
-                        @if (_isPrimaryOwner && _myUnit != null)
-                        {
-                            <div class="col-lg-12 mt-4 animate-fade-in">
-                                <UnitRegistry AssetId="_myUnit.AssetId" />
-                            </div>
-                        }
-                    </div>
-                </div>
+                <ResidentDashboard @ref="_residentDashboard"
+                                   OnTopUpClicked="ShowAdvanceModal" 
+                                   OnPayNow="OnInvoicePayNow" 
+                                   OnPayWithAdvance="OnPayWithAdvance" />
 
                 @if (_isAdvanceModalOpen)
                 {
@@ -260,169 +80,7 @@
             }
             else
             {
-                <div class="admin-dashboard p-3">
-                    <div class="premium-page-header border-bottom px-4 py-3 mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem;">
-                        <div class="d-flex align-items-center gap-2">
-                            <h1 class="premium-page-title mb-0">
-                                <i class="bi bi-grid-fill me-2 opacity-50"></i>
-                                Command Center - @(_profile?.RegistrationNumber ?? "Assoc Profile")
-                            </h1>
-                        </div>
-                    </div>
-
-                    <!-- Stats Grid -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-3">
-                            <div class="compact-card h-100 bg-white border">
-                                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Total Members</div>
-                                <div class="h4 mb-1 fw-bold">@(_totalMembers)</div>
-                                <div class="small text-success" style="font-size: 11px;">
-                                    <i class="bi bi-people-fill"></i> Community Portfolio
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="compact-card h-100 bg-white border border-start-0" style="border-left: 3px solid var(--vscode-accent) !important;">
-                                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Committee Members</div>
-                                <div class="h4 mb-1 fw-bold">@(_committeeCount)</div>
-                                <div class="small text-muted" style="font-size: 11px;">Active Governance</div>
-                            </div>
-                        </div>
-                        <AuthorizeView Policy="ShowWidget_Outstanding" Context="widgetContext">
-                            <div class="col-md-3">
-                                <div class="compact-card h-100 bg-white border">
-                                    <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Total Revenue (30d)</div>
-                                    <div class="h4 mb-1 fw-bold text-accent" style="color: var(--vscode-accent);">₹@(_revenue30D.ToString("N0"))</div>
-                                    <div class="small text-success" style="font-size: 11px;">
-                                        <i class="bi bi-graph-up-arrow"></i> Collections
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="compact-card h-100 bg-white border">
-                                    <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Net Outstanding</div>
-                                    <div class="h4 mb-1 fw-bold @(_netOutstanding > 0 ? "text-danger" : "text-success")">₹@(_netOutstanding.ToString("N0"))</div>
-                                    <div class="d-flex align-items-center gap-1 small text-muted" style="font-size: 11px;">
-                                        <i class="bi bi-hourglass-split"></i> To be collected
-                                    </div>
-                                </div>
-                            </div>
-                             <div class="col-lg-3 col-md-6">
-                                <div class="compact-card h-100 bg-white border border-success border-opacity-25" style="border-left: 3px solid #10b981 !important;">
-                                    <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size: 10px;">Held Advance Money</div>
-                                    <div class="h4 mb-1 fw-bold text-success">₹@(_heldAdvanceMoney.ToString("N0"))</div>
-                                    <div class="d-flex align-items-center gap-1 small text-muted" style="font-size: 11px;">
-                                        <i class="bi bi-piggy-bank-fill text-success"></i> Prepaid by @(_unitsWithCredit) units
-                                    </div>
-                                </div>
-                            </div>
-                        </AuthorizeView>
-                    </div>
-
-                    <div class="row g-2">
-                        <div class="col-lg-8">
-                            <!-- Committee Summary -->
-                            <AuthorizeView Policy="ShowWidget_Committee" Context="widgetContext">
-                                @if (_committee?.Any() == true)
-                                {
-                                    <div class="border bg-white mb-2">
-                                        <div class="premium-card-header">
-                                            <h6 class="premium-card-title">Active Committee</h6>
-                                            <a href="/governance/committee" class="btn btn-sm btn-link text-decoration-none p-0" style="font-size: 11px;">View All</a>
-                                        </div>
-                                        <div class="p-3">
-                                            <div class="row g-2">
-                                                @foreach (var member in _committee.Take(4))
-                                                {
-                                                    <div class="col-md-6 mb-2">
-                                                        <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light bg-opacity-50">
-                                                            <div class="rounded-circle bg-white border d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                                                <i class="bi bi-person text-secondary"></i>
-                                                            </div>
-                                                            <div>
-                                                                <div class="fw-bold small">@member.MemberName</div>
-                                                                <div class="text-muted" style="font-size: 10px;">@member.RoleName</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            </AuthorizeView>
-
-                            <AuthorizeView Policy="ShowWidget_AuditLog" Context="widgetContext">
-                                <div class="border bg-white">
-                                    <div class="premium-card-header">
-                                        <h6 class="premium-card-title">Recent Activity</h6>
-                                        <button class="btn btn-sm btn-link text-decoration-none p-0" style="font-size: 11px;">View All</button>
-                                    </div>
-                                    <div class="p-3">
-                                        @if (_adminMetrics?.RecentActivity?.Any() == true)
-                                        {
-                                            @foreach (var log in _adminMetrics.RecentActivity)
-                                            {
-                                                <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
-                                                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
-                                                        <i class="bi @(log.Action.Contains("Person") ? "bi-person-plus" : log.Action.Contains("Payment") ? "bi-credit-card" : log.Action.Contains("Invoice") ? "bi-receipt" : "bi-activity")"></i>
-                                                    </div>
-                                                    <div class="flex-grow-1">
-                                                        <div class="fw-medium">@log.Action</div>
-                                                        <div class="text-muted small">@log.Entity #@log.EntityId • @TimeAgo(log.Timestamp)</div>
-                                                    </div>
-                                                </div>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <div class="text-center py-4 text-muted small">No recent activity found.</div>
-                                        }
-                                    </div>
-                                </div>
-                            </AuthorizeView>
-                        </div>
-                        <div class="col-lg-4">
-                            <AuthorizeView Policy="ShowWidget_Committee" Context="widgetContext">
-                                @if (_meetings?.Any(x => x.MeetingDate >= DateTime.Now) == true)
-                                {
-                                    <div class="border bg-white mb-2">
-                                        <div class="premium-card-header">
-                                            <h6 class="premium-card-title">Upcoming Meetings</h6>
-                                        </div>
-                                        <div class="p-3">
-                                            @foreach (var m in _meetings.Where(x => x.MeetingDate >= DateTime.Now).Take(2))
-                                            {
-                                                <div class="mb-3">
-                                                    <div class="fw-bold small text-primary">@m.MeetingDate.ToString("MMM dd, HH:mm")</div>
-                                                    <div class="fw-medium small">@m.Title</div>
-                                                </div>
-                                            }
-                                            <a href="/governance/meetings" class="btn btn-sm btn-outline-secondary w-100" style="font-size: 11px;">All Meetings</a>
-                                        </div>
-                                    </div>
-                                }
-                            </AuthorizeView>
-
-                            <div class="border bg-white">
-                                <div class="premium-card-header">
-                                    <h6 class="premium-card-title">Governance Shortcuts</h6>
-                                </div>
-                                <div class="p-3 d-grid gap-2">
-                                    <a href="/governance/profile" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                                        <i class="bi bi-building"></i> Assoc. Profile
-                                    </a>
-                                    <a href="/governance/byelaws" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                                        <i class="bi bi-file-earmark-text"></i> Bye-laws & Rules
-                                    </a>
-                                    <a href="/governance/elections" class="btn-vscode-secondary text-decoration-none d-flex align-items-center gap-2">
-                                        <i class="bi bi-box-seam"></i> Voting & Elections
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <AdminDashboard />
             }
         }
     </Authorized>
@@ -431,87 +89,28 @@
     </NotAuthorized>
 </AuthorizeView>
 
-<style>
-    .dashboard-animate { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-    @@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    
-    .activity-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-    
-    .shortcut-item { 
-        display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 4px; 
-        background: #ffffff; border: 1px solid #e2e8f0; 
-        color: var(--vscode-text-muted); text-decoration: none; transition: all 0.2s ease;
-    }
-    .shortcut-item:hover { background: #f8fafc; color: var(--vscode-accent); border-color: var(--vscode-accent); transform: translateX(4px); }
-    
-    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; position: relative; }
-    .pulse-dot::after { 
-        content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid #10b981; 
-        animation: pulse 2s infinite; 
-    }
-    @@keyframes pulse { 0% { opacity: 0.5; transform: scale(1); } 100% { opacity: 0; transform: scale(2); } }
-
-    .compact-card { padding: 12px; border-radius: 4px; }
-    .btn-vscode-secondary { 
-        padding: 8px 12px; font-size: 12px; background: #f8fafc; border: 1px solid #e2e8f0; 
-        color: #475569; transition: all 0.2s ease;
-    }
-    .btn-vscode-secondary:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
-    .resident-dashboard .compact-card { transition: transform 0.2s; border-radius: 8px; }
-    .resident-dashboard .compact-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-</style>
-
 @code {
     [Inject] private ApiService ApiService { get; set; } = default!;
-    [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
-
-    private AssociationProfile? _profile;
-    private List<CommitteeMember>? _committee;
-    private List<Meeting>? _meetings;
-    private AssociationDashboardMetrics? _adminMetrics;
-    private ResidentDashboardMetrics? _residentMetrics;
-
-    private int _totalMembers;
-    private int _committeeCount;
-    private decimal _revenue30D;
-    private decimal _netOutstanding;
-    private decimal _heldAdvanceMoney;
-    private int _unitsWithCredit;
 
     private bool _isResident;
     private bool _isSystemAdmin;
-    private bool _isPrimaryOwner;
-    private Asset? _myUnit;
-    private decimal _myBalance;
-    private List<Invoice>? _myInvoices;
-    private List<Occupancy>? _occupancies;
+    private ResidentDashboard? _residentDashboard;
     
     private int? _currentlyPayingInvoiceId;
     private RazorpayCheckout _razorpayCheckout = default!;
-    private InvoiceList _invoiceList = default!;
     private bool _isAdvanceModalOpen;
     private decimal _advanceAmount;
 
-    private void ShowAdvanceModal()
-    {
-        _advanceAmount = 0;
-        _isAdvanceModalOpen = true;
-        StateHasChanged();
-    }
-
-    private void HideAdvanceModal()
-    {
-        _isAdvanceModalOpen = false;
-        StateHasChanged();
-    }
-
     protected override async Task OnInitializedAsync()
     {
+        RegisterStateService(DashboardService);
+        LayoutState.SetPageMetadata("Dashboard", "bi-grid-1x2-fill");
+        
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
         var roles = user.Claims.Where(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role)
-                              .Select(c => c.Value);
+                               .Select(c => c.Value);
 
         var securityContext = new SecurityContext
         {
@@ -525,108 +124,15 @@
         _isResident = await RuleEngine.EvaluateRuleAsync("IsResident", securityContext);
         _isSystemAdmin = await RuleEngine.EvaluateRuleAsync("RequireAdmin", securityContext);
 
-        Console.WriteLine($"[Home] Initializing. Context AssociationId: {TenantContext.AssociationId}");
-
-        if (TenantContext.AssociationId == 0 && !_isSystemAdmin)
+        if (TenantContext.AssociationId != 0 || _isSystemAdmin)
         {
-            Console.WriteLine("[Home] No Association context yet. Waiting for Layout to resolve...");
-            // We skip loading data here. MainLayout will likely trigger a SwitchTenant and Reload.
-            return;
-        }
-
-        if (isManagement)
-        {
-            await LoadAdminData();
-        }
-        else if (_isResident)
-        {
-            await LoadResidentData();
-        }
-        else
-        {
-            // Default fallback
-            await LoadAdminData();
+            await DashboardService.InitializeAsync(isManagement, _isResident);
+            StateHasChanged();
         }
     }
 
-    private async Task LoadAdminData()
-    {
-        _profile = await GovernanceService.GetProfileAsync();
-        _committee = await GovernanceService.GetCommitteeMembersAsync();
-        _meetings = await GovernanceService.GetMeetingsAsync();
-        
-        // Fetch Admin Metrics and Cards independently
-        var tasks = new List<Task>();
-        
-        tasks.Add(Task.Run(async () => {
-            _adminMetrics = await ApiService.GetAsync<AssociationDashboardMetrics>("api/dashboard/admin/metrics");
-            StateHasChanged();
-        }));
-        
-        tasks.Add(Task.Run(async () => {
-            _totalMembers = await ApiService.GetAsync<int>("api/dashboard/admin/total-members");
-            StateHasChanged();
-        }));
-
-        tasks.Add(Task.Run(async () => {
-            _committeeCount = await ApiService.GetAsync<int>("api/dashboard/admin/committee-count");
-            StateHasChanged();
-        }));
-
-        tasks.Add(Task.Run(async () => {
-            _revenue30D = await ApiService.GetAsync<decimal>("api/dashboard/admin/revenue-30d");
-            StateHasChanged();
-        }));
-
-        tasks.Add(Task.Run(async () => {
-            _netOutstanding = await ApiService.GetAsync<decimal>("api/dashboard/admin/outstanding");
-            StateHasChanged();
-        }));
-
-        tasks.Add(Task.Run(async () => {
-            var adv = await ApiService.GetAsync<AdvanceMoneyMetrics>("api/dashboard/admin/advance-money");
-            if (adv != null)
-            {
-                _heldAdvanceMoney = adv.TotalAdvanceCredits;
-                _unitsWithCredit = adv.UnitsWithCredit;
-            }
-            StateHasChanged();
-        }));
-
-        await Task.WhenAll(tasks);
-    }
-
-    private async Task LoadResidentData()
-    {
-        try
-        {
-            _occupancies = (await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy"))?.ToList() ?? new();
-            _isPrimaryOwner = _occupancies.Any(o => o.IsPrimaryContact || o.OccupancyType == OccupancyType.Owner);
-            
-            // Consolidated Metrics (aggregated by Backend because assetId is null)
-            _myBalance = await ApiService.GetAsync<decimal>("api/finance/balance/asset");
-            var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>("api/finance/invoices?pageSize=50");
-            _myInvoices = invoiceResult?.Items?.ToList();
-            _residentMetrics = await ApiService.GetAsync<ResidentDashboardMetrics>("api/dashboard/resident/metrics");
-
-            if (_occupancies.Count == 1)
-            {
-                _myUnit = await ApiService.GetAsync<Asset>($"api/assets/{_occupancies[0].AssetId}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading resident data: {ex.Message}");
-        }
-    }
-
-    private string TimeAgo(DateTime dateTime)
-    {
-        var span = DateTime.UtcNow - dateTime.ToUniversalTime();
-        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} mins ago";
-        if (span.TotalHours < 24) return $"{(int)span.TotalHours} hours ago";
-        return dateTime.ToShortDateString();
-    }
+    private void ShowAdvanceModal() => _isAdvanceModalOpen = true;
+    private void HideAdvanceModal() => _isAdvanceModalOpen = false;
 
     private async Task OnInvoicePayNow(Invoice invoice)
     {
@@ -635,32 +141,11 @@
         await InitiateRazorpay(totalAmount, invoice.InvoiceId, invoice.AssetId, $"Payment for Invoice #{invoice.InvoiceId}");
     }
 
-    private async Task QuickPay()
-    {
-        var oldestUnpaid = _myInvoices?.Where(i => i.Status != "Paid").OrderBy(i => i.DueDate).FirstOrDefault();
-        if (oldestUnpaid != null)
-        {
-            var totalAmount = oldestUnpaid.Amount + oldestUnpaid.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(li => li.Amount);
-            await InitiateRazorpay(totalAmount, oldestUnpaid.InvoiceId, oldestUnpaid.AssetId, $"Invoice #{oldestUnpaid.InvoiceId}");
-        }
-    }
-
-    private async Task PayTotalBalance()
-    {
-        if (_myBalance <= 0) return;
-        
-        // Passing null for AssetId indicates a "Global/Consolidated" payment for the user
-        await InitiateRazorpay(_myBalance, null, null, "Total Balance Settlement");
-    }
-
     private async Task ProcessAdvancePayment()
     {
         if (_advanceAmount <= 0) return;
         _isAdvanceModalOpen = false;
-        // For advances, if multiple assets exist, we'd ideally need a picker. 
-        // For now, use the first asset or primary.
-        var occupancies = (await ApiService.GetAsync<IEnumerable<Occupancy>>("api/people/my-occupancy"))?.ToList();
-        var targetAssetId = occupancies?.FirstOrDefault()?.AssetId;
+        var targetAssetId = DashboardService.Occupancies?.FirstOrDefault()?.AssetId;
         await InitiateRazorpay(_advanceAmount, null, targetAssetId, "Advance Payment / Wallet Top-up");
     }
 
@@ -668,62 +153,29 @@
     {
         try
         {
-            var request = new RazorpayOrderRequest
-            {
-                Amount = amount,
-                Currency = "INR",
-                InvoiceId = invoiceId,
-                AssetId = assetId,
-                Description = description
-            };
-
+            var request = new RazorpayOrderRequest { Amount = amount, Currency = "INR", InvoiceId = invoiceId, AssetId = assetId, Description = description };
             var response = await ApiService.PostAsync<RazorpayOrderRequest, RazorpayOrderResponse>("api/payments/create-order", request);
             if (response != null)
             {
                 var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-                var user = authState.User;
-                
-                await _razorpayCheckout.InitializePayment(
-                    response, 
-                    user.Identity?.Name ?? "Resident", 
-                    description, 
-                    user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", 
-                    ""
-                );
+                await _razorpayCheckout.InitializePayment(response, authState.User.Identity?.Name ?? "Resident", description, authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", "");
             }
         }
-        catch (Exception ex)
-        {
-            ToastService.Notify(new(ToastType.Danger, $"Payment Failed: {ex.Message}"));
-        }
+        catch (Exception ex) { ToastService.Notify(new(ToastType.Danger, $"Payment Failed: {ex.Message}")); }
     }
 
     private async Task OnPaymentProcessed(string paymentId)
     {
         ToastService.Notify(new(ToastType.Success, $"Payment recorded successfully! ID: {paymentId}"));
         _currentlyPayingInvoiceId = null;
-        await LoadResidentData();
-        StateHasChanged(); // Push updated _myInvoices to child InvoiceList parameter
-        if (_invoiceList != null)
-        {
-            await _invoiceList.RefreshAsync();
-        }
-        StateHasChanged();
+        await DashboardService.LoadResidentDataAsync();
+        if (_residentDashboard != null) await _residentDashboard.RefreshInvoiceListAsync();
     }
 
-    private async Task OnPaymentFailed()
+    private void OnPaymentFailed()
     {
         ToastService.Notify(new(ToastType.Danger, "Payment failed or was cancelled."));
-        if (_currentlyPayingInvoiceId.HasValue)
-        {
-            var inv = _myInvoices?.FirstOrDefault(i => i.InvoiceId == _currentlyPayingInvoiceId.Value);
-            if (inv != null)
-            {
-                inv.Status = "Failed";
-            }
-        }
         _currentlyPayingInvoiceId = null;
-        StateHasChanged();
     }
 
     private async Task OnPayWithAdvance(Invoice invoice)
@@ -734,22 +186,11 @@
             if (success)
             {
                 ToastService.Notify(new(ToastType.Success, $"Invoice #{invoice.InvoiceId} paid successfully using advance credit!"));
-                await LoadResidentData();
-                StateHasChanged(); // Push new data to parameters
-                if (_invoiceList != null)
-                {
-                    await _invoiceList.RefreshAsync();
-                }
-                StateHasChanged();
+                await DashboardService.LoadResidentDataAsync();
+                if (_residentDashboard != null) await _residentDashboard.RefreshInvoiceListAsync();
             }
-            else
-            {
-                ToastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit. Please check your balance."));
-            }
+            else ToastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit."));
         }
-        catch (Exception ex)
-        {
-            ToastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
-        }
+        catch (Exception ex) { ToastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}")); }
     }
 }

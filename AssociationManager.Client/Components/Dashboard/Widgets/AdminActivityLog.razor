@@ -1,0 +1,34 @@
+@using AssociationManager.Client.Services
+@inherits StatefulComponentBase
+@inject DashboardStateService DashboardService
+
+@code {
+    protected override void OnInitialized() => RegisterStateService(DashboardService);
+}
+
+<DashboardWidget Title="Recent Activity" Icon="bi-activity">
+    <HeaderAction>
+        <button class="btn btn-sm btn-link text-decoration-none p-0" style="font-size: 11px;">View All</button>
+    </HeaderAction>
+    <ChildContent>
+        @if (DashboardService.AdminMetrics?.RecentActivity?.Any() == true)
+        {
+            @foreach (var log in DashboardService.AdminMetrics.RecentActivity)
+            {
+                <div class="d-flex gap-3 mb-3 pb-3 border-bottom align-items-center">
+                    <div class="text-muted" style="font-size: 1.2rem; width: 30px; text-align: center;">
+                        <i class="bi @(log.Action.Contains("Person") ? "bi-person-plus" : log.Action.Contains("Payment") ? "bi-credit-card" : log.Action.Contains("Invoice") ? "bi-receipt" : "bi-activity")"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-medium">@log.Action</div>
+                        <div class="text-muted small">@log.Entity #@log.EntityId • @DashboardService.GetTimeAgo(log.Timestamp)</div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-4 text-muted small">No recent activity found.</div>
+        }
+    </ChildContent>
+</DashboardWidget>

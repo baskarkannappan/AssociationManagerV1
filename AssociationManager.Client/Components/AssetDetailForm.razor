@@ -1,92 +1,108 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
 
-<div class="tabs-vscode border-bottom mb-4 d-flex gap-3">
-    <div class="tab-item @(_activeTab == "general" ? "active" : "")" @onclick='() => _activeTab = "general"'>General</div>
-    @if (!IsNew)
-    {
-        <div class="tab-item @(_activeTab == "tariffs" ? "active" : "")" @onclick='() => _activeTab = "tariffs"'>Billing & Tariffs</div>
-    }
-</div>
-
-@if (_activeTab == "general")
-{
-    <EditForm Model="Asset" OnValidSubmit="HandleValidSubmit" class="premium-form forced-text-dark">
-        <div class="row g-4">
-            <div class="col-md-7">
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Resource Identity</label>
-                    <div class="input-group-premium">
-                        <InputText @bind-Value="Asset.Name" class="form-control-premium w-100" placeholder="Display Name (e.g. Tower A, Suite 402)" disabled="@IsReadOnly" />
-                    </div>
+<div class="px-4 py-2">
+    <!-- Identity Section -->
+    <div class="mb-5">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-info-circle text-primary"></i>
+            <span class="fw-bold small text-uppercase text-muted">Identity & Type</span>
+        </div>
+        
+        <EditForm Model="Asset" OnValidSubmit="HandleValidSubmit">
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Name</div>
+                <div class="horizontal-form-value">
+                    <InputText @bind-Value="Asset.Name" class="horizontal-form-input" placeholder="e.g. vVilla1" disabled="@IsReadOnly" />
                 </div>
+            </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Registry Allocation</label>
-                    <InputSelect @bind-Value="Asset.AssetType" class="form-select-premium w-100" disabled="@IsReadOnly">
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Classification</div>
+                <div class="horizontal-form-value">
+                    <InputSelect @bind-Value="Asset.AssetType" class="horizontal-form-input" style="max-width: 300px;" disabled="@IsReadOnly">
                         @foreach (var type in Enum.GetValues<AssetType>())
                         {
                             <option value="@type">@type</option>
                         }
                     </InputSelect>
                 </div>
-
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary text-uppercase mb-2" style="letter-spacing: 0.05em;">Internal Notes</label>
-                    <InputTextArea @bind-Value="Asset.Description" class="form-control-premium w-100" rows="3" placeholder="Additional context or classification notes..." disabled="@IsReadOnly" />
-                </div>
             </div>
 
-            <div class="col-md-5">
-                <div class="p-3 border h-100" style="background: #f8fafc; border-color: #e2e8f0 !important;">
-                    <div class="d-flex align-items-center gap-2 mb-3 text-secondary">
-                        <i class="bi bi-cpu"></i>
-                        <span class="small fw-bold text-uppercase" style="font-size: 10px;">Registry Metadata (JSON)</span>
-                    </div>
-                    <InputTextArea @bind-Value="Asset.MetadataJson" 
-                                   class="form-control-premium w-100 font-monospace" 
-                                   style="font-size: 11px; height: 160px; background: white; border: 1px solid #e2e8f0;" 
-                                   placeholder='e.g. { "Area": 1200, "Facing": "North" }'
-                                   disabled="true" />
-                    <div class="mt-2 text-muted" style="font-size: 10px;">
-                        <i class="bi bi-info-circle me-1"></i> Add <strong>"Area": 1200</strong> for area-based billing.
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Status</div>
+                <div class="horizontal-form-value">
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+                        <input class="form-check-input" type="checkbox" role="switch" @bind="Asset.IsActive" disabled="@IsReadOnly" id="assetStatus">
+                        <label class="form-check-label small fw-semibold @(Asset.IsActive ? "text-success" : "text-danger")" for="assetStatus">
+                            @(Asset.IsActive ? "ACTIVE" : "INACTIVE")
+                        </label>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <AuthorizeView Policy="RequireAssetManager" Context="authContext">
-            <Authorized>
-                <div class="d-flex align-items-center gap-3 pt-4 border-top mt-4" style="border-color: rgba(255,255,255,0.05) !important;">
-                    <button type="submit" class="btn btn-sm btn-vscode">
-                        <i class="bi bi-shield-lock-fill me-2"></i> @(IsNew ? "Initialize Asset" : "Commit Changes")
-                    </button>
-                    
-                    @if (!IsNew)
-                    {
-                        <button type="button" class="btn btn-sm btn-vscode-secondary" @onclick="OnAddChild">
-                            <i class="bi bi-node-plus"></i> Add Sub-component
-                        </button>
-                        <button type="button" class="btn btn-sm btn-vscode-danger ms-auto" @onclick="OnDelete">
-                            <i class="bi bi-trash-fill"></i> Delete
-                        </button>
-                    }
+            <!-- Address Section (Simulated/Metadata based) -->
+            <div class="mt-5 mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-geo-alt text-primary"></i>
+                <span class="fw-bold small text-uppercase text-muted">Location Details</span>
+            </div>
+
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Street Address</div>
+                <div class="horizontal-form-value">
+                    <input type="text" class="horizontal-form-input" placeholder="Primary street address..." disabled="@IsReadOnly" />
                 </div>
-            </Authorized>
-        </AuthorizeView>
-    </EditForm>
-}
-else if (_activeTab == "tariffs")
-{
-    <AssetBillingTab AssetId="Asset.AssetId" />
-}
+            </div>
 
-<style>
-    .tabs-vscode { font-size: 12px; }
-    .tab-item { padding-bottom: 6px; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; }
-    .tab-item:hover { color: #1e293b; }
-    .tab-item.active { color: #007acc; border-bottom-color: #007acc; font-weight: 600; }
-</style>
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">City</div>
+                <div class="horizontal-form-value">
+                    <input type="text" class="horizontal-form-input" style="max-width: 250px;" placeholder="City..." disabled="@IsReadOnly" />
+                </div>
+            </div>
+
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Postal Code</div>
+                <div class="horizontal-form-value">
+                    <input type="text" class="horizontal-form-input" style="max-width: 150px;" placeholder="Zip..." disabled="@IsReadOnly" />
+                </div>
+            </div>
+
+            <!-- Description Section -->
+            <div class="mt-5 mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-chat-left-text text-primary"></i>
+                <span class="fw-bold small text-uppercase text-muted">Association Notes</span>
+            </div>
+
+            <div class="horizontal-form-row border-bottom-0">
+                <div class="horizontal-form-label">Description</div>
+                <div class="horizontal-form-value">
+                    <InputTextArea @bind-Value="Asset.Description" class="horizontal-form-input" rows="4" placeholder="Internal notes or special instructions..." disabled="@IsReadOnly" />
+                </div>
+            </div>
+
+            <AuthorizeView Policy="RequireAssetManager" Context="authContext">
+                <Authorized>
+                    <div class="d-flex align-items-center gap-3 pt-5 mt-4">
+                        <button type="submit" class="btn btn-sm btn-vscode px-4 py-2">
+                            <i class="bi bi-check-circle-fill"></i> @(IsNew ? "Initialize Asset" : "Update Asset")
+                        </button>
+                        
+                        @if (!IsNew)
+                        {
+                            <button type="button" class="btn btn-sm btn-vscode-secondary px-3 py-2" @onclick="OnAddChild">
+                                <i class="bi bi-plus-circle"></i> Add Component
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-auto px-3 py-2" @onclick="OnDelete">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        }
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </EditForm>
+    </div>
+</div>
 
 @code {
     [Inject] private ApiService ApiService { get; set; } = default!;
@@ -96,8 +112,6 @@ else if (_activeTab == "tariffs")
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnAddChild { get; set; }
     [Parameter] public EventCallback OnDelete { get; set; }
-
-    private string _activeTab = "general";
 
     private async Task HandleValidSubmit()
     {

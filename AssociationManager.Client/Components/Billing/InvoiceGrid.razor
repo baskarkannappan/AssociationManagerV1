@@ -1,0 +1,196 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject BillingStateService BillingService
+@inject ApiService Api
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="compact-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="m-0 fw-semibold">Recent Invoices</h6>
+        <div class="d-flex gap-2">
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search py-1"></i></span>
+                <input type="text" class="form-control border-start-0" placeholder="Search Title or Unit..." 
+                       @bind="BillingService.SearchTerm" @bind:event="oninput" @onkeyup="HandleSearchKeyUp" />
+            </div>
+            <select class="form-select form-select-sm" style="width: 120px;" @bind="BillingService.StatusFilter" @bind:after="OnFilterChanged">
+                <option value="">All Status</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+                <option value="Partial">Partial</option>
+                <option value="Draft">Draft</option>
+            </select>
+        </div>
+    </div>
+
+    <Grid @ref="_grid" TItem="Invoice"
+          Class="table table-hover table-bordered table-striped compact-table"
+          DataProvider="InvoicesDataProvider"
+          Responsive="true"
+          AllowPaging="true"
+          PageSize="10"
+          AllowSorting="true">
+
+        <GridColumn TItem="Invoice" HeaderText="Title" PropertyName="Title" SortKeySelector="item => item.Title">
+            <span class="fw-medium">@context.Title</span>
+        </GridColumn>
+
+        <GridColumn TItem="Invoice" HeaderText="Unit" PropertyName="AssetName" SortKeySelector="item => item.AssetName">
+            <span class="tree-badge">@context.AssetName</span>
+        </GridColumn>
+
+        <GridColumn TItem="Invoice" HeaderText="Amount" PropertyName="Amount" SortKeySelector='item => item.Amount + item.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)'>
+            <div class="d-flex flex-column">
+                @{
+                    var total = context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+                }
+                <span class="fw-semibold text-dark">₹@total.ToString("N2")</span>
+                @if (context.LineItems.Any(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")))
+                {
+                    <span class="text-danger fw-bold" style="font-size: 9px; margin-top: -2px;">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Includes Fine
+                    </span>
+                }
+            </div>
+        </GridColumn>
+
+        <GridColumn TItem="Invoice" HeaderText="Due Date" PropertyName="DueDate" SortKeySelector="item => item.DueDate">
+            <span class="text-muted">@context.DueDate.ToShortDateString()</span>
+        </GridColumn>
+
+        <GridColumn TItem="Invoice" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
+            <div class="d-flex align-items-center">
+                @if (context.Status == "Paid" && context.IsAdvancePaid)
+                {
+                    <span class="badge bg-advance-paid text-advance-paid" style="font-size: 11px; border-radius: 2px;">
+                        <i class="bi bi-wallet2 me-1"></i> Paid (Advance)
+                    </span>
+                }
+                else
+                {
+                    <span class="badge @GetStatusClass(context.Status)" style="font-size: 11px; border-radius: 2px;">@context.Status</span>
+                }
+
+                @if (context.Status != "Paid" && context.DueDate < DateTime.UtcNow)
+                {
+                    <span class="ms-1 badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20" style="font-size: 9px;">
+                        LATE
+                    </span>
+                }
+            </div>
+        </GridColumn>
+
+        <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+            @if (context.Status == "Unpaid")
+            {
+                <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)">
+                    <i class="bi bi-credit-card-2-back"></i>
+                </button>
+                @if (BillingService.AdvanceBalance >= (context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)))
+                {
+                    <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => OnPayWithAdvance.InvokeAsync(context)">
+                        <i class="bi bi-patch-check"></i>
+                    </button>
+                }
+                <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
+                    <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => OnRecordManualPayment.InvokeAsync(context)">
+                        <i class="bi bi-cash-stack"></i>
+                    </button>
+                </AuthorizeView>
+            }
+            <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => BillingService.LoadHistoryAsync(context)">
+                <i class="bi bi-clock-history"></i>
+            </button>
+            <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Download PDF Invoice" @onclick="() => OnDownloadInvoice.InvokeAsync(context)">
+                <i class="bi bi-file-earmark-pdf"></i>
+            </button>
+            @if (context.Status == "Draft")
+            {
+                <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Adjust Line Items" @onclick='() => { BillingService.IdToAdjust = context.InvoiceId; BillingService.AdjustingInvoice = context; BillingService.AdjustingLineItems = context.LineItems.ToList(); BillingService.ShowAdjustModal = true; }'>
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-link p-0 text-danger me-2" title="Delete Draft" @onclick="() => HandleDelete(context)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            }
+        </GridColumn>
+    </Grid>
+</div>
+
+@code {
+    [Parameter] public EventCallback<Invoice> OnInitiatePayment { get; set; }
+    [Parameter] public EventCallback<Invoice> OnPayWithAdvance { get; set; }
+    [Parameter] public EventCallback<Invoice> OnRecordManualPayment { get; set; }
+    [Parameter] public EventCallback<Invoice> OnDownloadInvoice { get; set; }
+    [Parameter] public EventCallback<Invoice> OnShowAdjustModal { get; set; }
+
+    private Grid<Invoice> _grid = default!;
+    private System.Threading.Timer? _searchTimer;
+
+    public async Task RefreshAsync() => await _grid.RefreshDataAsync();
+
+    private async Task<GridDataProviderResult<Invoice>> InvoicesDataProvider(GridDataProviderRequest<Invoice> request)
+    {
+        string baseUrl = "api/finance/invoices";
+        var filters = new List<string>();
+
+        filters.Add($"pageNumber={request.PageNumber}");
+        filters.Add($"pageSize={request.PageSize}");
+
+        var sort = request.Sorting.FirstOrDefault();
+        if (sort != null)
+        {
+            filters.Add($"sortColumn={sort.SortString}");
+            filters.Add($"sortDirection={(sort.SortDirection == SortDirection.Ascending ? "ASC" : "DESC")}");
+        }
+
+        if (BillingService.Scope == "association")
+        {
+            var aid = BillingService.GetAssociationId();
+            if (aid != 0) filters.Add($"associationId={aid}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(BillingService.SearchTerm)) filters.Add($"searchTerm={Uri.EscapeDataString(BillingService.SearchTerm)}");
+        if (!string.IsNullOrWhiteSpace(BillingService.StatusFilter)) 
+        {
+            filters.Add($"status={BillingService.StatusFilter}");
+            if (BillingService.StatusFilter == "Draft") filters.Add("includeDrafts=true");
+        }
+
+        string url = $"{baseUrl}?{string.Join("&", filters)}";
+        var response = await Api.GetAsync<PagedResult<Invoice>>(url);
+
+        return response != null 
+            ? new GridDataProviderResult<Invoice> { Data = response.Items, TotalCount = response.TotalCount }
+            : new GridDataProviderResult<Invoice> { Data = new List<Invoice>(), TotalCount = 0 };
+    }
+
+    private void HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        _searchTimer?.Dispose();
+        _searchTimer = new System.Threading.Timer(async _ => 
+        {
+            await InvokeAsync(async () => 
+            {
+                await _grid.RefreshDataAsync();
+                StateHasChanged();
+            });
+        }, null, 500, System.Threading.Timeout.Infinite);
+    }
+
+    private async Task OnFilterChanged() => await _grid.RefreshDataAsync();
+
+    private async Task HandleDelete(Invoice invoice)
+    {
+        if (await BillingService.DeleteInvoiceAsync(invoice)) await _grid.RefreshDataAsync();
+    }
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Paid" => "bg-success-subtle text-success border-success-subtle",
+        "Unpaid" => "bg-danger-subtle text-danger border-danger-subtle",
+        "Partial" => "bg-warning-subtle text-warning border-warning-subtle",
+        "Draft" => "bg-info-subtle text-info border-info-subtle",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+}

@@ -68,6 +68,12 @@ public class TariffService : ITariffService
     {
         return await _tariffRepository.GetTariffsByAssetIdAsync(assetId);
     }
+    
+    public async Task<IEnumerable<AssetTariff>> GetLayerAssignmentsAsync(int layerId)
+    {
+        // TARGETED FETCH: Much faster than fetching all tenant tariffs
+        return await _tariffRepository.GetAssignmentsByLayerIdAsync(layerId);
+    }
 
     public async Task<bool> AssignTariffToAssetAsync(AssetTariff assetTariff)
     {

@@ -1,0 +1,65 @@
+@using AssociationManager.Client.Services
+@inherits StatefulComponentBase
+@inject DashboardStateService DashboardService
+
+@code {
+    protected override void OnInitialized() => RegisterStateService(DashboardService);
+}
+
+<div class="row g-2">
+    <AuthorizeView Policy="ShowWidget_FinancialSummary" Context="widgetContext">
+        <div class="@(DashboardService.ResidentMetrics != null && DashboardService.ResidentMetrics.CreditAvailable > 0 ? "col-md-4" : "col-md-3")">
+            <div class="compact-card bg-white border p-3 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="activity-icon bg-info bg-opacity-10 text-info">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending Invoices</div>
+                        <div class="h5 mb-0 fw-bold">@(DashboardService.ResidentMetrics?.PendingInvoices ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="@(DashboardService.ResidentMetrics != null && DashboardService.ResidentMetrics.CreditAvailable > 0 ? "col-md-4" : "col-md-3")">
+            <div class="compact-card bg-white border p-3 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="activity-icon @((DashboardService.ResidentMetrics?.BalanceDue ?? 0) > 0 ? "bg-danger" : "bg-success") bg-opacity-10 @((DashboardService.ResidentMetrics?.BalanceDue ?? 0) > 0 ? "text-danger" : "text-success")">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Pending Amount</div>
+                        <div class="h5 mb-0 fw-bold @((DashboardService.ResidentMetrics?.BalanceDue ?? 0) > 0 ? "text-danger" : "text-success")">₹@(DashboardService.ResidentMetrics?.BalanceDue.ToString("N0") ?? "0")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthorizeView>
+
+    <AuthorizeView Policy="ShowWidget_ActiveRequests" Context="widgetContext">
+        <div class="@(DashboardService.ResidentMetrics != null && DashboardService.ResidentMetrics.CreditAvailable > 0 ? "col-md-4" : "col-md-3")">
+            <div class="compact-card bg-white border p-3 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="activity-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="bi bi-tools"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted fw-bold text-uppercase" style="font-size: 9px;">Active Requests</div>
+                        <div class="h5 mb-0 fw-bold">@(DashboardService.ResidentMetrics?.ActiveWorkOrders ?? 0)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthorizeView>
+
+    @if (DashboardService.ResidentMetrics != null && DashboardService.ResidentMetrics.CreditAvailable <= 0)
+    {
+        <div class="col-md-3">
+            <ResidentWalletCard OnTopUpClicked="OnTopUpClicked" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback OnTopUpClicked { get; set; }
+}

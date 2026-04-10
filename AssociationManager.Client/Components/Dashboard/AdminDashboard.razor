@@ -1,0 +1,62 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Client.Components.Dashboard.Widgets
+@inject DashboardStateService DashboardService
+
+<div class="admin-dashboard p-3">
+    <div class="premium-page-header border-bottom px-4 py-3 mb-3" style="margin-left: -1rem; margin-right: -1rem; margin-top: -1rem;">
+        <div class="d-flex align-items-center gap-2">
+            <h1 class="premium-page-title mb-0">
+                <i class="bi bi-grid-fill me-2 opacity-50"></i>
+                Command Center - @(DashboardService.Profile?.RegistrationNumber ?? "Assoc Profile")
+            </h1>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <AdminStatsGrid />
+
+    <div class="row g-2">
+        <div class="col-lg-8">
+            <!-- Committee Summary -->
+            <AuthorizeView Policy="ShowWidget_Committee">
+                @if (DashboardService.Committee?.Any() == true)
+                {
+                    <DashboardWidget Title="Active Committee">
+                        <HeaderAction>
+                            <a href="/governance/committee" class="btn btn-sm btn-link text-decoration-none p-0" style="font-size: 11px;">View All</a>
+                        </HeaderAction>
+                        <ChildContent>
+                            <div class="row g-2">
+                                @foreach (var member in DashboardService.Committee.Take(4))
+                                {
+                                    <div class="col-md-6 mb-2">
+                                        <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light bg-opacity-50">
+                                            <div class="rounded-circle bg-white border d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                <i class="bi bi-person text-secondary"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold small">@member.MemberName</div>
+                                                <div class="text-muted" style="font-size: 10px;">@member.RoleName</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </ChildContent>
+                    </DashboardWidget>
+                }
+            </AuthorizeView>
+
+            <AuthorizeView Policy="ShowWidget_AuditLog">
+                <AdminActivityLog />
+            </AuthorizeView>
+        </div>
+        <div class="col-lg-4">
+            <AuthorizeView Policy="ShowWidget_Committee">
+                <AdminUpcomingMeetings />
+            </AuthorizeView>
+
+            <AdminGovernanceShortcuts />
+        </div>
+    </div>
+</div>

@@ -31,4 +31,5 @@ public class InvoiceSearchCriteria
     public int PageSize { get; set; } = 10;
     public string? SortColumn { get; set; } = "CreatedDate";
     public string? SortDirection { get; set; } = "DESC";
+    public bool IncludeDrafts { get; set; }
 }

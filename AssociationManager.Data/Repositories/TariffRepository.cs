@@ -140,4 +140,17 @@ public class TariffRepository : ITariffRepository
             new { tenantId },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<IEnumerable<AssetTariff>> GetAssignmentsByLayerIdAsync(int layerId)
+    {
+        // TARGETED FETCH: Avoids pulling entire tenant data
+        using var connection = _dbConnectionFactory.CreateConnection();
+        string sql = @"
+            SELECT at.*, a.Name as AssetName 
+            FROM assoc.AssetTariffs at
+            INNER JOIN Assets a ON at.AssetId = a.AssetId
+            WHERE at.TariffLayerId = @layerId AND at.IsActive = 1";
+            
+        return await connection.QueryAsync<AssetTariff>(sql, new { layerId });
+    }
 }

@@ -1,0 +1,61 @@
+@inject BillingStateService BillingService
+@inject ApiService Api
+@inject ToastService _toastService
+
+<div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
+            <div class="premium-card-header">
+                <h6 class="premium-card-title">New Invoice</h6>
+                <button type="button" class="btn-close" style="font-size: 10px;" @onclick="OnClose"></button>
+            </div>
+            <div class="p-3 compact-form">
+                <EditForm Model="_newInvoice" OnValidSubmit="HandleSubmit">
+                    <div class="mb-3">
+                        <label class="form-label small mb-1">Title</label>
+                        <InputText @bind-Value="_newInvoice.Title" class="form-control" placeholder="e.g. Monthly Dues April 2026" />
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Amount</label>
+                            <InputNumber @bind-Value="_newInvoice.Amount" class="form-control" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Due Date</label>
+                            <InputDate @bind-Value="_newInvoice.DueDate" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small mb-1">Description</label>
+                        <InputTextArea @bind-Value="_newInvoice.Description" class="form-control" rows="2" />
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn-vscode-secondary" @onclick="OnClose">Cancel</button>
+                        <button type="submit" class="btn-vscode">Generate Invoice</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Invoice _newInvoice = new() { DueDate = DateTime.Today.AddDays(7) };
+
+    private void OnClose() => BillingService.ShowCreateInvoiceModal = false;
+
+    private async Task HandleSubmit()
+    {
+        var success = await Api.PostAsync("api/finance/invoices", _newInvoice);
+        if (success)
+        {
+            _toastService.Notify(new(ToastType.Success, "Invoice created successfully."));
+            OnClose();
+            await BillingService.InitializeAsync();
+        }
+        else
+        {
+            _toastService.Notify(new(ToastType.Danger, "Failed to generate invoice."));
+        }
+    }
+}

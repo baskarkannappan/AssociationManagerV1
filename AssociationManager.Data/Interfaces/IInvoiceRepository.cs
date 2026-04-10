@@ -21,4 +21,9 @@ public interface IInvoiceRepository
 
     // Automation
     Task<IEnumerable<Invoice>> GetUnpaidOverdueInvoicesAsync();
+    Task<IEnumerable<Invoice>> GetByBatchIdAsync(int batchId, int tenantId);
+    
+    // Management
+    Task<bool> UpdateAsync(Invoice invoice);
+    Task<bool> DeleteAllLineItemsAsync(int invoiceId);
 }

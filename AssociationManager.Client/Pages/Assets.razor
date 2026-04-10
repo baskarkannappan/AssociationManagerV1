@@ -1,141 +1,82 @@
 @page "/assets"
 @attribute [Authorize(Policy = "RequireResident")]
 @using AssociationManager.Client.Components
+@using AssociationManager.Client.Components.Assets
+@using AssociationManager.Client.Components.Base
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
+@inherits StatefulComponentBase
+@inject AssetStateService AssetState
+@inject LayoutStateService LayoutState
 @inject ApiService ApiService
 @inject ToastService _toastService
-@inject NavigationManager Navigation
-@inject IAppAuthorizationService AuthService
-@inject ITenantContext TenantContext
 @inject AuthenticationStateProvider AuthStateProvider
-@using AssociationManager.Shared.Interfaces
 
 <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
 <AuthorizeView Context="assetAuthContext">
     <Authorized>
         <div class="assets-page h-100 d-flex flex-column bg-white forced-text-dark">
-            <div class="premium-page-header border-bottom px-4 py-3 mb-0">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                    <div>
-                        <h1 class="premium-page-title mb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-diagram-3 me-1"></i> Asset Registry
-                        </h1>
-                    </div>
-                    @if (_canAddGlobalAssets)
-                    {
-                        <div class="actions d-flex gap-2">
-                            <button class="btn-vscode btn-sm flex-grow-1 flex-md-grow-0" @onclick="() => _bulkModal.ShowAsync()">
-                                <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Select from Template</span><span class="d-inline d-sm-none">Template</span>
-                            </button>
-                            <button class="btn-vscode btn-sm flex-grow-1 flex-md-grow-0" @onclick="CreateRootProperty">
-                                <i class="bi bi-plus"></i> <span class="d-none d-sm-inline">New Property</span><span class="d-inline d-sm-none">Property</span>
-                            </button>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            <div class="flex-grow-1 d-flex overflow-hidden @(_showDetailOnMobile ? "mobile-detail-active" : "")">
+            <div class="flex-grow-1 d-flex overflow-hidden @(AssetState.ShowDetailOnMobile ? "mobile-detail-active" : "")">
                 <!-- Asset Tree Pane -->
-                <div class="asset-tree-wrapper @(_isSidebarCollapsed ? "collapsed" : "") @(_showDetailOnMobile ? "d-none d-lg-block" : "w-explorer")" style="flex-shrink: 0;">
-                    <AssetTree Hierarchy="_hierarchy" 
-                               SelectedAsset="_selectedAsset" 
-                               ExpandedIds="_expandedIds" 
-                               OnSelected="HandleAssetSelected" 
-                               OnToggleExpand="HandleToggleExpand"
-                               OnCollapse="() => _isSidebarCollapsed = true" />
+                <div class="asset-tree-wrapper @(AssetState.IsSidebarCollapsed ? "collapsed" : "") @(AssetState.ShowDetailOnMobile ? "d-none d-lg-block" : "w-explorer")" style="flex-shrink: 0;">
+                    <AssetTree Hierarchy="AssetState.Hierarchy" 
+                               SelectedAsset="AssetState.SelectedAsset" 
+                               ExpandedIds="AssetState.ExpandedIds" 
+                               OnSelected="AssetState.SelectAssetAsync" 
+                               OnToggleExpand="AssetState.ToggleExpand"
+                               OnCollapse="() => AssetState.IsSidebarCollapsed = true" />
                 </div>
 
                 <!-- Detail/Editor Pane -->
-                <div class="detail-pane flex-grow-1 custom-scrollbar forced-text-dark @(_showDetailOnMobile ? "d-block" : "d-none d-lg-block")" style="background: #ffffff;">
-                    @if (_selectedAsset != null)
+                <div class="detail-pane flex-grow-1 custom-scrollbar forced-text-dark @(AssetState.ShowDetailOnMobile ? "d-block" : "d-none d-lg-block")" style="background: #ffffff;">
+                    @if (AssetState.SelectedAsset != null)
                     {
                         <div class="premium-detail-header">
-                            <div class="premium-breadcrumb">
-                                PROPERTIES <i class="bi bi-chevron-right"></i> @(_selectedAsset.Name.ToUpper())
+                            <div class="premium-breadcrumb text-uppercase">
+                                PROPERTIES <i class="bi bi-chevron-right"></i> @AssetState.SelectedAsset.Name
                             </div>
                             <div class="d-flex align-items-center gap-3">
-                                <h1 class="mb-0 fw-bold" style="font-size: 28px; letter-spacing: -0.5px;">@(_isNew ? "Initialize New Asset" : _selectedAsset.Name)</h1>
-                                @if (!_isNew)
+                                <h1 class="mb-0 fw-bold" style="font-size: 28px; letter-spacing: -0.5px;">
+                                    @(AssetState.IsNew ? "Initialize New Asset" : AssetState.SelectedAsset.Name)
+                                </h1>
+                                @if (!AssetState.IsNew)
                                 {
-                                    <span class="modern-badge modern-badge-alt">@_selectedAsset.AssetType</span>
-                                    <span class="modern-badge modern-badge-outline ms-auto">ID: @_selectedAsset.AssetId</span>
+                                    <span class="modern-badge modern-badge-alt">@AssetState.SelectedAsset.AssetType</span>
+                                    <span class="modern-badge modern-badge-outline ms-auto">ID: @AssetState.SelectedAsset.AssetId</span>
                                 }
                             </div>
                         </div>
 
                         <div class="premium-tab-container">
-                            <div class="premium-tab @(_activeTab == "details" ? "active" : "")" @onclick='() => _activeTab = "details"'>Details</div>
-                            @if (!_isNew)
+                            <div class="premium-tab @(AssetState.ActiveTab == "details" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "details"'>Details</div>
+                            @if (!AssetState.IsNew)
                             {
-                                <div class="premium-tab @(_activeTab == "governance" ? "active" : "")" @onclick='() => _activeTab = "governance"'>Governance</div>
-                                <div class="premium-tab @(_activeTab == "finance" ? "active" : "")" @onclick='() => _activeTab = "finance"'>Finance</div>
-                                <div class="premium-tab @(_activeTab == "rules" ? "active" : "")" @onclick='() => _activeTab = "rules"'>Rules</div>
-                                <div class="premium-tab @(_activeTab == "task" ? "active" : "")" @onclick='() => _activeTab = "task"'>Task</div>
-                                <div class="premium-tab @(_activeTab == "assignments" ? "active" : "")" @onclick='() => _activeTab = "assignments"'>Asset Assignments</div>
-                                <div class="premium-tab @(_activeTab == "metrics" ? "active" : "")" @onclick='() => _activeTab = "metrics"'>Metrics</div>
+                                <div class="premium-tab @(AssetState.ActiveTab == "governance" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "governance"'>Governance</div>
+                                <div class="premium-tab @(AssetState.ActiveTab == "finance" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "finance"'>Finance</div>
+                                <div class="premium-tab @(AssetState.ActiveTab == "rules" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "rules"'>Rules</div>
+                                <div class="premium-tab @(AssetState.ActiveTab == "task" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "task"'>Task</div>
+                                <div class="premium-tab @(AssetState.ActiveTab == "assignments" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "assignments"'>Assignments</div>
+                                <div class="premium-tab @(AssetState.ActiveTab == "metrics" ? "active" : "")" @onclick='() => AssetState.ActiveTab = "metrics"'>Metrics</div>
                             }
                         </div>
 
                         <div class="p-0">
-                            @if (_activeTab == "details" || _isNew)
+                            @if (AssetState.ActiveTab == "details" || AssetState.IsNew)
                             {
-                                <AssetDetailForm Asset="_selectedAsset" 
-                                                IsNew="_isNew" 
-                                                IsReadOnly="!_canManageAssets"
-                                                OnSave="HandleSave" 
-                                                OnAddChild="CreateChild" 
-                                                OnDelete="HandleDelete" />
+                                <AssetDetailForm Asset="AssetState.SelectedAsset" 
+                                                IsNew="AssetState.IsNew" 
+                                                IsReadOnly="!AssetState.CanManageAssets"
+                                                OnSave="AssetState.SaveAssetAsync" 
+                                                OnAddChild="AssetState.CreateChild" 
+                                                OnDelete="AssetState.DeleteAssetAsync" />
                             }
-                            else if (_activeTab == "governance")
-                            {
-                                <div class="p-4">
-                                    <OccupancyList AssetId="_selectedAsset.AssetId" 
-                                                   Occupants="_occupants" 
-                                                   OnDelete="RemoveOccupant" 
-                                                   OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" />
-                                </div>
-                            }
-                            else if (_activeTab == "finance")
-                            {
-                                <div class="p-4">
-                                    <InvoiceList Invoices="_invoices" 
-                                                 CreditAvailable="_assetMetrics?.CreditAvailable ?? 0"
-                                                 OnPayNow="OnInvoicePayNow" 
-                                                 OnPayWithAdvance="OnPayWithAdvance" />
-                                </div>
-                            }
-                            else if (_activeTab == "rules")
-                            {
-                                <div class="p-4 text-center py-5 opacity-50">
-                                    <i class="bi bi-shield-check display-1"></i>
-                                    <p>Security Rules & Automation Policies</p>
-                                </div>
-                            }
-                            else if (_activeTab == "task")
-                            {
-                                <div class="p-4">
-                                    <WorkOrderList WorkOrders="_workOrders" />
-                                </div>
-                            }
-                            else if (_activeTab == "assignments")
-                            {
-                                <div class="p-4">
-                                    <div class="row g-3">
-                                        <div class="col-md-6"><VehicleList AssetId="_selectedAsset.AssetId" Vehicles="_vehicles" OnDelete="RemoveVehicle" OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" /></div>
-                                        <div class="col-md-6"><PetList AssetId="_selectedAsset.AssetId" Pets="_pets" OnDelete="RemovePet" OnDataChanged="() => LoadUnitData(_selectedAsset.AssetId)" /></div>
-                                    </div>
-                                </div>
-                            }
-                            else if (_activeTab == "metrics")
-                            {
-                                <div class="p-4 text-center py-5 opacity-50">
-                                    <i class="bi bi-graph-up display-1"></i>
-                                    <p>Performance & Resource Consumption Metrics</p>
-                                </div>
-                            }
+                            else if (AssetState.ActiveTab == "governance") { <AssetGovernanceTab /> }
+                            else if (AssetState.ActiveTab == "finance") { <AssetFinanceTab OnPayNow="OnInvoicePayNow" /> }
+                            else if (AssetState.ActiveTab == "rules") { <div class="p-5 text-center opacity-50"><i class="bi bi-shield-check display-1"></i><p>Security Rules & Automation</p></div> }
+                            else if (AssetState.ActiveTab == "task") { <div class="p-4"><WorkOrderList WorkOrders="AssetState.WorkOrders" /></div> }
+                            else if (AssetState.ActiveTab == "assignments") { <AssetAssignmentsTab /> }
+                            else if (AssetState.ActiveTab == "metrics") { <div class="p-5 text-center opacity-50"><i class="bi bi-graph-up display-1"></i><p>Consumption Metrics</p></div> }
                         </div>
                     }
                     else
@@ -149,213 +90,33 @@
             </div>
         </div>
     </Authorized>
-    <NotAuthorized>
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Authorizing session...</p>
-        </div>
-    </NotAuthorized>
 </AuthorizeView>
 
-<BulkCreateModal @ref="_bulkModal" 
-                 ParentId="_selectedAsset?.AssetId" 
-                 OnClose="() => {}" 
-                 OnSubmit="HandleBulkSubmit" />
+<BulkCreateModal @ref="_bulkModal" ParentId="AssetState.SelectedAsset?.AssetId" OnSubmit="HandleBulkSubmit" />
 
 <style>
     .detail-pane { overflow-y: auto; height: 100%; transition: all 0.3s ease; }
-    .vscode-tabs .vscode-tab:hover { background: #e8e8e8; }
-    
-    .sidebar-wrapper {
-        width: 240px;
-        transition: width 0.3s ease, margin-left 0.3s ease;
-        overflow: hidden;
-        background: #f1f5f9;
-        flex-shrink: 0;
-    }
-    
-    .sidebar-wrapper.collapsed {
-        width: 0;
-        margin-left: -1px;
-    }
-
-    @@media (max-width: 991px) {
-        .sidebar-wrapper:not(.collapsed) {
-            width: 100%;
-        }
-        .w-lg-280 { width: 100% !important; }
-    }
+    .asset-tree-wrapper { transition: width 0.3s ease, margin-left 0.3s ease; overflow: hidden; background: #f1f5f9; }
+    .asset-tree-wrapper.collapsed { width: 0; margin-left: -1px; }
 </style>
 
 @code {
-    private List<Asset>? _hierarchy;
-    private Asset? _selectedAsset;
-    private bool _isNew;
-    private bool _isResident;
-    private string _activeTab = "details";
-    private bool _showDetailOnMobile;
-    private bool _isSidebarCollapsed;
-    private HashSet<int> _expandedIds = new();
-
-    // Reusable Data
-    private List<Occupancy>? _occupants;
-    private List<Vehicle>? _vehicles;
-    private List<Pet>? _pets;
-    private IEnumerable<WorkOrder>? _workOrders;
-    private IEnumerable<Invoice>? _invoices;
-    private ResidentDashboardMetrics? _assetMetrics;
-
     private BulkCreateModal _bulkModal = default!;
     private RazorpayCheckout _razorpayCheckout = default!;
-    private int? _currentlyPayingInvoiceId;
-    private bool _canManageAssets;
-    private bool _canAddGlobalAssets;
 
-    [CascadingParameter]
-    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        RegisterStateService(AssetState);
+        LayoutState.SetPageMetadata("Asset Registry", "bi-diagram-3", new List<AppBreadcrumbItem> {
+            new AppBreadcrumbItem { Text = "Association" },
+            new AppBreadcrumbItem { Text = "Inventory", IsActive = true }
+        });
+
+        await AssetState.InitializePermissionsAsync();
         var authState = await AuthStateTask;
-        _canAddGlobalAssets = await AuthService.HasLevelAsync(authState.User, AppRole.LevelAssociationAdmin);
-        _canManageAssets = _canAddGlobalAssets; // Default until a unit is selected
-        _isResident = !_canAddGlobalAssets;
-
-        if (authState.User.Identity?.IsAuthenticated == true)
-        {
-            await LoadHierarchy();
-        }
-    }
-
-    private async Task LoadHierarchy()
-    {
-        var result = await ApiService.GetAsync<List<Asset>>("api/assets/hierarchy");
-        _hierarchy = result;
-        
-        if (_selectedAsset != null && !_isNew)
-        {
-            _selectedAsset = FindInHierarchy(_hierarchy, _selectedAsset.AssetId);
-        }
-    }
-
-    private void HandleToggleExpand(int assetId)
-    {
-        if (_expandedIds.Contains(assetId))
-            _expandedIds.Remove(assetId);
-        else
-            _expandedIds.Add(assetId);
-    }
-
-    private Asset? FindInHierarchy(IEnumerable<Asset>? assets, int id)
-    {
-        if (assets == null) return null;
-        foreach (var asset in assets)
-        {
-            if (asset.AssetId == id) return asset;
-            var found = FindInHierarchy(asset.Children, id);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private async Task HandleAssetSelected(Asset asset)
-    {
-        _selectedAsset = asset;
-        _isNew = false;
-        _activeTab = "details";
-        _showDetailOnMobile = true;
-        
-        if (IsUnitType(asset.AssetType))
-        {
-            await LoadUnitData(asset.AssetId);
-        }
-        
-        StateHasChanged();
-    }
-
-    private async Task LoadUnitData(int assetId)
-    {
-        // Re-evaluate management permission for the specific asset
-        _canManageAssets = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{assetId}");
-        
-        _occupants = await ApiService.GetAsync<List<Occupancy>>($"api/people/unit/{assetId}/occupants");
-        _vehicles = await ApiService.GetAsync<List<Vehicle>>($"api/people/unit/{assetId}/vehicles");
-        _pets = await ApiService.GetAsync<List<Pet>>($"api/people/unit/{assetId}/pets");
-        
-        // Fetch history
-        _workOrders = await ApiService.GetAsync<List<WorkOrder>>($"api/operations/workorders?assetId={assetId}");
-        var invoiceResult = await ApiService.GetAsync<PagedResult<Invoice>>($"api/finance/invoices?assetId={assetId}");
-        _invoices = invoiceResult?.Items;
-
-        // Fetch metrics for credit available
-        var metricsResult = await ApiService.GetAsync<ResidentDashboardMetrics>($"api/dashboard/resident-metrics?assetId={assetId}");
-        _assetMetrics = metricsResult;
-    }
-
-    private void CreateRootProperty()
-    {
-        _selectedAsset = new Asset { AssetType = AssociationManager.Shared.Enums.AssetType.Property };
-        _isNew = true;
-        _activeTab = "details";
-        _showDetailOnMobile = true;
-    }
-
-    private void CreateChild()
-    {
-        if (_selectedAsset == null) return;
-        var parentId = _selectedAsset.AssetId;
-        _selectedAsset = new Asset 
-        { 
-            ParentId = parentId,
-            AssetType = GetDefaultChildType(_selectedAsset.AssetType)
-        };
-        _isNew = true;
-        _activeTab = "details";
-        _showDetailOnMobile = true;
-    }
-
-    private async Task HandleSave()
-    {
-        if (_selectedAsset == null) return;
-
-        bool success;
-        if (_isNew)
-        {
-            success = await ApiService.PostAsync("api/assets", _selectedAsset);
-            if (success) _toastService.Notify(new(ToastType.Success, "New asset created."));
-        }
-        else
-        {
-            success = await ApiService.PutAsync($"api/assets/{_selectedAsset.AssetId}", _selectedAsset);
-            if (success) _toastService.Notify(new(ToastType.Success, "Asset updated."));
-        }
-
-        if (success)
-        {
-            await LoadHierarchy();
-            _isNew = false;
-        }
-        else
-        {
-            _toastService.Notify(new(ToastType.Danger, "Failed to save asset."));
-        }
-        StateHasChanged();
-    }
-
-    private async Task HandleDelete()
-    {
-        if (_selectedAsset == null) return;
-        var success = await ApiService.DeleteAsync($"api/assets/{_selectedAsset.AssetId}");
-        if (success)
-        {
-            _toastService.Notify(new(ToastType.Warning, "Asset deleted."));
-            _selectedAsset = null;
-            await LoadHierarchy();
-        }
-        else
-        {
-            _toastService.Notify(new(ToastType.Danger, "Failed to delete asset."));
-        }
+        if (authState.User.Identity?.IsAuthenticated == true) await AssetState.LoadHierarchyAsync();
     }
 
     private async Task HandleBulkSubmit(BulkCreateRequest request)
@@ -365,42 +126,12 @@
         if (success)
         {
             _toastService.Notify(new(ToastType.Success, "Bulk asset creation complete."));
-            await LoadHierarchy();
-        }
-        else
-        {
-            _toastService.Notify(new(ToastType.Danger, "Bulk creation failed."));
-        }
-        StateHasChanged();
-    }
-
-    private async Task RemoveOccupant(int id) {
-        var success = await ApiService.DeleteAsync($"api/people/occupancy/{id}");
-        if (success) {
-            _toastService.Notify(new(ToastType.Warning, "Occupant removed."));
-            if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
-        }
-    }
-
-    private async Task RemoveVehicle(int id) {
-        var success = await ApiService.DeleteAsync($"api/people/vehicles/{id}");
-        if (success) {
-            _toastService.Notify(new(ToastType.Warning, "Vehicle removed."));
-            if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
-        }
-    }
-
-    private async Task RemovePet(int id) {
-        var success = await ApiService.DeleteAsync($"api/people/pets/{id}");
-        if (success) {
-            _toastService.Notify(new(ToastType.Warning, "Pet record removed."));
-            if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
+            await AssetState.LoadHierarchyAsync();
         }
     }
 
     private async Task OnInvoicePayNow(Invoice invoice)
     {
-        _currentlyPayingInvoiceId = invoice.InvoiceId;
         await InitiateRazorpay(invoice.Amount, invoice.InvoiceId, invoice.AssetId, $"Payment for Invoice #{invoice.InvoiceId}");
     }
 
@@ -408,111 +139,22 @@
     {
         try
         {
-            var request = new RazorpayOrderRequest
-            {
-                Amount = amount,
-                Currency = "INR",
-                InvoiceId = invoiceId,
-                AssetId = assetId,
-                Description = description
-            };
-
+            var request = new RazorpayOrderRequest { Amount = amount, Currency = "INR", InvoiceId = invoiceId, AssetId = assetId, Description = description };
             var response = await ApiService.PostAsync<RazorpayOrderRequest, RazorpayOrderResponse>("api/payments/create-order", request);
             if (response != null)
             {
                 var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-                var user = authState.User;
-                
-                await _razorpayCheckout.InitializePayment(
-                    response, 
-                    user.Identity?.Name ?? "Resident", 
-                    description, 
-                    user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", 
-                    ""
-                );
+                await _razorpayCheckout.InitializePayment(response, authState.User.Identity?.Name ?? "Resident", description, authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "", "");
             }
         }
-        catch (Exception ex)
-        {
-            _toastService.Notify(new(ToastType.Danger, $"Payment Failed: {ex.Message}"));
-        }
+        catch (Exception ex) { _toastService.Notify(new(ToastType.Danger, $"Payment Failed: {ex.Message}")); }
     }
 
     private async Task OnPaymentProcessed(string paymentId)
     {
-        _toastService.Notify(new(ToastType.Success, $"Payment recorded successfully! ID: {paymentId}"));
-        _currentlyPayingInvoiceId = null;
-        if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
-        StateHasChanged();
+        _toastService.Notify(new(ToastType.Success, $"Payment recorded successfully!"));
+        if (AssetState.SelectedAsset != null) await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset.AssetId);
     }
 
-    private async Task OnPaymentFailed()
-    {
-        _toastService.Notify(new(ToastType.Danger, "Payment failed or was cancelled."));
-        if (_currentlyPayingInvoiceId.HasValue)
-        {
-            var inv = _invoices?.FirstOrDefault(i => i.InvoiceId == _currentlyPayingInvoiceId.Value);
-            if (inv != null)
-            {
-                inv.Status = "Failed";
-            }
-        }
-        _currentlyPayingInvoiceId = null;
-        StateHasChanged();
-    }
-
-    private async Task OnPayWithAdvance(Invoice invoice)
-    {
-        try
-        {
-            var success = await ApiService.PostAsync($"api/finance/invoices/{invoice.InvoiceId}/settled-with-advance", new { });
-            if (success)
-            {
-                _toastService.Notify(new(ToastType.Success, $"Invoice #{invoice.InvoiceId} paid successfully using advance credit!"));
-                if (_selectedAsset != null) await LoadUnitData(_selectedAsset.AssetId);
-            }
-            else
-            {
-                _toastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit. Please check your balance."));
-            }
-        }
-        catch (Exception ex)
-        {
-            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
-        }
-    }
-
-    private bool IsUnitType(AssociationManager.Shared.Enums.AssetType type) => type == AssociationManager.Shared.Enums.AssetType.Unit || type == AssociationManager.Shared.Enums.AssetType.Villa;
-
-    private string GetIconClass(AssociationManager.Shared.Enums.AssetType type) => type switch
-    {
-        AssociationManager.Shared.Enums.AssetType.Property => "bi-geo-alt",
-        AssociationManager.Shared.Enums.AssetType.Building => "bi-building",
-        AssociationManager.Shared.Enums.AssetType.Floor => "bi-layers",
-        AssociationManager.Shared.Enums.AssetType.Unit => "bi-door-closed",
-        AssociationManager.Shared.Enums.AssetType.Villa => "bi-house-heart",
-        AssociationManager.Shared.Enums.AssetType.CommonArea => "bi-tree",
-        AssociationManager.Shared.Enums.AssetType.Amenity => "bi-water",
-        AssociationManager.Shared.Enums.AssetType.SecurityGate => "bi-shield-lock",
-        _ => "bi-box"
-    };
-
-    private string GetIconColorClass(AssociationManager.Shared.Enums.AssetType type) => type switch
-    {
-        AssociationManager.Shared.Enums.AssetType.Property => "asset-icon-property",
-        AssociationManager.Shared.Enums.AssetType.Building => "asset-icon-building",
-        AssociationManager.Shared.Enums.AssetType.Floor => "asset-icon-floor",
-        AssociationManager.Shared.Enums.AssetType.Unit => "asset-icon-unit",
-        AssociationManager.Shared.Enums.AssetType.Villa => "asset-icon-villa",
-        AssociationManager.Shared.Enums.AssetType.CommonArea => "asset-icon-common",
-        _ => ""
-    };
-
-    private AssociationManager.Shared.Enums.AssetType GetDefaultChildType(AssociationManager.Shared.Enums.AssetType parentType) => parentType switch
-    {
-        AssociationManager.Shared.Enums.AssetType.Property => AssociationManager.Shared.Enums.AssetType.Building,
-        AssociationManager.Shared.Enums.AssetType.Building => AssociationManager.Shared.Enums.AssetType.Floor,
-        AssociationManager.Shared.Enums.AssetType.Floor => AssociationManager.Shared.Enums.AssetType.Unit,
-        _ => AssociationManager.Shared.Enums.AssetType.Unit
-    };
+    private void OnPaymentFailed() => _toastService.Notify(new(ToastType.Danger, "Payment failed or was cancelled."));
 }

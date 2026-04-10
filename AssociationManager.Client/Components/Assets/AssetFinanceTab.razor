@@ -1,0 +1,37 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject AssetStateService AssetState
+@inject ApiService Api
+@inject ToastService _toastService
+
+<div class="p-4">
+    <InvoiceList Invoices="AssetState.Invoices" 
+                 CreditAvailable="AssetState.AssetMetrics?.CreditAvailable ?? 0"
+                 OnPayNow="OnPayNow" 
+                 OnPayWithAdvance="OnPayWithAdvance" />
+</div>
+
+@code {
+    [Parameter] public EventCallback<Invoice> OnPayNow { get; set; }
+    
+    private async Task OnPayWithAdvance(Invoice invoice)
+    {
+        try
+        {
+            var success = await Api.PostAsync($"api/finance/invoices/{invoice.InvoiceId}/settled-with-advance", new { });
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, $"Invoice #{invoice.InvoiceId} paid successfully using advance credit!"));
+                await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId);
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit. Please check your balance."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+    }
+}

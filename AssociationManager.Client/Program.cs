@@ -84,6 +84,12 @@ builder.Services.AddAuthorizationCore(options =>
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiService>();
+builder.Services.AddScoped<DashboardStateService>();
+builder.Services.AddScoped<BillingStateService>();
+builder.Services.AddScoped<AssetStateService>();
+builder.Services.AddScoped<TariffStateService>();
+builder.Services.AddScoped<LayoutStateService>();
+builder.Services.AddScoped<EventBusService>();
 builder.Services.AddScoped<IAppAuthorizationService, AppAuthorizationService>();
 builder.Services.AddScoped<IRuleEngineService, ClientRuleEngineService>();
 builder.Services.AddScoped<ITenantContext, ClientTenantContext>();

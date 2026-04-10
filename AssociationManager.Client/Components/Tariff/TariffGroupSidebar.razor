@@ -1,0 +1,62 @@
+@inherits StatefulComponentBase
+@inject TariffStateService TariffState
+
+@code {
+    protected override void OnInitialized()
+    {
+        RegisterStateService(TariffState);
+    }
+}
+
+<div class="tariff-sidebar-wrapper border-end bg-light d-flex flex-column @(TariffState.ShowWorkbenchOnMobile ? "d-none d-lg-flex" : "w-explorer")" style="flex-shrink: 0;">
+    <div class="tree-header d-flex justify-content-between align-items-center">
+        <span class="header-text">CATEGORIES</span>
+        <button class="btn btn-link p-0 text-vscode" @onclick='() => { TariffState.NewGroup = new(); TariffState.ShowGroupModal = true; }'>
+            <i class="bi bi-plus-circle"></i>
+        </button>
+    </div>
+    
+    <div class="explorer-search-container">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute" style="left: 10px; top: 7px; font-size: 11px; opacity: 0.5;"></i>
+            <input type="text" class="explorer-search-input" placeholder="Filter groups..." style="padding-left: 28px;" 
+                   @bind="TariffState.GroupFilter" @bind:event="oninput" />
+        </div>
+    </div>
+
+    <div class="flex-grow-1 overflow-auto p-2">
+        @if (TariffState.Groups == null)
+        {
+            <div class="text-center py-4 opacity-50"><div class="spinner-border spinner-border-sm"></div></div>
+        }
+        else if (!TariffState.Groups.Any())
+        {
+            <div class="text-center py-4 small text-muted">No groups defined.</div>
+        }
+        else
+        {
+            @foreach (var group in GetFilteredGroups())
+            {
+                <div class="vscode-tree-item @(TariffState.SelectedGroup?.TariffGroupId == group.TariffGroupId ? "active" : "")"
+                     style="margin: 2px 8px; border-radius: 4px;"
+                     @onclick="() => TariffState.SelectGroupAsync(group)">
+                    <i class="bi bi-folder2-open me-2 opacity-50"></i>
+                    <span class="flex-grow-1">@group.Name</span>
+                    @if (TariffState.SelectedGroup?.TariffGroupId == group.TariffGroupId)
+                    {
+                        <i class="bi bi-chevron-right small opacity-50"></i>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private IEnumerable<TariffGroup> GetFilteredGroups()
+    {
+        if (TariffState.Groups == null) return Enumerable.Empty<TariffGroup>();
+        if (string.IsNullOrWhiteSpace(TariffState.GroupFilter)) return TariffState.Groups;
+        return TariffState.Groups.Where(g => g.Name.Contains(TariffState.GroupFilter, StringComparison.OrdinalIgnoreCase));
+    }
+}

@@ -23,10 +23,11 @@ public class GovernanceController : ControllerBase
     }
 
     [HttpGet("profile")]
-    public async Task<IActionResult> GetProfile()
+    public async Task<IActionResult> GetProfile([FromQuery] int? associationId = null)
     {
-        var profile = await _governanceService.GetProfileAsync(_tenantContext.AssociationId);
-        return Ok(ApiResponse<AssociationProfile>.SuccessResponse(profile ?? new AssociationProfile { AssociationId = _tenantContext.AssociationId }));
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var profile = await _governanceService.GetProfileAsync(aid);
+        return Ok(ApiResponse<AssociationProfile>.SuccessResponse(profile ?? new AssociationProfile { AssociationId = aid }));
     }
 
     [HttpPost("profile")]
@@ -46,9 +47,10 @@ public class GovernanceController : ControllerBase
     }
 
     [HttpGet("committee/members")]
-    public async Task<IActionResult> GetCommitteeMembers([FromQuery] bool activeOnly = true)
+    public async Task<IActionResult> GetCommitteeMembers([FromQuery] bool activeOnly = true, [FromQuery] int? associationId = null)
     {
-        var members = await _governanceService.GetCommitteeMembersAsync(_tenantContext.AssociationId, activeOnly);
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var members = await _governanceService.GetCommitteeMembersAsync(aid, activeOnly);
         return Ok(ApiResponse<IEnumerable<CommitteeMember>>.SuccessResponse(members));
     }
 
@@ -122,9 +124,10 @@ public class GovernanceController : ControllerBase
     }
 
     [HttpGet("meetings")]
-    public async Task<IActionResult> GetMeetings()
+    public async Task<IActionResult> GetMeetings([FromQuery] int? associationId = null)
     {
-        var meetings = await _governanceService.GetMeetingsAsync(_tenantContext.AssociationId);
+        var aid = associationId ?? _tenantContext.AssociationId;
+        var meetings = await _governanceService.GetMeetingsAsync(aid);
         return Ok(ApiResponse<IEnumerable<Meeting>>.SuccessResponse(meetings));
     }
 

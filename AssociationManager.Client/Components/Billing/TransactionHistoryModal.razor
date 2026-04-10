@@ -1,0 +1,104 @@
+@using AssociationManager.Client.Services
+@using AssociationManager.Shared.Models
+@inject BillingStateService BillingService
+
+<div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content compact-card p-0 overflow-hidden shadow-lg" style="background: white; border: 1px solid var(--vscode-border);">
+            <div class="premium-card-header">
+                <h6 class="premium-card-title">Transaction History: @(BillingService.SelectedHistoryInvoice?.Title)</h6>
+                <button type="button" class="btn-close" style="font-size: 10px;" @onclick="OnCloseClick"></button>
+            </div>
+            <div class="p-3">
+                @if (BillingService.HistoryLoading)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                        <div class="small mt-2">Fetching gateway details...</div>
+                    </div>
+                }
+                else if (BillingService.HistoryTransactions == null || !BillingService.HistoryTransactions.Any())
+                {
+                    <div class="text-center py-5 opacity-50">
+                        <i class="bi bi-receipt-cutoff display-6 mb-2"></i>
+                        <div>No payment activity recorded for this invoice.</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" style="font-size: 12px;">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Method</th>
+                                    <th>Target Account & RRN</th>
+                                    <th>Reference ID</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Amount (Net)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var tx in BillingService.HistoryTransactions)
+                                {
+                                    <tr>
+                                        <td>@tx.CreatedDate.ToString("g")</td>
+                                        <td>
+                                            <div class="small fw-medium text-capitalize">@(tx.PaymentMethod ?? "Gateway")</div>
+                                            @if (!string.IsNullOrEmpty(tx.BankName) || !string.IsNullOrEmpty(tx.CardNetwork))
+                                            {
+                                                <div class="text-muted extra-small" style="font-size: 10px;">@(tx.BankName ?? tx.CardNetwork)</div>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(tx.PrimaryAccountName))
+                                            {
+                                                <div class="small fw-semibold">@tx.PrimaryAccountName</div>
+                                                <div class="text-muted extra-small" style="font-size: 10px;">@tx.PrimaryAccountNumber</div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(tx.BankRrn))
+                                            {
+                                                <div class="mt-1 badge bg-info-subtle text-info border-info" style="font-size: 9px; padding: 1px 4px;">RRN: @tx.BankRrn</div>
+                                            }
+                                        </td>
+                                        <td><code class="small text-muted">@tx.ReferenceId</code></td>
+                                        <td><span class="badge @GetPaymentStatusClass(tx.Status)" style="font-size: 10px;">@tx.Status</span></td>
+                                        <td class="text-end">
+                                            <div class="fw-bold">₹@tx.Amount</div>
+                                            @if (tx.GatewayFee.HasValue)
+                                            {
+                                                <div class="extra-small text-muted" style="font-size: 9px;" title="Fee: ₹@tx.GatewayFee, Tax: ₹@tx.GatewayTax">
+                                                    Net: ₹@(tx.Amount - (tx.GatewayFee ?? 0) - (tx.GatewayTax ?? 0))
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                <div class="d-flex justify-content-end mt-3">
+                    <button class="btn btn-sm btn-vscode-secondary" @onclick="OnCloseClick">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void OnCloseClick()
+    {
+        BillingService.ShowTransactionHistory = false;
+        BillingService.TargetInvoiceId = 0;
+        BillingService.SelectedHistoryInvoice = null;
+    }
+
+    private string GetPaymentStatusClass(string status) => status switch
+    {
+        "captured" or "Paid" or "Success" => "bg-success-subtle text-success border-success-subtle",
+        "failed" or "Failed" => "bg-danger-subtle text-danger border-danger-subtle",
+        "pending" or "Pending" => "bg-warning-subtle text-warning border-warning-subtle",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+}
