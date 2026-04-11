@@ -1,4 +1,4 @@
-﻿CREATE TABLE [corp].[AuditLogs] (
+CREATE TABLE [corp].[AuditLogs] (
     [AuditLogId]    INT            IDENTITY (1, 1) NOT NULL,
     [TenantId]      INT            NOT NULL,
     [UserId]        INT            NULL,
@@ -26,4 +26,16 @@
 GO
 CREATE NONCLUSTERED INDEX [IX_AuditLogs_AssociationId]
     ON [corp].[AuditLogs]([AssociationId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_AuditLogs_Timestamp] 
+    ON [corp].[AuditLogs]([Timestamp] DESC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_AuditLogs_CorrelationId] 
+    ON [corp].[AuditLogs]([CorrelationId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_AuditLogs_TenantId] 
+    ON [corp].[AuditLogs]([TenantId] ASC);
 

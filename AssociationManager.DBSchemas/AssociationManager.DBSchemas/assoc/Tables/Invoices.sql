@@ -1,4 +1,4 @@
-﻿CREATE TABLE [assoc].[Invoices] (
+CREATE TABLE [assoc].[Invoices] (
     [InvoiceId]      INT             IDENTITY (1, 1) NOT NULL,
     [TenantId]       INT             NOT NULL,
     [AssetId]        INT             NULL,
@@ -26,4 +26,16 @@
 GO
 CREATE NONCLUSTERED INDEX [IX_Invoices_AssociationId]
     ON [assoc].[Invoices]([AssociationId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Invoices_Status] 
+    ON [assoc].[Invoices]([Status] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Invoices_AssetId] 
+    ON [assoc].[Invoices]([AssetId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Invoices_BillingBatchId] 
+    ON [assoc].[Invoices]([BillingBatchId] ASC);
 

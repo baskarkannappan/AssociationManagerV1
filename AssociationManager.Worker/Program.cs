@@ -45,6 +45,7 @@ builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 
 // Billing Strategies
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
@@ -77,6 +78,12 @@ using (var scope = host.Services.CreateScope())
         "daily-fine-accrual",
         service => service.PostOverdueFinesAsync(),
         Cron.Daily(1));
+
+    // Daily Database Archiving at 3:00 AM
+    recurringJobManager.AddOrUpdate<IMaintenanceService>(
+        "database-archiving",
+        service => service.ArchiveAuditLogsAsync(180),
+        Cron.Daily(3));
 }
 
 host.Run();

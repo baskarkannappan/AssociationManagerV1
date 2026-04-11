@@ -1,4 +1,4 @@
-﻿CREATE TABLE [corp].[PlatformInvoices] (
+CREATE TABLE [corp].[PlatformInvoices] (
     [PlatformInvoiceId] INT             IDENTITY (1, 1) NOT NULL,
     [AssociationId]     INT             NOT NULL,
     [PlanId]            INT             NOT NULL,
@@ -16,4 +16,12 @@
 GO
 CREATE UNIQUE NONCLUSTERED INDEX [UX_PlatformInvoices_Assoc_Period]
     ON [corp].[PlatformInvoices]([AssociationId] ASC, [BillingDate] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_PlatformInvoices_Status] 
+    ON [corp].[PlatformInvoices]([Status] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_PlatformInvoices_PlanId] 
+    ON [corp].[PlatformInvoices]([PlanId] ASC);
 

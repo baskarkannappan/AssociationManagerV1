@@ -1,4 +1,4 @@
-﻿CREATE PROCEDURE assoc.sp_Invoices_GetPaged
+CREATE PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -75,5 +75,6 @@ BEGIN
             END
         END DESC
     OFFSET @Offset ROWS
-    FETCH NEXT @PageSize ROWS ONLY;
+    FETCH NEXT @PageSize ROWS ONLY
+    OPTION (RECOMPILE); -- Solve parameter sniffing issues for optional filters
 END;
