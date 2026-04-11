@@ -12,7 +12,7 @@ using Microsoft.Extensions.Hosting;
 var builder = Host.CreateApplicationBuilder(args);
 
 // Data Access
-builder.Services.AddSingleton<DbConnectionFactory>();
+builder.Services.AddScoped<DbConnectionFactory>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
