@@ -2,8 +2,6 @@
 
     <PropertyGroup>
         <TargetFrameworks>net9.0-android</TargetFrameworks>
-        <!-- Prevent this project from breaking solution-level builds when not targeting Android -->
-        <SkipBuild Condition="'$(TargetFramework)' == 'net9.0'">true</SkipBuild>
         <OutputType>Exe</OutputType>
         <RootNamespace>AssociationManager.Mobile</RootNamespace>
         <UseMaui>true</UseMaui>
@@ -48,6 +46,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
@@ -55,7 +54,6 @@
         <!-- Functional Parity Packages -->
         <PackageReference Include="Blazor.Bootstrap" Version="3.4.0" />
         <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.0.2" />
         <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.2" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.5.0" />
         <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />

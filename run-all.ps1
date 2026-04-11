@@ -13,11 +13,24 @@ Stop-Process -Name "AssociationManager.Client" -Force
 Stop-Process -Name "AssociationManager.Corporate.Client" -Force
 Stop-Process -Name "AssociationManager.Worker" -Force
 
-Write-Host "--- Building Solution ---" -ForegroundColor Cyan
-dotnet build AssociationManagerSaaS.slnx -f net9.0 --nologo -v q
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build failed! Please fix errors before running." -ForegroundColor Red
-    exit $LASTEXITCODE
+Write-Host "--- Building Core Projects ---" -ForegroundColor Cyan
+$projects = @(
+    "AssociationManager.Gateway\AssociationManager.Gateway.csproj",
+    "AssociationManager.Api\AssociationManager.Api.csproj",
+    "AssociationManager.Corporate.Api\AssociationManager.Corporate.Api.csproj",
+    "AssociationManager.Client\AssociationManager.Client.csproj",
+    "AssociationManager.Corporate.Client\AssociationManager.Corporate.Client.csproj",
+    "AssociationManager.Worker\AssociationManager.Worker.csproj",
+    "AssociationManager.Database\AssociationManager.Database.csproj"
+)
+
+foreach ($project in $projects) {
+    Write-Host "Building $project..." -ForegroundColor Gray
+    dotnet build $project --nologo -v q
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build failed for $project! Please fix errors before running." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 }
 
 Write-Host "--- Starting Database Migrations ---" -ForegroundColor Cyan
