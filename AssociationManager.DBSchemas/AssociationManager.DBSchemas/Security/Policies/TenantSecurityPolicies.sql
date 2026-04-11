@@ -1,9 +1,3 @@
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Associations
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[Associations],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[Associations]
-    WITH (STATE = ON);
-GO
-
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[AuditLogs],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[AuditLogs]

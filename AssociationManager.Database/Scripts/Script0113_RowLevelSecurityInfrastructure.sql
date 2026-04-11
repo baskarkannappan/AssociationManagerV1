@@ -1,6 +1,6 @@
 -- Script0113_RowLevelSecurityInfrastructure.sql
 -- Implements Row-Level Security (RLS) for automated multi-tenant isolation.
--- Refactored to handle dependency ordering: Policies must be dropped BEFORE the function.
+-- Refactored: Registry tables (Associations) are excluded from RLS to prevent login lockout.
 
 -- 1. Create Security Schema if it doesn't exist
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Security')
@@ -10,6 +10,7 @@ END
 GO
 
 -- 2. DROP EXISTING POLICIES (Required to unlock the function for modification)
+-- We drop the Associations policy one last time to clear the current lockout state.
 IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Associations')
     DROP SECURITY POLICY Security.TenantSecurityPolicy_Associations;
 GO
@@ -46,15 +47,8 @@ AS
         OR (CAST(SESSION_CONTEXT(N'IsAdmin') AS INT) = 1);
 GO
 
--- 4. APPLY SECURITY POLICIES
+-- 4. APPLY SECURITY POLICIES (Excluding Registry tables like Associations)
 -- We use FILTER PREDICATE for read isolation and BLOCK PREDICATE for write isolation.
-
--- Policy for corp.Associations
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Associations
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[Associations],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[Associations]
-    WITH (STATE = ON);
-GO
 
 -- Policy for corp.AuditLogs
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs
