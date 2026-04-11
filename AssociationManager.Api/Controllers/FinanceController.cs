@@ -2,6 +2,8 @@ using AssociationManager.Shared.Interfaces;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Models;
 using AssociationManager.Shared.Enums;
+using AssociationManager.Services.Billing;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -20,7 +22,7 @@ public class FinanceController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly ITenantContext _tenantContext;
     private readonly IPeopleService _peopleService;
-    private readonly AssociationManager.Api.Services.Billing.BillingBatchService _batchService;
+    private readonly BillingBatchService _batchService;
     private readonly IRuleEngineService _ruleEngine;
     private readonly IFineService _fineService;
     private readonly IInvoicePdfService _pdfService;
@@ -30,7 +32,7 @@ public class FinanceController : ControllerBase
         IAuditService auditService,
         ITenantContext tenantContext,
         IPeopleService peopleService,
-        AssociationManager.Api.Services.Billing.BillingBatchService batchService,
+        BillingBatchService batchService,
         IRuleEngineService ruleEngine,
         IFineService fineService,
         IInvoicePdfService pdfService)
@@ -47,10 +49,10 @@ public class FinanceController : ControllerBase
 
     [HttpPost("batch-generate")]
     [Authorize(Policy = "RequireFinanceManager")]
-    public async Task<IActionResult> GenerateBatch([FromBody] InvoiceBatchRequest request)
+    public IActionResult GenerateBatch([FromBody] InvoiceBatchRequest request)
     {
-        var result = await _batchService.ProcessBatchAsync(request, _tenantContext.TenantId);
-        return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
+        var jobId = BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId));
+        return Accepted(ApiResponse<string>.SuccessResponse(jobId, "Billing batch generation has been queued. Job ID: " + jobId));
     }
 
     [HttpPost("batches/preview")]
@@ -64,11 +66,11 @@ public class FinanceController : ControllerBase
 
     [HttpPost("batches/draft")]
     [Authorize(Policy = "RequireFinanceManager")]
-    public async Task<IActionResult> CreateDraftBatch([FromBody] InvoiceBatchRequest request)
+    public IActionResult CreateDraftBatch([FromBody] InvoiceBatchRequest request)
     {
         request.DryRun = false;
-        var result = await _batchService.ProcessBatchAsync(request, _tenantContext.TenantId);
-        return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
+        var jobId = BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId));
+        return Accepted(ApiResponse<string>.SuccessResponse(jobId, "Draft billing batch creation has been queued. Job ID: " + jobId));
     }
 
     [HttpGet("batches")]

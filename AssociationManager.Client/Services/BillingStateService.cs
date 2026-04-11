@@ -202,7 +202,7 @@ namespace AssociationManager.Client.Services
                 var success = await _api.PostAsync("api/finance/batches/draft", BatchRequest);
                 if (success)
                 {
-                    _toastService.Notify(new(ToastType.Success, "Draft batch generated successfully."));
+                    _toastService.Notify(new(ToastType.Success, "Draft batch generation has been queued. It will appear in the grid once processed."));
                     BatchResult = null;
                     await InitializeAsync();
                 }

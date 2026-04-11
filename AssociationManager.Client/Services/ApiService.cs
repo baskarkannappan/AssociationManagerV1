@@ -22,21 +22,37 @@ public class ApiService
     {
         try
         {
-            var response = await _httpClient.GetFromJsonAsync<ApiResponse<T>>(url);
-            if (response != null && response.Success)
-            {
-                return response.Data;
-            }
+            var response = await _httpClient.GetAsync(url);
             
-            if (response != null && !string.IsNullOrEmpty(response.Message))
+            if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"API Error: {response.Message}");
+                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (apiResponse != null && apiResponse.Success)
+                {
+                    return apiResponse.Data;
+                }
+                
+                if (apiResponse != null && !string.IsNullOrEmpty(apiResponse.Message))
+                {
+                    Console.WriteLine($"API Error: {apiResponse.Message}");
+                }
+                return default;
             }
-            return default;
+            else
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"HTTP Error {response.StatusCode}: {content}");
+                return default;
+            }
         }
         catch (HttpRequestException ex)
         {
-            Console.WriteLine($"HTTP Error: {ex.Message}");
+            Console.WriteLine($"HTTP Request Error: {ex.Message}");
+            return default;
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            Console.WriteLine($"JSON Deserialization Error: {ex.Message}");
             return default;
         }
     }
@@ -49,14 +65,31 @@ public class ApiService
             
             if (response.IsSuccessStatusCode)
             {
-                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>();
+                var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>(new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 return apiResponse != null ? apiResponse.Data : default;
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                Console.WriteLine("API Error: 401 Unauthorized");
+                throw new Exception("Session expired or unauthorized. Please login again.");
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                Console.WriteLine("API Error: 403 Forbidden");
+                throw new Exception("You do not have permission to perform this action.");
             }
             else
             {
-                // On failure, deserialize as non-generic ApiResponse to safely read the Message
-                var errorResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
-                var message = errorResponse?.Message ?? $"Server error: {response.StatusCode}";
+                // On other failures, try to read the error message if it's JSON, otherwise return status code
+                string message = $"Server error: {response.StatusCode}";
+                try 
+                {
+                    var errorResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
+                    if (errorResponse != null && !string.IsNullOrEmpty(errorResponse.Message))
+                        message = errorResponse.Message;
+                }
+                catch { /* Ignore parsing errors for error bodies */ }
+                
                 Console.WriteLine($"API Error: {message}");
                 throw new Exception(message);
             }

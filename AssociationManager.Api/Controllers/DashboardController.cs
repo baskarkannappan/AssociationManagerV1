@@ -245,7 +245,7 @@ public class DashboardController : ControllerBase
         if (unitTask != null) await unitTask;
 
         overview.Metrics = await metricsTask;
-        overview.RecentInvoices = (await invoicesTask).Take(50).ToList();
+        overview.RecentInvoices = (await invoicesTask).Where(i => i.Status != "Draft").Take(50).ToList();
         overview.MyBalance = (await balanceTask).TotalAdvanceCredits; // Summing total advance money
         overview.Profile = await profileTask;
         if (unitTask != null) overview.MyUnit = await unitTask;
@@ -283,7 +283,7 @@ public class DashboardController : ControllerBase
 
         foreach (var aid in assetIds)
         {
-            var assetInvoices = await _financeService.GetInvoicesByAssetIdAsync(aid, associationId);
+            var assetInvoices = (await _financeService.GetInvoicesByAssetIdAsync(aid, associationId)).Where(i => i.Status != "Draft");
             invoices.AddRange(assetInvoices);
 
             var assetWorkOrders = await _workOrderRepository.GetByAssetIdAsync(aid, tenantId, associationId);

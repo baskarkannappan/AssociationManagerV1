@@ -1,5 +1,7 @@
 using AssociationManager.Api.Middlewares;
 using AssociationManager.Auth.Interfaces;
+using Hangfire;
+using Hangfire.SqlServer;
 using AssociationManager.Auth.Models;
 using AssociationManager.Auth.Services;
 using AssociationManager.Data;
@@ -89,13 +91,29 @@ builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
-builder.Services.AddScoped<AssociationManager.Api.Services.Billing.BillingBatchService>();
+builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
 builder.Services.AddScoped<RulesEngineSeeder>();
-builder.Services.AddHostedService<AssociationManager.Api.Workers.FinePostingWorker>();
 
 // Billing Strategies & Batch Service
-builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.FixedBillingStrategy>();
-builder.Services.AddScoped<AssociationManager.Api.Services.Billing.IBillingStrategy, AssociationManager.Api.Services.Billing.AreaBasedBillingStrategy>();
+builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
+builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.AreaBasedBillingStrategy>();
+
+// Hangfire Configuration
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"), new SqlServerStorageOptions
+    {
+        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+        QueuePollInterval = TimeSpan.Zero,
+        UseRecommendedIsolationLevel = true,
+        DisableGlobalLocks = true
+    }));
+
+// Note: AddHangfireServer is NOT called here to avoid loading the API with batch jobs.
+// The Worker project will act as the Hangfire Server.
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
@@ -233,6 +251,7 @@ app.UseCors("AllowClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseHangfireDashboard("/hangfire");
 
 // Multi-tenancy
 

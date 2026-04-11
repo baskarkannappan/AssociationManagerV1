@@ -9,11 +9,14 @@
     [Timestamp]     DATETIME       DEFAULT (getdate()) NOT NULL,
     [AssociationId] INT            NULL,
     [AssetId]       INT            NULL,
+    [CorrelationId] NVARCHAR (100) NULL,
     PRIMARY KEY CLUSTERED ([AuditLogId] ASC),
     CONSTRAINT [FK_AuditLogs_Assets] FOREIGN KEY ([AssetId]) REFERENCES [assoc].[Assets] ([AssetId]),
     CONSTRAINT [FK_AuditLogs_Associations] FOREIGN KEY ([AssociationId]) REFERENCES [corp].[Associations] ([AssociationId]),
     CONSTRAINT [FK_AuditLogs_Tenants] FOREIGN KEY ([TenantId]) REFERENCES [corp].[Tenants] ([TenantId])
 );
+
+
 
 
 

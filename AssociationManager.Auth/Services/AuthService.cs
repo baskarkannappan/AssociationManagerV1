@@ -220,8 +220,23 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("Token refresh successful for {Email}", email);
         
+        var contextRole = principal.Claims.FirstOrDefault(c => c.Type == "ContextRole")?.Value;
         var status = principal.Claims.FirstOrDefault(c => c.Type == "AssociationStatus")?.Value ?? "Active";
-        return await GenerateAuthResponse(user, null, status);
+        var tokenAssociationIdStr = principal.Claims.FirstOrDefault(c => c.Type == "AssociationId")?.Value;
+        var tokenTenantIdStr = principal.Claims.FirstOrDefault(c => c.Type == "TenantId")?.Value;
+
+        // Apply context from token to the user object if they are currently viewing a specific association
+        // that differs from their DB default (e.g. they switched recently)
+        if (int.TryParse(tokenAssociationIdStr, out int tokenAssocId) && tokenAssocId > 0)
+        {
+            user.AssociationId = tokenAssocId;
+        }
+        if (int.TryParse(tokenTenantIdStr, out int tokenTenantId) && tokenTenantId > 0)
+        {
+            user.TenantId = tokenTenantId;
+        }
+
+        return await GenerateAuthResponse(user, contextRole, status);
     }
 
     private async Task<AuthResponse> GenerateAuthResponse(User user, string? contextRole = null, string status = "Active")

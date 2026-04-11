@@ -156,6 +156,11 @@
             filters.Add($"status={BillingService.StatusFilter}");
             if (BillingService.StatusFilter == "Draft") filters.Add("includeDrafts=true");
         }
+        else
+        {
+            // If No status filter is selected (All Status), include drafts so admins see them
+            filters.Add("includeDrafts=true");
+        }
 
         string url = $"{baseUrl}?{string.Join("&", filters)}";
         var response = await Api.GetAsync<PagedResult<Invoice>>(url);
