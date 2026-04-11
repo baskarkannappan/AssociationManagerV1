@@ -88,7 +88,7 @@
                             <h6 class="mb-1 small font-weight-bold">@log.Action</h6>
                             <small class="text-muted">@log.Timestamp.ToShortDateString()</small>
                         </div>
-                        <p class="mb-1 x-small text-muted">@log.Description</p>
+                        <p class="mb-1 x-small text-muted">@log.Entity</p>
                     </div>
                 }
             </div>
@@ -123,13 +123,13 @@
         {
             _adminOverview = await DashboardService.GetAdminOverviewAsync();
             _activities = _adminOverview?.Metrics.RecentActivity ?? new();
-            _associationName = _adminOverview?.Profile?.AssociationName ?? "Admin Dashboard";
+            _associationName = _adminOverview?.Profile != null ? $"Association #{_adminOverview.Profile.AssociationId}" : "Admin Dashboard";
         }
         else
         {
             _residentOverview = await DashboardService.GetResidentOverviewAsync();
             _activities = _residentOverview?.Metrics.MyRecentActivity ?? new();
-            _associationName = _residentOverview?.Profile?.AssociationName ?? "Resident Dashboard";
+            _associationName = _residentOverview?.Profile != null ? $"Association #{_residentOverview.Profile.AssociationId}" : "Resident Dashboard";
         }
 
         _loading = false;

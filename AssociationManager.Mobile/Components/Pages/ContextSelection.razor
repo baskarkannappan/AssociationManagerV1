@@ -1,6 +1,6 @@
 @page "/context-selection"
 @using AssociationManager.Mobile.Services
-@using AssociationManager.Shared.DTOs
+@using AssociationManager.Shared.Models
 @inject MobileAssociationService AssociationService
 @inject MobileAuthService AuthService
 @inject NavigationManager Navigation
@@ -50,7 +50,7 @@
 </div>
 
 @code {
-    private List<AssociationDto> _associations = new();
+    private List<Association> _associations = new();
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
@@ -65,7 +65,7 @@
         _loading = false;
     }
 
-    private async Task SelectAssociationAsync(AssociationDto assoc)
+    private async Task SelectAssociationAsync(Association assoc)
     {
         var result = await AuthService.SwitchTenant(assoc.TenantId, assoc.AssociationId);
         if (result?.Success == true)

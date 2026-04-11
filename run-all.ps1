@@ -14,7 +14,7 @@ Stop-Process -Name "AssociationManager.Corporate.Client" -Force
 Stop-Process -Name "AssociationManager.Worker" -Force
 
 Write-Host "--- Building Solution ---" -ForegroundColor Cyan
-dotnet build AssociationManagerSaaS.slnx --nologo -v q
+dotnet build AssociationManagerSaaS.slnx -f net9.0 --nologo -v q
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed! Please fix errors before running." -ForegroundColor Red
     exit $LASTEXITCODE

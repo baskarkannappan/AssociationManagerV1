@@ -1,4 +1,4 @@
-using AssociationManager.Shared.DTOs;
+using AssociationManager.Shared.Models;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using AssociationManager.Mobile.Services;
@@ -16,20 +16,21 @@ public class MobileAssociationService
         _tokenService = tokenService;
     }
 
-    public async Task<List<AssociationDto>> GetMyAssociationsAsync()
+    public async Task<List<Association>> GetMyAssociationsAsync()
     {
         var token = await _tokenService.GetTokenAsync();
-        if (string.IsNullOrEmpty(token)) return new List<AssociationDto>();
+        if (string.IsNullOrEmpty(token)) return new List<Association>();
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         
         try
         {
-            return await _httpClient.GetFromJsonAsync<List<AssociationDto>>("api/associations/my-tenants") ?? new List<AssociationDto>();
+            var result = await _httpClient.GetFromJsonAsync<ApiResponse<IEnumerable<Association>>>("api/associations/my-tenants");
+            return result?.Data?.ToList() ?? new List<Association>();
         }
         catch
         {
-            return new List<AssociationDto>();
+            return new List<Association>();
         }
     }
 }
