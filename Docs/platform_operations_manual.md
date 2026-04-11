@@ -89,6 +89,32 @@ When you are ready to launch **Production**:
 | **Connection Refused** | The service process is not running. | Verify the Container App status in Azure. Ensure `Min Replicas` is reached. |
 | **Mobile Auth Fail** | Mismatched Google ClientID. | Ensure the ClientID in the Mobile App matches the one in the Backend `appsettings.json`. |
 
+---
+
+## 7. Manual Azure Configuration (Portal Override)
+
+If you need to create these components manually in the [Azure Portal](https://portal.azure.com), follow these blueprints:
+
+### A. Azure SQL Serverless (Database)
+1. **Create SQL Database**: Set the tier to **General Purpose**.
+2. **Compute Tier**: Select **Serverless**.
+3. **Auto-Pause**: Set "Auto-pause delay" to **1 hour**. This is the key to your cost savings!
+4. **Networking**: Ensure "Allow Azure services to access this server" is checked.
+
+### B. Azure Key Vault (Secrets)
+1. **Access Configuration**: Use **Azure Role-Based Access Control (RBAC)**.
+2. **Secrets**: Add your secrets using these exact names:
+   - `ConnectionStrings--DefaultConnection` (Use `--` for levels)
+   - `GoogleSettings--ClientId`
+   - `JwtSettings--Key`
+
+### C. Azure Container Apps (Gateway & APIs)
+1. **Create Environment**: Create a single "Container Apps Environment" for all services to share.
+2. **Registry**: Go to the **Settings > Container** tab. Link it to your Azure Container Registry (ACR).
+3. **Ingress (Networking)**:
+   - **Gateway**: Enable Ingress, set to **External**, Port **8080**.
+   - **APIs**: Enable Ingress, set to **Internal** (if you only want traffic via Gateway) or **External** for testing.
+
 > [!IMPORTANT]
 > **Always monitor your Azure Costs**: Check the "Cost Analysis" tab in the Azure Portal once a week to ensure your serverless services are pausing as expected.
 
