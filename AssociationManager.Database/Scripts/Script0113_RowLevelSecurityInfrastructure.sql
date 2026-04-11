@@ -1,16 +1,35 @@
 -- Script0113_RowLevelSecurityInfrastructure.sql
 -- Implements Row-Level Security (RLS) for automated multi-tenant isolation.
+-- Refactored to handle dependency ordering: Policies must be dropped BEFORE the function.
 
--- 1. Create Security Schema
+-- 1. Create Security Schema if it doesn't exist
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Security')
 BEGIN
     EXEC('CREATE SCHEMA [Security]')
 END
 GO
 
--- 2. Create Tenant Access Predicate Function
--- This function determines if a user can see a row based on SESSION_CONTEXT.
--- It allows bypass for System Administrators (IsAdmin = 1).
+-- 2. DROP EXISTING POLICIES (Required to unlock the function for modification)
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Associations')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Associations;
+GO
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_AuditLogs')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs;
+GO
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Invoices')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Invoices;
+GO
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Assets')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Assets;
+GO
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Persons')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Persons;
+GO
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Occupancy')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Occupancy;
+GO
+
+-- 3. DROP/CREATE Tenant Access Predicate Function
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('Security.fn_TenantAccessPredicate') AND type in (N'IF', N'FN', N'TF'))
 BEGIN
     DROP FUNCTION Security.fn_TenantAccessPredicate;
@@ -27,13 +46,10 @@ AS
         OR (CAST(SESSION_CONTEXT(N'IsAdmin') AS INT) = 1);
 GO
 
--- 3. Apply Security Policies to Target Tables
+-- 4. APPLY SECURITY POLICIES
 -- We use FILTER PREDICATE for read isolation and BLOCK PREDICATE for write isolation.
 
 -- Policy for corp.Associations
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Associations')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_Associations;
-GO
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_Associations
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[Associations],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[Associations]
@@ -41,9 +57,6 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Associations
 GO
 
 -- Policy for corp.AuditLogs
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_AuditLogs')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs;
-GO
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[AuditLogs],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [corp].[AuditLogs]
@@ -51,9 +64,6 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs
 GO
 
 -- Policy for assoc.Invoices
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Invoices')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_Invoices;
-GO
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_Invoices
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Invoices],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Invoices]
@@ -61,9 +71,6 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Invoices
 GO
 
 -- Policy for assoc.Assets
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Assets')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_Assets;
-GO
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_Assets
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Assets],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Assets]
@@ -71,9 +78,6 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Assets
 GO
 
 -- Policy for assoc.Persons
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Persons')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_Persons;
-GO
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_Persons
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons]
@@ -81,9 +85,6 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Persons
 GO
 
 -- Policy for assoc.Occupancy
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Occupancy')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_Occupancy;
-GO
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_Occupancy
     ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Occupancy],
     ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Occupancy]
