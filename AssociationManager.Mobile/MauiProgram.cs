@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using AssociationManager.Mobile.Services;
 using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace AssociationManager.Mobile;
 
@@ -26,6 +27,7 @@ public static class MauiProgram
 		builder.Services.AddScoped<MobileAuthService>();
 		builder.Services.AddScoped<MobileAssociationService>();
 		builder.Services.AddScoped<MobileDashboardService>();
+		builder.Services.AddSingleton<IWebAuthenticator>(WebAuthenticator.Default);
 		
 		builder.Services.AddAuthorizationCore();
 		builder.Services.AddScoped<MobileAuthenticationStateProvider>();

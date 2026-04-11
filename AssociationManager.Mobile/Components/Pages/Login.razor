@@ -2,6 +2,10 @@
 @using AssociationManager.Mobile.Services
 @inject MobileAuthService AuthService
 @inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+@inject MobileTokenStorageService TokenService
+@inject MobileAuthenticationStateProvider AuthStateProvider
+@inject IWebAuthenticator WebAuthenticator
 
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -17,13 +21,24 @@
                     @if (!string.IsNullOrEmpty(_errorMessage))
                     {
                         <div class="alert alert-danger">@_errorMessage</div>
+                        <p class="small text-danger">Check internet connection and backend services.</p>
                     }
 
-                    <div class="d-grid gap-2">
-                        <Button Color="ButtonColor.Primary" Size="ButtonSize.Large" @onclick="HandleGoogleLoginAsync">
-                            <Icon Name="IconName.Google" class="me-2" /> Sign in with Google
-                        </Button>
-                    </div>
+                    @if (_isLoggingIn)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2 text-muted">Authenticating...</p>
+                        </div>
+                    }
+                    else 
+                    {
+                        <div class="d-grid gap-2">
+                            <Button Color="ButtonColor.Primary" Size="ButtonSize.Large" @onclick="HandleGoogleLoginAsync">
+                                <Icon Name="IconName.Google" class="me-2" /> Sign in with Google
+                            </Button>
+                        </div>
+                    }
                     
                     <p class="mt-4 small text-muted">
                         Targeting Android 9+ (API 21+)
@@ -36,25 +51,54 @@
 
 @code {
     private string? _errorMessage;
+    private bool _isLoggingIn;
 
     private async Task HandleGoogleLoginAsync()
     {
         _errorMessage = null;
-        
-        // --- NOTE FOR USER ---
-        // In a full production build, we would use Microsoft.Maui.Authentication.WebAuthenticator here.
-        // For this secure bootstrap, we are triggering the auth flow.
+        _isLoggingIn = true;
         
         try 
         {
-            // Placeholder for Google ID Token acquisition on Mobile
-            // For now, this service will call the backend /api/auth/google
-            await Task.Delay(500); // Simulate network
-            _errorMessage = "Mobile Google Auth setup required (WebAuthenticator + Intent Filter)";
+            // For Android Emulator, the IP to reach the host is 10.0.2.2
+            // The ExternalAuthController orchestrates the redirect to Google
+            var authUrl = "https://10.0.2.2:7000/api/externalauth/google-login";
+            var callbackUrl = "assocauth://callback";
+
+            var authResult = await WebAuthenticator.AuthenticateAsync(new Uri(authUrl), new Uri(callbackUrl));
+            
+            var idToken = authResult?.Properties["id_token"];
+            if (string.IsNullOrEmpty(idToken))
+            {
+                _errorMessage = "Authentication failed: No token received.";
+                return;
+            }
+
+            // exchange the id_token for our JWT
+            var success = await AuthService.LoginWithGoogleAsync(idToken);
+            if (success)
+            {
+                // Refresh authentication state
+                await AuthStateProvider.GetAuthenticationStateAsync();
+                Navigation.NavigateTo("/context-selection");
+            }
+            else 
+            {
+                _errorMessage = "Identity verification failed. Please contact your administrator.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // User cancelled the login
+            _isLoggingIn = false;
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
+            _errorMessage = $"Login Error: {ex.Message}";
+        }
+        finally
+        {
+            _isLoggingIn = false;
         }
     }
 }
