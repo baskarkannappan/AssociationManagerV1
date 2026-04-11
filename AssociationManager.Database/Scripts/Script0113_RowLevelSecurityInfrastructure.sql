@@ -70,13 +70,13 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Assets
     WITH (STATE = ON);
 GO
 
--- Policy for assoc.People
-IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_People')
-    DROP SECURITY POLICY Security.TenantSecurityPolicy_People;
+-- Policy for assoc.Persons
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Persons')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Persons;
 GO
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_People
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[People],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[People]
+CREATE SECURITY POLICY Security.TenantSecurityPolicy_Persons
+    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons],
+    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons]
     WITH (STATE = ON);
 GO
 
