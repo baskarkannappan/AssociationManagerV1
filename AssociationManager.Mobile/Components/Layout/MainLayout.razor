@@ -1,0 +1,25 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <main>
+        <div class="top-row px-4 text-primary d-flex align-items-center">
+            <span class="fw-bold">AssociationManager Mobile</span>
+            <div class="ms-auto small">Secure v1.0</div>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<style>
+    .top-row {
+        height: 3.5rem;
+        background-color: #f7f7f7;
+        border-bottom: 1px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+</style>

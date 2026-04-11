@@ -1,0 +1,143 @@
+@page "/dashboard"
+@using AssociationManager.Mobile.Services
+@using AssociationManager.Shared.Models
+@inject MobileDashboardService DashboardService
+@inject MobileTokenStorageService TokenService
+@inject NavigationManager Navigation
+
+<div class="container mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0">Dashboard</h4>
+            <p class="text-muted small">@_associationName</p>
+        </div>
+        <Button Color="ButtonColor.Light" @onclick="HandleLogout">
+            <Icon Name="IconName.BoxArrowRight" />
+        </Button>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center mt-5">
+            <Spinner Color="SpinnerColor.Primary" />
+            <p class="mt-2 text-muted">Loading metrics...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @if (_isAdmin)
+            {
+                <!-- Admin Metrics -->
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm bg-primary text-white p-3 h-100">
+                        <small>Total Revenue</small>
+                        <h3>@_adminOverview?.Metrics.TotalRevenueCollected.ToString("C")</h3>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm bg-danger text-white p-3 h-100">
+                        <small>Outstanding</small>
+                        <h3>@_adminOverview?.Metrics.TotalOutstanding.ToString("C")</h3>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm p-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Pending Work Orders</span>
+                            <Badge Color="BadgeColor.Warning">@_adminOverview?.Metrics.PendingWorkOrders</Badge>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Resident Metrics -->
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm bg-success text-white p-4 text-center">
+                        <small>Available Credit</small>
+                        <h2 class="display-6">@_residentOverview?.Metrics.CreditAvailable.ToString("C")</h2>
+                        <hr class="opacity-25" />
+                        <small>Balance Due: @_residentOverview?.Metrics.BalanceDue.ToString("C")</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm p-3 text-center">
+                        <Icon Name="IconName.ClockHistory" class="text-primary mb-2" Size="IconSize.x2" />
+                        <h6 class="mb-0">@_residentOverview?.Metrics.ActiveWorkOrders</h6>
+                        <small class="text-muted">Work Orders</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card border-0 shadow-sm p-3 text-center">
+                        <Icon Name="IconName.FileEarmarkText" class="text-primary mb-2" Size="IconSize.x2" />
+                        <h6 class="mb-0">@_residentOverview?.Metrics.PendingInvoices</h6>
+                        <small class="text-muted">Invoices</small>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="mt-4">
+            <h6 class="mb-3">Recent Activity</h6>
+            <div class="list-group list-group-flush shadow-sm rounded">
+                @foreach (var log in _activities)
+                {
+                    <div class="list-group-item border-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1 small font-weight-bold">@log.Action</h6>
+                            <small class="text-muted">@log.Timestamp.ToShortDateString()</small>
+                        </div>
+                        <p class="mb-1 x-small text-muted">@log.Description</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .x-small { font-size: 0.75rem; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private bool _isAdmin;
+    private string _associationName = "Loading...";
+    private AdminDashboardOverview? _adminOverview;
+    private ResidentDashboardOverview? _residentOverview;
+    private List<AuditLog> _activities = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var context = await TokenService.GetTenantContextAsync();
+        _isAdmin = context.IsAdmin;
+        
+        if (context.AssociationId == 0)
+        {
+            Navigation.NavigateTo("/context-selection");
+            return;
+        }
+
+        if (_isAdmin)
+        {
+            _adminOverview = await DashboardService.GetAdminOverviewAsync();
+            _activities = _adminOverview?.Metrics.RecentActivity ?? new();
+            _associationName = _adminOverview?.Profile?.AssociationName ?? "Admin Dashboard";
+        }
+        else
+        {
+            _residentOverview = await DashboardService.GetResidentOverviewAsync();
+            _activities = _residentOverview?.Metrics.MyRecentActivity ?? new();
+            _associationName = _residentOverview?.Profile?.AssociationName ?? "Resident Dashboard";
+        }
+
+        _loading = false;
+    }
+
+    private void HandleLogout()
+    {
+        TokenService.ClearAll();
+        Navigation.NavigateTo("/login");
+    }
+}

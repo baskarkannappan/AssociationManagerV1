@@ -1,0 +1,76 @@
+@page "/context-selection"
+@using AssociationManager.Mobile.Services
+@using AssociationManager.Shared.DTOs
+@inject MobileAssociationService AssociationService
+@inject MobileAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="container mt-3">
+    <div class="text-center mb-4">
+        <h4>Select Association</h4>
+        <p class="text-muted small">Choose your active context</p>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center mt-5">
+            <Spinner Color="SpinnerColor.Primary" />
+            <p class="mt-2 text-muted">Fetching associations...</p>
+        </div>
+    }
+    else if (!_associations.Any())
+    {
+        <div class="alert alert-warning text-center">
+            <Icon Name="IconName.ExclamationTriangle" class="me-2" />
+            No associations found for your account.
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var assoc in _associations)
+            {
+                <div class="col-12">
+                    <div class="card shadow-sm border-0" @onclick="() => SelectAssociationAsync(assoc)">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="bg-primary text-white rounded-circle p-3 me-3">
+                                <Icon Name="IconName.Building" />
+                            </div>
+                            <div>
+                                <h6 class="mb-0 font-weight-bold">@assoc.Name</h6>
+                                <small class="text-muted">ID: @assoc.AssociationId</small>
+                            </div>
+                            <Icon Name="IconName.ChevronRight" class="ms-auto text-muted" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<AssociationDto> _associations = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAssociationsAsync();
+    }
+
+    private async Task LoadAssociationsAsync()
+    {
+        _loading = true;
+        _associations = await AssociationService.GetMyAssociationsAsync();
+        _loading = false;
+    }
+
+    private async Task SelectAssociationAsync(AssociationDto assoc)
+    {
+        var result = await AuthService.SwitchTenant(assoc.TenantId, assoc.AssociationId);
+        if (result?.Success == true)
+        {
+            Navigation.NavigateTo("/dashboard");
+        }
+    }
+}
