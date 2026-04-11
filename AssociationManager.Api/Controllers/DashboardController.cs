@@ -235,7 +235,7 @@ public class DashboardController : ControllerBase
         var invoicesTask = _financeService.GetInvoicesByAssetIdAsync(assetIds.First(), associationId); // Simplified for MVP: primary asset invoices
         var balanceTask = _financeService.GetFinanceSummaryAsync(associationId, assetIds: assetIds);
         var profileTask = _governanceService.GetProfileAsync(associationId);
-        Task<Asset>? unitTask = null;
+        Task<Asset?>? unitTask = null;
         if (occupancies.Count == 1)
         {
             unitTask = _assetService.GetByIdAsync(occupancies[0].AssetId);
