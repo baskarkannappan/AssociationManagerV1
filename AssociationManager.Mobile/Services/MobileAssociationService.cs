@@ -2,7 +2,7 @@ using AssociationManager.Shared.Models;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using AssociationManager.Mobile.Services;
-
+using Microsoft.Extensions.Http;
 namespace AssociationManager.Mobile.Services;
 
 public class MobileAssociationService

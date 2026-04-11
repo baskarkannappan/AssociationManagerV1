@@ -36,7 +36,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSet
 builder.Services.Configure<GoogleSettings>(builder.Configuration.GetSection("GoogleSettings"));
 
 // Data Access
-builder.Services.AddSingleton<DbConnectionFactory>();
+builder.Services.AddScoped<DbConnectionFactory>();
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<IGlobalUserRepository, GlobalUserRepository>();
 builder.Services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<IGlobalUserRepository>());
