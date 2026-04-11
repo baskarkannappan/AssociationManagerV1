@@ -70,6 +70,7 @@
     <Folder Include="HangFire\Tables\" />
     <Folder Include="archive\" />
     <Folder Include="archive\Tables\" />
+    <Folder Include="Security\Functions\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\SchemaVersions.sql" />
@@ -405,5 +406,10 @@
     <Build Include="corp\Stored Procedures\sp_Maintenance_ArchiveAuditLogs_1.sql" />
     <Build Include="Security\HangFire.sql" />
     <Build Include="Security\archive_1.sql" />
+    <Build Include="Security\Functions\fn_TenantAccessPredicate_1.sql" />
+    <Build Include="Security\Security.sql" />
+    <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
+    <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
+    <Build Include="Security\TenantSecurityPolicy_AuditLogs.sql" />
   </ItemGroup>
 </Project>
