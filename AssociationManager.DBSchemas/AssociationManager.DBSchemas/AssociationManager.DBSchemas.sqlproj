@@ -66,6 +66,10 @@
     <Folder Include="dbo\Stored Procedures\" />
     <Folder Include="corp\Stored Procedures\" />
     <Folder Include="assoc\Stored Procedures\" />
+    <Folder Include="HangFire\" />
+    <Folder Include="HangFire\Tables\" />
+    <Folder Include="archive\" />
+    <Folder Include="archive\Tables\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\SchemaVersions.sql" />
@@ -386,5 +390,20 @@
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetUnpaidOverdue_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetByBatchId_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_DeleteByInvoiceId_1.sql" />
+    <Build Include="HangFire\Tables\AggregatedCounter.sql" />
+    <Build Include="HangFire\Tables\Hash.sql" />
+    <Build Include="HangFire\Tables\Counter.sql" />
+    <Build Include="HangFire\Tables\Set.sql" />
+    <Build Include="HangFire\Tables\List.sql" />
+    <Build Include="HangFire\Tables\Server.sql" />
+    <Build Include="HangFire\Tables\JobQueue.sql" />
+    <Build Include="HangFire\Tables\JobParameter.sql" />
+    <Build Include="HangFire\Tables\State.sql" />
+    <Build Include="HangFire\Tables\Job.sql" />
+    <Build Include="HangFire\Tables\Schema.sql" />
+    <Build Include="archive\Tables\AuditLogs_1.sql" />
+    <Build Include="corp\Stored Procedures\sp_Maintenance_ArchiveAuditLogs_1.sql" />
+    <Build Include="Security\HangFire.sql" />
+    <Build Include="Security\archive_1.sql" />
   </ItemGroup>
 </Project>
