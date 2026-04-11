@@ -10,14 +10,8 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Invoices
     WITH (STATE = ON);
 GO
 
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Assets
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Assets],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Assets]
-    WITH (STATE = ON);
-GO
-
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Persons
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons]
+CREATE SECURITY POLICY Security.TenantSecurityPolicy_Transactions
+    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Transactions],
+    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Transactions]
     WITH (STATE = ON);
 GO

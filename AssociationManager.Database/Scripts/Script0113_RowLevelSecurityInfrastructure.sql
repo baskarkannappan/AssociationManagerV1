@@ -1,6 +1,6 @@
 -- Script0113_RowLevelSecurityInfrastructure.sql
 -- Implements Row-Level Security (RLS) for automated multi-tenant isolation.
--- Refactored: Registry tables (Associations) are excluded from RLS to prevent login lockout.
+-- Refactored: Registry and Discovery tables are excluded from RLS to prevent login lockout.
 
 -- 1. Create Security Schema if it doesn't exist
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Security')
@@ -9,8 +9,7 @@ BEGIN
 END
 GO
 
--- 2. DROP EXISTING POLICIES (Required to unlock the function for modification)
--- We drop the Associations policy one last time to clear the current lockout state.
+-- 2. DROP EXISTING POLICIES (Cleanup from previous runs)
 IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Associations')
     DROP SECURITY POLICY Security.TenantSecurityPolicy_Associations;
 GO
@@ -28,6 +27,9 @@ IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolic
 GO
 IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Occupancy')
     DROP SECURITY POLICY Security.TenantSecurityPolicy_Occupancy;
+GO
+IF EXISTS (SELECT * FROM sys.security_policies WHERE name = 'TenantSecurityPolicy_Transactions')
+    DROP SECURITY POLICY Security.TenantSecurityPolicy_Transactions;
 GO
 
 -- 3. DROP/CREATE Tenant Access Predicate Function
@@ -47,8 +49,8 @@ AS
         OR (CAST(SESSION_CONTEXT(N'IsAdmin') AS INT) = 1);
 GO
 
--- 4. APPLY SECURITY POLICIES (Excluding Registry tables like Associations)
--- We use FILTER PREDICATE for read isolation and BLOCK PREDICATE for write isolation.
+-- 4. APPLY SECURITY POLICIES (Targeting Transactional Data Only)
+-- We keep RLS on high-risk tables but exempt "Map/Discovery" tables to allow login.
 
 -- Policy for corp.AuditLogs
 CREATE SECURITY POLICY Security.TenantSecurityPolicy_AuditLogs
@@ -64,23 +66,9 @@ CREATE SECURITY POLICY Security.TenantSecurityPolicy_Invoices
     WITH (STATE = ON);
 GO
 
--- Policy for assoc.Assets
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Assets
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Assets],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Assets]
-    WITH (STATE = ON);
-GO
-
--- Policy for assoc.Persons
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Persons
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Persons]
-    WITH (STATE = ON);
-GO
-
--- Policy for assoc.Occupancy
-CREATE SECURITY POLICY Security.TenantSecurityPolicy_Occupancy
-    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Occupancy],
-    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Occupancy]
+-- Policy for assoc.Transactions
+CREATE SECURITY POLICY Security.TenantSecurityPolicy_Transactions
+    ADD FILTER PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Transactions],
+    ADD BLOCK PREDICATE Security.fn_TenantAccessPredicate(TenantId) ON [assoc].[Transactions]
     WITH (STATE = ON);
 GO
