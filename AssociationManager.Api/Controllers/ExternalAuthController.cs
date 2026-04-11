@@ -1,7 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 using System.Web;
 
 namespace AssociationManager.Api.Controllers;

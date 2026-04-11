@@ -15,7 +15,7 @@ public class MobileAuthService
         _tokenService = tokenService;
     }
 
-    public async Task<AuthResponse?> LoginWithGoogle(string idToken)
+    public async Task<bool> LoginWithGoogleAsync(string idToken)
     {
         try
         {
@@ -26,18 +26,18 @@ public class MobileAuthService
                 if (response?.Success == true)
                 {
                     await _tokenService.SaveTokenAsync(response.Token!);
+                    return true;
                 }
-                return response;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return new AuthResponse { Success = false, Message = $"Login error: {ex.Message}" };
+            return false;
         }
-        return new AuthResponse { Success = false, Message = "Login failed" };
+        return false;
     }
 
-    public async Task<AuthResponse?> SwitchTenant(int tenantId, int associationId)
+    public async Task<AuthResponse?> SwitchTenantAsync(int tenantId, int associationId)
     {
         var token = await _tokenService.GetTokenAsync();
         if (!string.IsNullOrEmpty(token))
@@ -52,7 +52,7 @@ public class MobileAuthService
             if (response?.Success == true)
             {
                 await _tokenService.SaveTokenAsync(response.Token!);
-                await _tokenService.SaveTenantContextAsync(tenantId, associationId, response.IsSystemAdmin);
+                await _tokenService.SaveTenantContextAsync(tenantId, associationId, false);
             }
             return response;
         }

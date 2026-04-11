@@ -67,7 +67,7 @@
 
     private async Task SelectAssociationAsync(Association assoc)
     {
-        var result = await AuthService.SwitchTenant(assoc.TenantId, assoc.AssociationId);
+        var result = await AuthService.SwitchTenantAsync(assoc.TenantId, assoc.AssociationId);
         if (result?.Success == true)
         {
             Navigation.NavigateTo("/dashboard");
