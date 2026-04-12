@@ -26,7 +26,12 @@ public class Asset
             var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(MetadataJson);
             if (dict != null && dict.TryGetValue(key, out var val))
             {
-                return (T)Convert.ChangeType(val.ToString() ?? "", typeof(T));
+                if (val == null) return default;
+                
+                var type = typeof(T);
+                var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+                
+                return (T)Convert.ChangeType(val.ToString() ?? "", underlyingType);
             }
         }
         catch { }

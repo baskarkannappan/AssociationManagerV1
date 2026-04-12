@@ -21,7 +21,7 @@ public class AreaBasedBillingStrategy : IBillingStrategy
                 var meta = JsonSerializer.Deserialize<Dictionary<string, object>>(asset.MetadataJson);
                 if (meta == null) return rate * area;
 
-                var keys = new[] { "Area", "area", "TotalAreaSqFt", "sqft", "SquareFeet", "Size" };
+                var keys = new[] { "TotalAreaSqFt", "Area", "area", "sqft", "SquareFeet", "Size" };
                 string? matchedKey = null;
 
                 foreach (var k in keys)

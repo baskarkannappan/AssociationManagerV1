@@ -34,10 +34,23 @@ foreach ($project in $projects) {
 }
 
 Write-Host "--- Starting Database Migrations ---" -ForegroundColor Cyan
-dotnet run --project AssociationManager.Database\AssociationManager.Database.csproj
+$migrationOutput = ""
+dotnet run --project AssociationManager.Database\AssociationManager.Database.csproj 2>&1 | ForEach-Object {
+    Write-Host $_
+    $migrationOutput += $_.ToString() + "`n"
+}
+
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Database migration failed! Please check the logs." -ForegroundColor Red
     exit $LASTEXITCODE
+}
+
+# Check for Financial Drift Warnings in the output
+if ($migrationOutput -match "DRIFT_DETECTED" -or $migrationOutput -match "WARNING: Financial Drift") {
+    Write-Host "`n[!] ATTENTION: Financial discrepancies detected during migration verification!" -ForegroundColor Yellow
+    Write-Host "Please check the association dashboard totals against individual unit ledgers."
+} else {
+    Write-Host "`nFinancial Integrity: PASSED" -ForegroundColor Green
 }
 
 Write-Host "--- Starting Services ---" -ForegroundColor Cyan

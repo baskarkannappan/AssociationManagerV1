@@ -388,7 +388,9 @@
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetTotalMembers_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney_1.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
@@ -423,5 +425,12 @@
     <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
     <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
     <Build Include="Security\TenantSecurityPolicy_AuditLogs.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_ValidateIntegrity_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney_2.sql" />
   </ItemGroup>
 </Project>

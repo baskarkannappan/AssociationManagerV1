@@ -111,7 +111,7 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<dynamic>(
-            "SELECT t.TariffLayerId, t.Name as TariffName, t.Category, at.CustomAmount as EffectiveAmount, t.Amount as BaseAmount, at.IsActive, at.IsRecurring " +
+            "SELECT t.TariffLayerId, t.Name as TariffName, t.AccountingCategory as Category, ISNULL(at.CustomAmount, t.BaseRate) as EffectiveAmount, t.BaseRate as BaseAmount, at.IsActive, at.IsRecurring " +
             "FROM assoc.AssetTariffs at " +
             "JOIN assoc.TariffLayers t ON at.TariffLayerId = t.TariffLayerId " +
             "WHERE at.AssetId = @AssetId AND t.TenantId = @TenantId AND t.AssociationId = @AssociationId",

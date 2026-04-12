@@ -29,18 +29,39 @@
                         <span class="small text-muted">@_selectedAssetIds.Count selected</span>
                     </div>
                 </div>
-                <div class="list-group list-group-flush" style="max-height: 400px;">
-                    @foreach (var asset in GetFilteredAssets())
+                <div class="list-group list-group-flush" style="max-height: 400px; min-height: 200px;">
+                    @if (TariffState.AllPossibleAssets == null || TariffState.AssignedAssets == null)
                     {
-                        <label class="list-group-item d-flex align-items-center py-2 hover-bg-slate cursor-pointer">
-                            <input class="form-check-input me-3" type="checkbox" 
-                                   checked="@_selectedAssetIds.Contains(asset.AssetId)" 
-                                   @onchange='(e) => ToggleAssetSelection(asset.AssetId, (bool)e.Value!)'>
-                            <div>
-                                <div class="fw-medium small">@asset.Name</div>
-                                <div class="text-muted" style="font-size: 10px;">@asset.AssetType | @asset.Description</div>
+                        <div class="p-5 text-center opacity-50">
+                            <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+                            <p class="small">Checking current assignments...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        var filteredAssets = GetFilteredAssets().ToList();
+                        @if (!filteredAssets.Any())
+                        {
+                            <div class="p-5 text-center bg-light">
+                                <i class="bi bi-check2-circle display-6 text-success opacity-50 mb-2 d-block"></i>
+                                <span class="small text-muted">All eligible assets are already assigned to this layer.</span>
                             </div>
-                        </label>
+                        }
+                        else
+                        {
+                            @foreach (var asset in filteredAssets)
+                            {
+                                <label class="list-group-item d-flex align-items-center py-2 hover-bg-slate cursor-pointer">
+                                    <input class="form-check-input me-3" type="checkbox" 
+                                           checked="@_selectedAssetIds.Contains(asset.AssetId)" 
+                                           @onchange='(e) => ToggleAssetSelection(asset.AssetId, (bool)e.Value!)'>
+                                    <div>
+                                        <div class="fw-medium small">@asset.Name</div>
+                                        <div class="text-muted" style="font-size: 10px;">@asset.AssetType | @asset.Description</div>
+                                    </div>
+                                </label>
+                            }
+                        }
                     }
                 </div>
             </div>
@@ -66,14 +87,22 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await TariffState.LoadAllPossibleAssetsAsync();
+        await Task.WhenAll(
+            TariffState.LoadAllPossibleAssetsAsync(),
+            TariffState.LoadAssignedAssetsAsync(LayerId)
+        );
     }
 
     private IEnumerable<Asset> GetFilteredAssets()
     {
         if (TariffState.AllPossibleAssets == null) return Enumerable.Empty<Asset>();
-        if (string.IsNullOrWhiteSpace(TariffState.AssetFilter)) return TariffState.AllPossibleAssets;
-        return TariffState.AllPossibleAssets.Where(a => a.Name.Contains(TariffState.AssetFilter, StringComparison.OrdinalIgnoreCase));
+        
+        // Filter out assets that are already assigned to this layer
+        var assignedIds = TariffState.AssignedAssets?.Select(a => a.AssetId).ToHashSet() ?? new HashSet<int>();
+        var availableAssets = TariffState.AllPossibleAssets.Where(a => !assignedIds.Contains(a.AssetId));
+
+        if (string.IsNullOrWhiteSpace(TariffState.AssetFilter)) return availableAssets;
+        return availableAssets.Where(a => a.Name.Contains(TariffState.AssetFilter, StringComparison.OrdinalIgnoreCase));
     }
 
     private void ToggleAssetSelection(int assetId, bool selected)

@@ -157,13 +157,13 @@
     [Parameter] public EventCallback OnAddChild { get; set; }
     [Parameter] public EventCallback OnDelete { get; set; }
 
-    private double? Area => Asset.GetMetadata<double>("Area");
+    private double? Area => Asset.GetMetadata<double?>("TotalAreaSqFt");
     private string OccupancyStatus => Asset.GetMetadata<string>("Occupancy") ?? "SelfOccupied";
     private string WaterMeterId => Asset.GetMetadata<string>("WaterMeter") ?? "";
     private string ElectricMeterId => Asset.GetMetadata<string>("ElectricMeter") ?? "";
     private string Address => Asset.GetMetadata<string>("Address") ?? "";
 
-    private void OnAreaChanged(double? val) => Asset.SetMetadata("Area", val ?? 0);
+    private void OnAreaChanged(double? val) => Asset.SetMetadata("TotalAreaSqFt", val ?? 0);
     private void OnOccupancyChanged(string val) => Asset.SetMetadata("Occupancy", val);
     private void OnWaterMeterChanged(string val) => Asset.SetMetadata("WaterMeter", val);
     private void OnElectricMeterChanged(string val) => Asset.SetMetadata("ElectricMeter", val);

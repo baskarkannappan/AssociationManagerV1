@@ -193,9 +193,9 @@ namespace AssociationManager.Client.Services
 
         public async Task LoadAssignedAssetsAsync(int layerId)
         {
+            AssignedAssets = null; // Clear to trigger loading state and avoid stale filters
             if (layerId == 0) 
             {
-                AssignedAssets = null;
                 return;
             }
 

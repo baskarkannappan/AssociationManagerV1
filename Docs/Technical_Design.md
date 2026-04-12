@@ -40,3 +40,17 @@ AssociationManagerSaaS is a multi-tenant platform designed for modularity, scala
 ## Scalability
 - **Redis Backplane**: Ensures SignalR messages reach clients connected to different server instances.
 - **Distributed Cache**: Shared session and token data across multiple API nodes.
+
+## Core Business Rules
+
+### Advance Money Calculation
+To ensure across-the-board financial consistency, the "Held Advance Money" metric is calculated using a **Ledger-First** approach rather than a simple sum of payments. This aligns the Admin Dashboard perfectly with individual Resident Wallet balances.
+
+**Formulas (Association Standard)**:
+1. **Net Outstanding (₹120.00)**: `SUM(All Tariffs) - SUM(Invoices marked Paid/Advance)`.
+   - In the current scenario: `172 (Total) - 52 (Received) = 120`.
+
+2. **Held Advance Money (₹30.00)**: `SUM(Unassigned Credits) - SUM(Utilized Settlements)`.
+   - Matching the spendable resident wallet balance (~30).
+
+This logic is strictly enforced in `assoc.sp_Finance_GetAssociationSummary` and `assoc.sp_Dashboard_GetHeldAdvanceMoney_1` to ensure the dashboard remains a reliable source of truth for association-level principal dues.

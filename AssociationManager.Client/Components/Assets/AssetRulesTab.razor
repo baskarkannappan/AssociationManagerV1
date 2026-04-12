@@ -98,8 +98,8 @@
     public class AssetTariffSummary
     {
         public int TariffLayerId { get; set; }
-        public string TariffName { get; set; } = string.Empty;
-        public string Category { get; set; } = string.Empty;
+        public string? TariffName { get; set; }
+        public string? Category { get; set; }
         public decimal BaseAmount { get; set; }
         public decimal EffectiveAmount { get; set; }
         public bool IsActive { get; set; }
