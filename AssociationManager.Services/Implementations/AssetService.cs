@@ -73,7 +73,7 @@ public class AssetService : IAssetService
         return rootAssets;
     }
 
-    private void AddAssetAndAncestors(int assetId, List<Asset> allAssets, HashSet<int> result)
+    private async Task AddAssetAndAncestors(int assetId, List<Asset> allAssets, HashSet<int> result)
     {
         if (result.Contains(assetId)) return;
         
@@ -83,8 +83,16 @@ public class AssetService : IAssetService
         result.Add(assetId);
         if (asset.ParentId.HasValue)
         {
-            AddAssetAndAncestors(asset.ParentId.Value, allAssets, result);
+            await AddAssetAndAncestors(asset.ParentId.Value, allAssets, result);
         }
+    }
+
+    private async Task<int?> ValidateParentIdAsync(int? parentId)
+    {
+        if (!parentId.HasValue) return null;
+        
+        var parent = await _assetRepository.GetByIdAsync(parentId.Value, _tenantContext.TenantId, _tenantContext.AssociationId);
+        return parent?.AssetId; // Returns ID if parent belongs to current Association, else null
     }
 
     public async Task<int> CreateAsync(Asset asset)
@@ -92,6 +100,10 @@ public class AssetService : IAssetService
         asset.TenantId = _tenantContext.TenantId;
         asset.AssociationId = _tenantContext.AssociationId;
         asset.CreatedBy = _tenantContext.UserId;
+        
+        // Permanent Fix: Ensure Parent belongs to the same association
+        asset.ParentId = await ValidateParentIdAsync(asset.ParentId);
+        
         return await _assetRepository.CreateAsync(asset);
     }
 
@@ -132,7 +144,7 @@ public class AssetService : IAssetService
             Name = request.BaseName,
             AssetType = AssetType.Building,
             Description = request.Description ?? "Auto-generated residential building",
-            ParentId = request.ParentId,
+            ParentId = await ValidateParentIdAsync(request.ParentId), // Validate root parent
             TenantId = _tenantContext.TenantId,
             AssociationId = _tenantContext.AssociationId,
             CreatedBy = _tenantContext.UserId
@@ -202,7 +214,7 @@ public class AssetService : IAssetService
             {
                 Name = $"{request.BaseName} {defaultNamePrefix} {i}",
                 AssetType = type,
-                ParentId = request.ParentId,
+                ParentId = await ValidateParentIdAsync(request.ParentId), // Validate bulk parent
                 Description = request.Description ?? $"Auto-generated {defaultNamePrefix}",
                 MetadataJson = metadataJson,
                 TenantId = _tenantContext.TenantId,
@@ -219,11 +231,20 @@ public class AssetService : IAssetService
     {
         asset.TenantId = _tenantContext.TenantId;
         asset.AssociationId = _tenantContext.AssociationId;
+        
+        // Permanent Fix: Ensure Parent belongs to the same association during update
+        asset.ParentId = await ValidateParentIdAsync(asset.ParentId);
+        
         return await _assetRepository.UpdateAsync(asset);
     }
 
     public async Task<bool> DeleteAsync(int id)
     {
         return await _assetRepository.DeleteAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId);
+    }
+
+    public async Task<IEnumerable<dynamic>> GetAssignedTariffsAsync(int assetId)
+    {
+        return await _assetRepository.GetAssignedTariffsAsync(assetId, _tenantContext.TenantId, _tenantContext.AssociationId);
     }
 }

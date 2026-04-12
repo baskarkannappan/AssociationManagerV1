@@ -13,4 +13,5 @@ public interface IAssetRepository
     Task<bool> UpdateAsync(Asset asset);
     Task<bool> DeleteAsync(int id, int tenantId, int associationId);
     Task<int> CountAsync(int tenantId, int associationId);
+    Task<IEnumerable<dynamic>> GetAssignedTariffsAsync(int assetId, int tenantId, int associationId);
 }

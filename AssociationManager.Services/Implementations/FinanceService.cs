@@ -511,31 +511,8 @@ public class FinanceService : IFinanceService
 
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
-        // 1. Unified Unpaid Invoices (including fines)
-        var invoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        decimal totalOutstanding = 0;
-        foreach (var inv in invoices)
-        {
-            totalOutstanding += await GetTotalInvoiceAmountAsync(inv);
-        }
-
-        // 2. Unified Advance Credits (Scan all units to match Resident logic)
-        // Note: associationId is passed for cross-tenant multi-asset support
-        var assets = await _assetRepository.GetHierarchyAsync(tenantId, associationId);
-        decimal totalCredits = 0;
-        int unitsWithCredit = 0;
-
-        foreach (var asset in assets)
-        {
-            var summary = await GetFinanceSummaryAsync(associationId, assetId: asset.AssetId);
-            if (summary.TotalAdvanceCredits > 0)
-            {
-                totalCredits += summary.TotalAdvanceCredits;
-                unitsWithCredit++;
-            }
-        }
-
-        return (totalOutstanding, totalCredits, unitsWithCredit);
+        // Optimized: Single database call instead of N+1 asset loop
+        return await _invoiceRepository.GetAssociationSummaryAsync(associationId, tenantId);
     }
 
     public async Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null)

@@ -236,9 +236,15 @@
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Users_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_Delete.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Assets_Update.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Assets_Create.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetByParentId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetById.sql" />
@@ -337,7 +343,7 @@
     <Build Include="assoc\Stored Procedures\sp_Occupancy_Update.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
     <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql">
-      <QuotedIdentifier>On</QuotedIdentifier>
+      <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
@@ -384,7 +390,9 @@
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetTotalMembers_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetCommitteeCount_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics_1.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_Update_1.sql" />
@@ -408,6 +416,10 @@
     <Build Include="Security\archive_1.sql" />
     <Build Include="Security\Functions\fn_TenantAccessPredicate_1.sql" />
     <Build Include="Security\Security.sql" />
+    <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
+    <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
+    <Build Include="Security\TenantSecurityPolicy_AuditLogs.sql" />
+    <Build Include="Security\Functions\fn_TenantAccessPredicate_1.sql" />
     <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
     <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
     <Build Include="Security\TenantSecurityPolicy_AuditLogs.sql" />

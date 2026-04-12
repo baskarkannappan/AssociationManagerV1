@@ -13,4 +13,5 @@ public interface IAssetService
     Task<int> BulkCreateAsync(BulkCreateRequest request);
     Task<bool> UpdateAsync(Asset asset);
     Task<bool> DeleteAsync(int id);
+    Task<IEnumerable<dynamic>> GetAssignedTariffsAsync(int assetId);
 }

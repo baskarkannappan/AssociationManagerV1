@@ -99,4 +99,11 @@ public class AssetsController : ControllerBase
         await _auditService.LogAsync("Delete Asset", "Asset", id);
         return Ok(ApiResponse.SuccessResponse("Asset deleted successfully."));
     }
+
+    [HttpGet("{id}/tariffs")]
+    public async Task<IActionResult> GetTariffs(int id)
+    {
+        var tariffs = await _assetService.GetAssignedTariffsAsync(id);
+        return Ok(ApiResponse<IEnumerable<dynamic>>.SuccessResponse(tariffs));
+    }
 }

@@ -17,6 +17,32 @@ public class Asset
     // Extensibility for custom fields like "Area", "LockerId", "ParkingSlot"
     public string? MetadataJson { get; set; }
     
+    // Helper to access common metadata safely
+    public T? GetMetadata<T>(string key)
+    {
+        if (string.IsNullOrEmpty(MetadataJson)) return default;
+        try
+        {
+            var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(MetadataJson);
+            if (dict != null && dict.TryGetValue(key, out var val))
+            {
+                return (T)Convert.ChangeType(val.ToString() ?? "", typeof(T));
+            }
+        }
+        catch { }
+        return default;
+    }
+
+    public void SetMetadata(string key, object value)
+    {
+        var dict = string.IsNullOrEmpty(MetadataJson) 
+            ? new Dictionary<string, object>() 
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(MetadataJson) ?? new Dictionary<string, object>();
+        
+        dict[key] = value;
+        MetadataJson = System.Text.Json.JsonSerializer.Serialize(dict);
+    }
+
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public int CreatedBy { get; set; }
     public bool IsActive { get; set; } = true;

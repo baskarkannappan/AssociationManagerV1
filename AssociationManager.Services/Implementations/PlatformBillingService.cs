@@ -38,8 +38,15 @@ public class PlatformBillingService : IPlatformBillingService
         int count = 0;
         var subscriptions = await _subscriptionService.GetAllSubscriptionsAsync();
         var allInvoices = await _billingRepository.GetAllInvoicesAsync();
+        
+        // Fetch association statuses to filter out deactivated ones
+        var allAssociations = await _associationRepository.GetAllAsync();
+        var activeAssociationIds = allAssociations
+            .Where(a => a.Status == "Active")
+            .Select(a => a.AssociationId)
+            .ToHashSet();
 
-        foreach (var sub in subscriptions.Where(s => s.Status == "Active"))
+        foreach (var sub in subscriptions.Where(s => s.Status == "Active" && activeAssociationIds.Contains(s.AssociationId)))
         {
             // If manual month/year provided, use that. Otherwise use current "due" logic.
             DateTime billingDate;

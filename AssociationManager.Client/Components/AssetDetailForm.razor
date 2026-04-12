@@ -41,7 +41,50 @@
                 </div>
             </div>
 
-            <!-- Address Section (Simulated/Metadata based) -->
+            <!-- Unit Configuration Section -->
+            <div class="mt-5 mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-gear-wide-connected text-primary"></i>
+                <span class="fw-bold small text-uppercase text-muted">Technical Configuration</span>
+            </div>
+
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">SBA / Area (Sqft)</div>
+                <div class="horizontal-form-value">
+                    <InputNumber TValue="double?" Value="Area" ValueChanged="OnAreaChanged" ValueExpression="() => Area" 
+                                 class="horizontal-form-input" style="max-width: 150px;" placeholder="0.00" disabled="@IsReadOnly" />
+                </div>
+            </div>
+
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Occupancy Status</div>
+                <div class="horizontal-form-value">
+                    <InputSelect TValue="string" Value="OccupancyStatus" ValueChanged="OnOccupancyChanged" ValueExpression="() => OccupancyStatus"
+                                 class="horizontal-form-input" style="max-width: 250px;" disabled="@IsReadOnly">
+                        <option value="SelfOccupied">Self Occupied</option>
+                        <option value="Tenanted">Tenanted</option>
+                        <option value="Vacant">Vacant</option>
+                        <option value="Commercial">Commercial/Other</option>
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Water Meter ID</div>
+                <div class="horizontal-form-value">
+                    <InputText TValue="string" Value="WaterMeterId" ValueChanged="OnWaterMeterChanged" ValueExpression="() => WaterMeterId"
+                               class="horizontal-form-input" style="max-width: 300px;" placeholder="Serial number..." disabled="@IsReadOnly" />
+                </div>
+            </div>
+
+            <div class="horizontal-form-row">
+                <div class="horizontal-form-label">Electric Meter ID</div>
+                <div class="horizontal-form-value">
+                    <InputText TValue="string" Value="ElectricMeterId" ValueChanged="OnElectricMeterChanged" ValueExpression="() => ElectricMeterId"
+                               class="horizontal-form-input" style="max-width: 300px;" placeholder="Serial number..." disabled="@IsReadOnly" />
+                </div>
+            </div>
+
+            <!-- Address Section -->
             <div class="mt-5 mb-3 d-flex align-items-center gap-2">
                 <i class="bi bi-geo-alt text-primary"></i>
                 <span class="fw-bold small text-uppercase text-muted">Location Details</span>
@@ -50,7 +93,8 @@
             <div class="horizontal-form-row">
                 <div class="horizontal-form-label">Street Address</div>
                 <div class="horizontal-form-value">
-                    <input type="text" class="horizontal-form-input" placeholder="Primary street address..." disabled="@IsReadOnly" />
+                    <InputText TValue="string" Value="Address" ValueChanged="OnAddressChanged" ValueExpression="() => Address"
+                               class="horizontal-form-input" placeholder="Primary street address..." disabled="@IsReadOnly" />
                 </div>
             </div>
 
@@ -112,6 +156,18 @@
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnAddChild { get; set; }
     [Parameter] public EventCallback OnDelete { get; set; }
+
+    private double? Area => Asset.GetMetadata<double>("Area");
+    private string OccupancyStatus => Asset.GetMetadata<string>("Occupancy") ?? "SelfOccupied";
+    private string WaterMeterId => Asset.GetMetadata<string>("WaterMeter") ?? "";
+    private string ElectricMeterId => Asset.GetMetadata<string>("ElectricMeter") ?? "";
+    private string Address => Asset.GetMetadata<string>("Address") ?? "";
+
+    private void OnAreaChanged(double? val) => Asset.SetMetadata("Area", val ?? 0);
+    private void OnOccupancyChanged(string val) => Asset.SetMetadata("Occupancy", val);
+    private void OnWaterMeterChanged(string val) => Asset.SetMetadata("WaterMeter", val);
+    private void OnElectricMeterChanged(string val) => Asset.SetMetadata("ElectricMeter", val);
+    private void OnAddressChanged(string val) => Asset.SetMetadata("Address", val);
 
     private async Task HandleValidSubmit()
     {

@@ -1,0 +1,108 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject AssetStateService AssetState
+@inject ApiService ApiService
+
+<div class="px-4 py-2">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-shield-check text-primary"></i>
+            <span class="fw-bold small text-uppercase text-muted">Billing Rules & Tariffs</span>
+        </div>
+        @if (AssetState.CanManageAssets)
+        {
+            <button class="btn btn-sm btn-vscode px-3" @onclick="() => _showAssignModal = true">
+                <i class="bi bi-plus-lg"></i> Assign Rule
+            </button>
+        }
+    </div>
+
+    @if (_assignedTariffs == null)
+    {
+        <div class="p-5 text-center opacity-50">
+            <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+            <p>Loading rules...</p>
+        </div>
+    }
+    else if (!_assignedTariffs.Any())
+    {
+        <div class="p-5 text-center bg-light rounded-3 border">
+            <i class="bi bi-info-circle display-4 text-muted mb-3 d-block"></i>
+            <h5 class="fw-bold">No rules assigned</h5>
+            <p class="text-muted">This asset currently has no specific billing rules or maintenance tariffs assigned.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover table-vscode align-middle">
+                <thead>
+                    <tr>
+                        <th class="ps-3">Rule Name</th>
+                        <th>Type</th>
+                        <th class="text-end">Base Amount</th>
+                        <th class="text-end">Applied Amount</th>
+                        <th class="text-end px-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var rule in _assignedTariffs)
+                    {
+                        <tr>
+                            <td class="ps-3 fw-semibold">@rule.TariffName</td>
+                            <td><span class="badge bg-light text-dark border">@rule.Category</span></td>
+                            <td class="text-end text-muted">@rule.BaseAmount.ToString("C")</td>
+                            <td class="text-end fw-bold text-primary">@rule.EffectiveAmount.ToString("C")</td>
+                            <td class="text-end px-3">
+                                @if (rule.IsActive)
+                                {
+                                    <span class="text-success small fw-bold">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger small fw-bold">Disabled</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (_showAssignModal)
+{
+    <!-- Modal logic would go here, using existing Tariff components -->
+}
+
+@code {
+    private List<AssetTariffSummary>? _assignedTariffs;
+    private bool _showAssignModal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AssetState.SelectedAsset != null)
+        {
+            await LoadRulesAsync();
+        }
+    }
+
+    private async Task LoadRulesAsync()
+    {
+        if (AssetState.SelectedAsset == null) return;
+        _assignedTariffs = await ApiService.GetAsync<List<AssetTariffSummary>>($"api/assets/{AssetState.SelectedAsset.AssetId}/tariffs");
+        StateHasChanged();
+    }
+
+    public class AssetTariffSummary
+    {
+        public int TariffLayerId { get; set; }
+        public string TariffName { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public decimal BaseAmount { get; set; }
+        public decimal EffectiveAmount { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsRecurring { get; set; }
+    }
+}

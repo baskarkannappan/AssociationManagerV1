@@ -106,4 +106,15 @@ public class AssetRepository : IAssetRepository
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
+
+    public async Task<IEnumerable<dynamic>> GetAssignedTariffsAsync(int assetId, int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<dynamic>(
+            "SELECT t.TariffLayerId, t.Name as TariffName, t.Category, at.CustomAmount as EffectiveAmount, t.Amount as BaseAmount, at.IsActive, at.IsRecurring " +
+            "FROM assoc.AssetTariffs at " +
+            "JOIN assoc.TariffLayers t ON at.TariffLayerId = t.TariffLayerId " +
+            "WHERE at.AssetId = @AssetId AND t.TenantId = @TenantId AND t.AssociationId = @AssociationId",
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId });
+    }
 }

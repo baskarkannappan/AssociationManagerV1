@@ -76,10 +76,10 @@
                             }
                             else if (AssetState.ActiveTab == "governance") { <AssetGovernanceTab /> }
                             else if (AssetState.ActiveTab == "finance") { <AssetFinanceTab OnPayNow="OnInvoicePayNow" /> }
-                            else if (AssetState.ActiveTab == "rules") { <div class="p-5 text-center opacity-50"><i class="bi bi-shield-check display-1"></i><p>Security Rules & Automation</p></div> }
-                            else if (AssetState.ActiveTab == "task") { <div class="p-4"><WorkOrderList WorkOrders="AssetState.WorkOrders" /></div> }
+                            else if (AssetState.ActiveTab == "rules") { <AssetRulesTab /> }
+                            else if (AssetState.ActiveTab == "task") { <div class="p-4"><WorkOrderList WorkOrders="AssetState.WorkOrders?.ToList() ?? new List<WorkOrder>()" /></div> }
                             else if (AssetState.ActiveTab == "assignments") { <AssetAssignmentsTab /> }
-                            else if (AssetState.ActiveTab == "metrics") { <div class="p-5 text-center opacity-50"><i class="bi bi-graph-up display-1"></i><p>Consumption Metrics</p></div> }
+                            else if (AssetState.ActiveTab == "metrics") { <AssetMetricsTab /> }
                         </div>
                     }
                     else

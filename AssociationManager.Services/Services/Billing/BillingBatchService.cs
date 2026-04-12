@@ -16,6 +16,7 @@ public class BillingBatchService
     private readonly ITariffRepository _tariffRepository;
     private readonly IFinanceService _financeService;
     private readonly IBillingBatchRepository _billingBatchRepository;
+    private readonly IAssociationRepository _associationRepository;
     private readonly IAuditService _auditService;
     private readonly IEnumerable<IBillingStrategy> _strategies;
     private readonly ITenantContext _tenantContext;
@@ -25,6 +26,7 @@ public class BillingBatchService
         ITariffRepository tariffRepository,
         IFinanceService financeService,
         IBillingBatchRepository billingBatchRepository,
+        IAssociationRepository associationRepository,
         IAuditService auditService,
         ITenantContext tenantContext,
         IEnumerable<IBillingStrategy> strategies)
@@ -33,6 +35,7 @@ public class BillingBatchService
         _tariffRepository = tariffRepository;
         _financeService = financeService;
         _billingBatchRepository = billingBatchRepository;
+        _associationRepository = associationRepository;
         _auditService = auditService;
         _tenantContext = tenantContext;
         _strategies = strategies;
@@ -57,6 +60,17 @@ public class BillingBatchService
     {
         var result = new InvoiceBatchResult();
         
+        // 0. Verify Association Status
+        var association = await _associationRepository.GetByIdAsync(request.AssociationId, tenantId);
+        if (association == null || association.Status != "Active")
+        {
+            result.Message = association == null 
+                ? "Association not found." 
+                : $"Billing is disabled for this association because its status is '{association.Status}'.";
+            result.IsLocked = true;
+            return result;
+        }
+
         // 1. Fetch Assets
         var assets = (await _assetRepository.GetHierarchyAsync(tenantId, request.AssociationId)).ToList();
         // Include more asset types that might be billable

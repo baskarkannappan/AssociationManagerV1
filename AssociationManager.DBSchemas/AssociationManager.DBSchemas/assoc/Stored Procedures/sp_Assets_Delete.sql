@@ -1,2 +1,1 @@
-﻿CREATE   PROCEDURE assoc.sp_Assets_Delete @Id INT, @TenantId INT, @AssociationId INT AS 
-BEGIN UPDATE assoc.Assets SET IsActive = 0 WHERE AssetId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId; END
+﻿CREATE PROCEDURE assoc.sp_Assets_Delete @Id INT, @TenantId INT, @AssociationId INT AS BEGIN SET NOCOUNT ON; WITH AssetHierarchy AS ( SELECT AssetId FROM assoc.Assets WHERE AssetId = @Id AND TenantId = @TenantId AND AssociationId = @AssociationId UNION ALL SELECT a.AssetId FROM assoc.Assets a INNER JOIN AssetHierarchy h ON a.ParentId = h.AssetId WHERE a.TenantId = @TenantId AND a.AssociationId = @AssociationId ) UPDATE a SET a.IsActive = 0 FROM assoc.Assets a INNER JOIN AssetHierarchy h ON a.AssetId = h.AssetId; END

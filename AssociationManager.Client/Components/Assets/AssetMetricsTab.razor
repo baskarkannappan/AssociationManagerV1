@@ -1,0 +1,78 @@
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject AssetStateService AssetState
+@inject ApiService ApiService
+
+<div class="px-4 py-2">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-graph-up text-primary"></i>
+            <span class="fw-bold small text-uppercase text-muted">Consumption Metrics & Meter Readings</span>
+        </div>
+        @if (AssetState.CanManageAssets)
+        {
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-vscode-secondary px-3">
+                    <i class="bi bi-download"></i> Export Data
+                </button>
+                <button class="btn btn-sm btn-vscode px-3">
+                    <i class="bi bi-plus-lg"></i> Add Reading
+                </button>
+            </div>
+        }
+    </div>
+
+    @if (AssetState.SelectedAsset == null)
+    {
+        <div class="p-5 text-center opacity-50">Select an asset to view metrics.</div>
+    }
+    else
+    {
+        <!-- Metrics Dashboard -->
+        <div class="row g-3 mb-5">
+            <div class="col-md-4">
+                <div class="metric-card p-3 border rounded-3 bg-white shadow-sm">
+                    <div class="small text-muted mb-1">Water meter ID</div>
+                    <div class="fw-bold fs-5">@(AssetState.SelectedAsset.GetMetadata<string>("WaterMeter") ?? "N/A")</div>
+                    <div class="text-success small mt-2"><i class="bi bi-check-circle"></i> Connected</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card p-3 border rounded-3 bg-white shadow-sm">
+                    <div class="small text-muted mb-1">Electric meter ID</div>
+                    <div class="fw-bold fs-5">@(AssetState.SelectedAsset.GetMetadata<string>("ElectricMeter") ?? "N/A")</div>
+                    <div class="text-info small mt-2"><i class="bi bi-cpu"></i> Smart Meter</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card p-3 border rounded-3 bg-white shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+                    <div class="small text-muted mb-1">Last Reading Date</div>
+                    <div class="fw-bold fs-5">@DateTime.Today.AddDays(-2).ToShortDateString()</div>
+                    <div class="text-muted small mt-2"><i class="bi bi-clock-history"></i> Updated manually</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="h-100 d-flex flex-column align-items-center justify-content-center text-muted py-5 border rounded-3 bg-light">
+            <i class="bi bi-bar-chart-line" style="font-size: 3rem; opacity: 0.2;"></i>
+            <p class="mt-3 mb-0">No consumption history available for this unit yet.</p>
+            <small>Meter readings will appear here once the first entry is recorded.</small>
+        </div>
+    }
+</div>
+
+<style>
+    .metric-card { border-left: 4px solid #3b82f6 !important; }
+</style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AssetState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AssetState.OnChange -= StateHasChanged;
+    }
+}

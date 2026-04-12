@@ -143,34 +143,46 @@ public class DashboardController : ControllerBase
         var tenantId = _tenantContext.TenantId;
         var aid = associationId ?? _tenantContext.AssociationId;
 
-        // Parallel fetch all dashboard components
-        var metricsTask = GetAdminMetricsDataAsync(aid);
+        // Parallel fetch all dashboard components using optimized specialized methods
         var membersCountTask = _dashboardRepository.GetTotalMembersAsync(tenantId, aid);
         var committeeCountTask = _dashboardRepository.GetCommitteeCountAsync(tenantId, aid);
         var revenue30DTask = _dashboardRepository.GetRevenue30DAsync(tenantId, aid);
-        var outstandingTask = _financeService.GetFinanceSummaryAsync(aid);
-        var advanceMoneyTask = _dashboardRepository.GetHeldAdvanceMoneyAsync(tenantId, aid);
+        var finSummaryTask = _financeService.GetAssociationFinanceSummaryAsync(aid, tenantId);
         var profileTask = _governanceService.GetProfileAsync(aid);
         var committeeListTask = _governanceService.GetCommitteeMembersAsync(aid, true);
         var meetingsTask = _governanceService.GetMeetingsAsync(aid);
+        var workOrdersTask = _workOrderRepository.GetAllAsync(tenantId, aid);
+        var activityTask = _auditLogRepository.GetByTenantIdAsync(tenantId, aid);
 
         await Task.WhenAll(
-            metricsTask, membersCountTask, committeeCountTask, 
-            revenue30DTask, outstandingTask, advanceMoneyTask,
-            profileTask, committeeListTask, meetingsTask);
+            membersCountTask, committeeCountTask, 
+            revenue30DTask, finSummaryTask,
+            profileTask, committeeListTask, meetingsTask,
+            workOrdersTask, activityTask);
+
+        var finSummary = await finSummaryTask;
 
         var overview = new AdminDashboardOverview
         {
-            Metrics = await metricsTask,
             TotalMembers = await membersCountTask,
             CommitteeCount = await committeeCountTask,
             Revenue30D = await revenue30DTask,
-            NetOutstanding = (await outstandingTask).TotalUnpaid,
-            HeldAdvanceMoney = (await advanceMoneyTask).amount,
-            UnitsWithCredit = (await advanceMoneyTask).units,
+            NetOutstanding = finSummary.TotalOutstanding,
+            HeldAdvanceMoney = finSummary.TotalCredits,
+            UnitsWithCredit = finSummary.UnitsWithCredit,
             Profile = await profileTask,
             Committee = (await committeeListTask).ToList(),
-            UpcomingMeetings = (await meetingsTask).ToList()
+            UpcomingMeetings = (await meetingsTask).ToList(),
+            Metrics = new AssociationDashboardMetrics
+            {
+                TotalMembers = await membersCountTask,
+                TotalRevenueCollected = await revenue30DTask, // Using 30D as a proxy for dashboard "collected"
+                TotalOutstanding = finSummary.TotalOutstanding,
+                TotalAdvanceCredits = finSummary.TotalCredits,
+                UnitsWithCredit = finSummary.UnitsWithCredit,
+                PendingWorkOrders = (await workOrdersTask).Count(w => w.Status != "Completed" && w.Status != "Closed"),
+                RecentActivity = (await activityTask).OrderByDescending(a => a.Timestamp).Take(5).ToList()
+            }
         };
 
         return Ok(ApiResponse<AdminDashboardOverview>.SuccessResponse(overview));
@@ -179,22 +191,25 @@ public class DashboardController : ControllerBase
     private async Task<AssociationDashboardMetrics> GetAdminMetricsDataAsync(int associationId)
     {
         var tenantId = _tenantContext.TenantId;
-        var membersTask = _personRepository.GetAllAsync(tenantId, associationId);
-        var invoicesTask = _invoiceRepository.GetAllAsync(tenantId, associationId);
-        var paymentsTask = _paymentRepository.GetByTenantIdAsync(tenantId, associationId);
+        
+        // Optimized fetch: use specialized queries instead of fetching full objects
+        var membersCountTask = _dashboardRepository.GetTotalMembersAsync(tenantId, associationId);
+        var revenue30DTask = _dashboardRepository.GetRevenue30DAsync(tenantId, associationId);
         var workOrdersTask = _workOrderRepository.GetAllAsync(tenantId, associationId);
         var activityTask = _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
         var finSummaryTask = _financeService.GetAssociationFinanceSummaryAsync(associationId, tenantId);
 
-        await Task.WhenAll(membersTask, invoicesTask, paymentsTask, workOrdersTask, activityTask, finSummaryTask);
+        await Task.WhenAll(membersCountTask, revenue30DTask, workOrdersTask, activityTask, finSummaryTask);
+
+        var finSummary = await finSummaryTask;
 
         return new AssociationDashboardMetrics
         {
-            TotalMembers = (await membersTask).Count(),
-            TotalRevenueCollected = (await paymentsTask).Where(p => p.Status == "Paid" || p.Status == "Completed").Sum(p => p.Amount),
-            TotalOutstanding = (await finSummaryTask).TotalOutstanding,
-            TotalAdvanceCredits = (await finSummaryTask).TotalCredits,
-            UnitsWithCredit = (await finSummaryTask).UnitsWithCredit,
+            TotalMembers = await membersCountTask,
+            TotalRevenueCollected = await revenue30DTask,
+            TotalOutstanding = finSummary.TotalOutstanding,
+            TotalAdvanceCredits = finSummary.TotalCredits,
+            UnitsWithCredit = finSummary.UnitsWithCredit,
             PendingWorkOrders = (await workOrdersTask).Count(w => w.Status != "Completed" && w.Status != "Closed"),
             RecentActivity = (await activityTask).OrderByDescending(a => a.Timestamp).Take(5).ToList()
         };
@@ -221,7 +236,7 @@ public class DashboardController : ControllerBase
 
         // 1. Fetch Occupancies First (Base dependency)
         var occupancies = (await _peopleService.GetOccupancyByUserIdAsync(userId))
-            .Where(o => associationId == 0 || o.AssociationId == associationId)
+            .Where(o => o.AssociationId == associationId)
             .ToList();
 
         var overview = new ResidentDashboardOverview { Occupancies = occupancies };
@@ -232,7 +247,11 @@ public class DashboardController : ControllerBase
         var assetIds = occupancies.Select(o => o.AssetId).ToList();
         
         var metricsTask = CalculateResidentMetricsAsync();
-        var invoicesTask = _financeService.GetInvoicesByAssetIdAsync(assetIds.First(), associationId); // Simplified for MVP: primary asset invoices
+        
+        // FIX: Aggregate invoices for ALL associated assets, not just the first one
+        var allInvoices = new List<Invoice>();
+        var invoiceTasks = assetIds.Select(aid => _financeService.GetInvoicesByAssetIdAsync(aid, associationId)).ToList();
+        
         var balanceTask = _financeService.GetFinanceSummaryAsync(associationId, assetIds: assetIds);
         var profileTask = _governanceService.GetProfileAsync(associationId);
         Task<Asset?>? unitTask = null;
@@ -241,11 +260,17 @@ public class DashboardController : ControllerBase
             unitTask = _assetService.GetByIdAsync(occupancies[0].AssetId);
         }
 
-        await Task.WhenAll(metricsTask, invoicesTask, balanceTask, profileTask);
+        await Task.WhenAll(invoiceTasks);
+        await Task.WhenAll(metricsTask, balanceTask, profileTask);
         if (unitTask != null) await unitTask;
 
+        foreach (var task in invoiceTasks)
+        {
+            allInvoices.AddRange(await task);
+        }
+
         overview.Metrics = await metricsTask;
-        overview.RecentInvoices = (await invoicesTask).Where(i => i.Status != "Draft").Take(50).ToList();
+        overview.RecentInvoices = allInvoices.Where(i => i.Status != "Draft").OrderByDescending(i => i.DueDate).Take(50).ToList();
         overview.MyBalance = (await balanceTask).TotalAdvanceCredits; // Summing total advance money
         overview.Profile = await profileTask;
         if (unitTask != null) overview.MyUnit = await unitTask;
@@ -270,7 +295,7 @@ public class DashboardController : ControllerBase
             {
                 var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);
                 var currentAssocOccupancies = occupancies
-                    .Where(o => associationId == 0 || o.AssociationId == associationId)
+                    .Where(o => o.AssociationId == associationId)
                     .Select(o => o.AssetId);
                 assetIds.AddRange(currentAssocOccupancies);
             }

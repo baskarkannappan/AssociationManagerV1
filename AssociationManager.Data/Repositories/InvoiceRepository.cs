@@ -239,4 +239,19 @@ public class InvoiceRepository : IInvoiceRepository
             new { InvoiceId = invoiceId },
             commandType: CommandType.StoredProcedure) > 0;
     }
+
+    public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationSummaryAsync(int associationId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var stats = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            "assoc.sp_Finance_GetAssociationSummary",
+            new { AssociationId = associationId, TenantId = tenantId },
+            commandType: CommandType.StoredProcedure);
+
+        return (
+            Convert.ToDecimal(stats?.TotalOutstanding ?? 0m),
+            Convert.ToDecimal(stats?.TotalAdvanceCredits ?? 0m),
+            Convert.ToInt32(stats?.UnitsWithCredit ?? 0)
+        );
+    }
 }
