@@ -20,11 +20,13 @@ public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
     private readonly ITenantContext _tenantContext;
+    private readonly IFinanceService _financeService;
 
-    public UsersController(IUserRepository userRepository, ITenantContext tenantContext)
+    public UsersController(IUserRepository userRepository, ITenantContext tenantContext, IFinanceService financeService)
     {
         _userRepository = userRepository;
         _tenantContext = tenantContext;
+        _financeService = financeService;
     }
 
     [HttpGet]
@@ -49,6 +51,17 @@ public class UsersController : ControllerBase
         };
 
         var result = await _userRepository.GetPagedAsync(criteria);
+
+        // ENRICHMENT: Update balance with "Smart" values including virtual fines/penalties
+        foreach (var user in result.Items)
+        {
+            // Fetch unified financial summary for this user in the current association
+            var finSummary = await _financeService.GetFinanceSummaryAsync(associationId: criteria.AssociationId, userId: user.UserId);
+            
+            // Balance = Total Outstanding (incl. fines) - Advance Credits (Wallet)
+            user.Balance = finSummary.TotalUnpaid - finSummary.TotalAdvanceCredits;
+        }
+
         return Ok(ApiResponse<PagedResult<User>>.SuccessResponse(result));
     }
 

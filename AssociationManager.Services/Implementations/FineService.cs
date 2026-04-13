@@ -18,11 +18,15 @@ public class FineService : IFineService
         _ruleEngine = ruleEngine;
     }
 
-    public async Task<decimal> CalculateFineAsync(Invoice invoice, DateTime atDate)
+    public async Task<decimal> CalculateFineAsync(Invoice invoice, DateTime atDate, FineSettings? settings = null)
     {
         if (invoice.DueDate >= atDate) return 0m;
 
-        var settings = await _fineRepository.GetByAssociationIdAsync(invoice.AssociationId);
+        if (settings == null)
+        {
+            settings = await _fineRepository.GetByAssociationIdAsync(invoice.AssociationId);
+        }
+
         if (settings == null || settings.StrategyType == "None") return 0m;
 
         // NEW: Check if invoice was created before the fine policy was enabled

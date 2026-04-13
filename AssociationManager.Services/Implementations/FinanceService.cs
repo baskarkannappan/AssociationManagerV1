@@ -62,22 +62,28 @@ public class FinanceService : IFinanceService
 
     public async Task<IEnumerable<Invoice>> GetAllInvoicesAsync(int? associationId = null)
     {
-        var invoices = await _invoiceRepository.GetAllAsync(CurrentTenantId, associationId ?? CurrentAssociationId);
+        var aid = associationId ?? CurrentAssociationId;
+        var invoices = await _invoiceRepository.GetAllAsync(CurrentTenantId, aid);
+        var settings = await _fineService.GetSettingsAsync(aid);
+        
         foreach (var inv in invoices)
         {
             inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
-            await AddFinePreviewAsync(inv);
+            await AddFinePreviewAsync(inv, settings);
         }
         return invoices;
     }
 
     public async Task<IEnumerable<Invoice>> GetInvoicesByAssetIdAsync(int assetId, int? associationId = null)
     {
-        var invoices = await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, associationId ?? CurrentAssociationId);
+        var aid = associationId ?? CurrentAssociationId;
+        var invoices = await _invoiceRepository.GetByAssetIdAsync(assetId, CurrentTenantId, aid);
+        var settings = await _fineService.GetSettingsAsync(aid);
+
         foreach (var inv in invoices)
         {
             inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
-            await AddFinePreviewAsync(inv);
+            await AddFinePreviewAsync(inv, settings);
         }
         return invoices;
     }
@@ -86,19 +92,21 @@ public class FinanceService : IFinanceService
     {
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
         var paged = await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
+        var settings = await _fineService.GetSettingsAsync(criteria.AssociationId.Value);
+
         foreach (var inv in paged.Items)
         {
             inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
-            await AddFinePreviewAsync(inv);
+            await AddFinePreviewAsync(inv, settings);
         }
         return paged;
     }
 
-    private async Task AddFinePreviewAsync(Invoice invoice)
+    private async Task AddFinePreviewAsync(Invoice invoice, FineSettings? settings = null)
     {
         if (invoice.Status != "Paid" && invoice.DueDate < DateTime.UtcNow)
         {
-            var fine = await _fineService.CalculateFineAsync(invoice, DateTime.UtcNow);
+            var fine = await _fineService.CalculateFineAsync(invoice, DateTime.UtcNow, settings);
             if (fine > 0)
             {
                 // Check if fine is already in line items (to avoid duplication if already persisted)
@@ -172,9 +180,19 @@ public class FinanceService : IFinanceService
         else
         {
             var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
-            foreach (var aid in ids)
+            if (!ids.Any() && (associationId.HasValue || CurrentAssociationId != 0))
             {
-                totalWallet += await GetAssetWalletBalanceAsync(aid);
+                // ASSOCIATION-WIDE FETCH
+                var aid = associationId ?? CurrentAssociationId;
+                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(aid, CurrentTenantId);
+                totalWallet = baseStats.TotalCredits;
+            }
+            else
+            {
+                foreach (var aid in ids)
+                {
+                    totalWallet += await GetAssetWalletBalanceAsync(aid);
+                }
             }
         }
 
@@ -511,8 +529,14 @@ public class FinanceService : IFinanceService
 
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
-        // Optimized: Single database call instead of N+1 asset loop
-        return await _invoiceRepository.GetAssociationSummaryAsync(associationId, tenantId);
+        // UNIFIED LOGIC: Use the smart summary to include penalties/fines
+        var summary = await GetFinanceSummaryAsync(associationId);
+        
+        // Fetch auxiliary stats (TotalCredits and UnitsWithCredit) from the optimized repository call
+        // summary.TotalAdvanceCredits might be scoped poorly for association-wide views
+        var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(associationId, tenantId);
+        
+        return (summary.TotalUnpaid, baseStats.TotalCredits, baseStats.UnitsWithCredit);
     }
 
     public async Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null)
