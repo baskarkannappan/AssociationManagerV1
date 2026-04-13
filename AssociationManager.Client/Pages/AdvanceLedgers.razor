@@ -47,38 +47,88 @@
         </div>
 
         <Grid @ref="advanceGrid" TItem="AdvancePaymentHistory"
-              Class="table table-hover table-bordered table-striped compact-table"
+              Class="table table-hover table-bordered table-striped compact-table align-middle"
               DataProvider="AdvancesDataProvider"
               Responsive="true"
               AllowPaging="true"
               PageSize="10"
               AllowSorting="true">
 
-            <GridColumn TItem="AdvancePaymentHistory" HeaderText="Date" PropertyName="Date" SortKeySelector="item => item.Date">
-                <div class="fw-medium">@context.Date.ToString("dd MMM yyyy")</div>
-                <div class="text-muted opacity-75 extra-small">@context.Date.ToString("t")</div>
+            <GridColumn TItem="AdvancePaymentHistory" HeaderText="Date" PropertyName="Date" SortKeySelector="item => item.Date" HeaderClass="ps-3" Class="ps-3">
+                <div class="d-flex flex-column">
+                    <span class="fw-semibold text-dark">@context.Date.ToString("dd MMM yyyy")</span>
+                    <span class="text-muted extra-small opacity-75">@context.Date.ToString("t")</span>
+                </div>
             </GridColumn>
 
             <GridColumn TItem="AdvancePaymentHistory" HeaderText="Resident" PropertyName="ResidentName" SortKeySelector="item => item.ResidentName">
-                <div class="fw-bold">@context.ResidentName</div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="avatar-sm rounded-circle d-flex align-items-center justify-content-center @(context.ResidentName == "System" ? "bg-secondary-subtle" : "bg-primary-subtle")" style="width: 28px; height: 28px;">
+                        @if (context.ResidentName == "System")
+                        {
+                            <i class="bi bi-cpu text-secondary" style="font-size: 14px;"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-person-fill text-primary" style="font-size: 14px;"></i>
+                        }
+                    </div>
+                    <span class="fw-bold text-dark" style="font-size: 0.85rem;">@context.ResidentName</span>
+                </div>
             </GridColumn>
 
             <GridColumn TItem="AdvancePaymentHistory" HeaderText="Unit" PropertyName="UnitName" SortKeySelector="item => item.UnitName">
-                <span class="tree-badge">@context.UnitName</span>
+                <span class="premium-unit-badge">@context.UnitName</span>
             </GridColumn>
 
             <GridColumn TItem="AdvancePaymentHistory" HeaderText="Reference" PropertyName="ReferenceId">
-                <code class="text-primary small">@context.ReferenceId</code>
+                @{
+                    bool isSettlement = context.ReferenceId?.Contains("Advance used to pay") == true;
+                }
+                <div class="d-flex align-items-center gap-2">
+                    @if (isSettlement)
+                    {
+                        <div class="ref-icon-circle bg-warning-subtle text-warning">
+                            <i class="bi bi-receipt-cutoff"></i>
+                        </div>
+                        <span class="small text-muted text-truncate" style="max-width: 200px;" title="@context.ReferenceId">
+                            @context.ReferenceId
+                        </span>
+                    }
+                    else
+                    {
+                        <div class="ref-icon-circle bg-info-subtle text-info">
+                            <i class="bi bi-credit-card"></i>
+                        </div>
+                        <code class="text-primary extra-small fw-semibold">@context.ReferenceId</code>
+                    }
+                </div>
             </GridColumn>
 
             <GridColumn TItem="AdvancePaymentHistory" HeaderText="Status" PropertyName="Status" SortKeySelector="item => item.Status">
-                <span class="badge @GetStatusClass(context.Status)" style="font-size: 10px; border-radius: 2px;">@context.Status</span>
+                <span class="modern-badge @GetStatusClass(context.Status)">@context.Status</span>
             </GridColumn>
 
-            <GridColumn TItem="AdvancePaymentHistory" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount" HeaderClass="text-end" Class="text-end">
-                <span class="fw-bold text-dark">₹@context.Amount.ToString("N0")</span>
+            <GridColumn TItem="AdvancePaymentHistory" HeaderText="Amount" PropertyName="Amount" SortKeySelector="item => item.Amount" HeaderClass="text-end pe-3" Class="text-end pe-3">
+                @{
+                    bool isPositive = context.Amount >= 0;
+                }
+                <div class="d-flex flex-column align-items-end">
+                    <span class="fw-bold @(isPositive ? "text-success" : "text-danger")" style="font-size: 1rem;">
+                        @(isPositive ? "+" : "")₹@context.Amount.ToString("N0")
+                    </span>
+                    @if (!isPositive)
+                    {
+                        <span class="extra-small opacity-50 text-danger" style="margin-top: -4px;">SETTLEMENT</span>
+                    }
+                    else
+                    {
+                        <span class="extra-small opacity-50 text-success" style="margin-top: -4px;">TOP-UP</span>
+                    }
+                </div>
             </GridColumn>
         </Grid>
+
     </div>
 </div>
 
@@ -156,9 +206,10 @@
 
     private string GetStatusClass(string status) => status?.ToLower() switch
     {
-        "paid" or "completed" or "captured" => "bg-success-subtle text-success",
-        "failed" => "bg-danger-subtle text-danger",
-        _ => "bg-secondary-subtle text-secondary"
+        "paid" or "completed" or "captured" => "bg-success-subtle-premium",
+        "settled" => "bg-secondary-subtle-premium",
+        "failed" => "bg-danger-subtle-premium",
+        _ => "bg-secondary-subtle-premium"
     };
 
     protected override async Task OnInitializedAsync()
