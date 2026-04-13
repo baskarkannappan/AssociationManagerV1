@@ -88,6 +88,7 @@ public class AssociationService : IAssociationService
             {
                 globalUserId = await _globalUserRepository.CreateAsync(new User
                 {
+                    TenantId = tenantId,
                     Email = adminEmail,
                     Name = adminEmail.Split('@')[0],
                     Role = "AssociationAdmin",
@@ -107,6 +108,7 @@ public class AssociationService : IAssociationService
             {
                 localUserId = await _assocUserRepository.CreateAsync(new User
                 {
+                    TenantId = tenantId,
                     Email = adminEmail,
                     Name = adminEmail.Split('@')[0],
                     Role = "AssociationAdmin",
