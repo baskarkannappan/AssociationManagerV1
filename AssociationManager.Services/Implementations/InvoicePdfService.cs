@@ -20,6 +20,7 @@ public class InvoicePdfService : IInvoicePdfService
     private readonly IAssetRepository _assetRepository;
     private readonly IOccupancyRepository _occupancyRepository;
     private readonly IPersonRepository _personRepository;
+    private readonly IFineService _fineService;
     private readonly ITenantContext _tenantContext;
 
     public InvoicePdfService(
@@ -28,6 +29,7 @@ public class InvoicePdfService : IInvoicePdfService
         IAssetRepository assetRepository,
         IOccupancyRepository occupancyRepository,
         IPersonRepository personRepository,
+        IFineService fineService,
         ITenantContext tenantContext)
     {
         _invoiceRepository = invoiceRepository;
@@ -35,6 +37,7 @@ public class InvoicePdfService : IInvoicePdfService
         _assetRepository = assetRepository;
         _occupancyRepository = occupancyRepository;
         _personRepository = personRepository;
+        _fineService = fineService;
         _tenantContext = tenantContext;
 
         // QuestPDF License Requirement
@@ -49,7 +52,7 @@ public class InvoicePdfService : IInvoicePdfService
         var invoice = await _invoiceRepository.GetByIdAsync(invoiceId, _tenantContext.TenantId, associationId);
         if (invoice == null) throw new Exception("Invoice not found or access denied.");
 
-        var lineItems = await _invoiceRepository.GetLineItemsAsync(invoiceId);
+        var persistedLineItems = await _invoiceRepository.GetLineItemsAsync(invoiceId);
         var association = await _associationRepository.GetByIdAsync(invoice.AssociationId, invoice.TenantId);
         var bankDetails = await _associationRepository.GetBankDetailsAsync(invoice.AssociationId, invoice.TenantId);
 
@@ -69,6 +72,35 @@ public class InvoicePdfService : IInvoicePdfService
                 if (person != null) residentName = $"{person.FirstName} {person.LastName}";
             }
         }
+        
+        // Dynamic Fine Logic (Matches FinanceService enrichment)
+        var itemsList = persistedLineItems.ToList();
+        if (invoice.Status != "Paid" && invoice.DueDate < DateTime.UtcNow)
+        {
+            var fine = await _fineService.CalculateFineAsync(invoice, DateTime.UtcNow);
+            if (fine > 0)
+            {
+                // Check if fine is already in line items (to avoid duplication if already persisted)
+                if (!itemsList.Any(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")))
+                {
+                    itemsList.Add(new InvoiceLineItem 
+                    { 
+                        ChargeName = "Late Penalty (Automated)", 
+                        Amount = fine, 
+                        Description = "Calculated based on association fine rules." 
+                    });
+                }
+            }
+        }
+
+        // Shared Total Logic (Principal + Fines)
+        decimal principalLineItems = itemsList.Where(l => !l.ChargeName.Contains("Penalty") && !l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+        decimal penaltyLineItems = itemsList.Where(l => l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount);
+        decimal truePrincipal = Math.Max(invoice.Amount, principalLineItems);
+        decimal totalAmount = truePrincipal + penaltyLineItems;
+
+        // Formatter Helper
+        string FormatCurrency(decimal amount) => amount.ToString("C", new System.Globalization.CultureInfo("en-IN"));
 
         // 2. Generate PDF using QuestPDF
         var document = Document.Create(container =>
@@ -135,7 +167,7 @@ public class InvoicePdfService : IInvoicePdfService
                         });
 
                         int i = 1;
-                        foreach (var item in lineItems)
+                        foreach (var item in itemsList)
                         {
                             table.Cell().Element(CellStyle).Text(i++.ToString());
                             table.Cell().Element(CellStyle).Column(c =>
@@ -143,7 +175,7 @@ public class InvoicePdfService : IInvoicePdfService
                                 c.Item().Text(item.ChargeName).SemiBold();
                                 if (!string.IsNullOrEmpty(item.Description)) c.Item().Text(item.Description).FontSize(8).FontColor(Colors.Grey.Medium);
                             });
-                            table.Cell().Element(CellStyle).AlignRight().Text(item.Amount.ToString("C"));
+                            table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(item.Amount));
 
                             static IContainer CellStyle(IContainer container) => container.PaddingVertical(5);
                         }
@@ -152,7 +184,7 @@ public class InvoicePdfService : IInvoicePdfService
                     col.Item().AlignRight().PaddingTop(10).Row(row =>
                     {
                         row.ConstantItem(100).Text("Total Amount:").FontSize(12).SemiBold();
-                        row.ConstantItem(80).AlignRight().Text(invoice.Amount.ToString("C")).FontSize(12).SemiBold().FontColor(Colors.Blue.Medium);
+                        row.ConstantItem(100).AlignRight().Text(FormatCurrency(totalAmount)).FontSize(12).SemiBold().FontColor(Colors.Blue.Medium);
                     });
 
                      if (invoice.Status == "Overdue")

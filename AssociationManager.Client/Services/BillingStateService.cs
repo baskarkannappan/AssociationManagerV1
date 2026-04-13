@@ -77,9 +77,17 @@ namespace AssociationManager.Client.Services
             get => _showAdjustModal; 
             set { _showAdjustModal = value; NotifyStateChanged(); } 
         }
+
+        private bool _showManualPaymentModal;
+        public bool ShowManualPaymentModal
+        {
+            get => _showManualPaymentModal;
+            set { _showManualPaymentModal = value; NotifyStateChanged(); }
+        }
         
         public int TargetInvoiceId { get; set; }
         public Invoice? SelectedHistoryInvoice { get; set; }
+        public Invoice? ManualPaymentInvoice { get; set; }
         public List<PaymentHistoryItem>? HistoryTransactions { get; set; }
         public bool HistoryLoading { get; set; }
         
@@ -299,6 +307,28 @@ namespace AssociationManager.Client.Services
                     _toastService.Notify(new(ToastType.Danger, "Insufficient advance balance or invoice not allowed for settlement."));
                     return false;
                 }
+            }
+            catch (Exception ex)
+            {
+                _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+                return false;
+            }
+        }
+
+        public async Task<bool> RecordManualPaymentAsync(Payment payment)
+        {
+            try
+            {
+                var responseId = await _api.PostAsync<Payment, int>("api/finance/payments", payment);
+                if (responseId > 0)
+                {
+                    _toastService.Notify(new(ToastType.Success, $"Manual payment recorded successfully (Ref: {payment.Notes})"));
+                    ShowManualPaymentModal = false;
+                    await InitializeAsync();
+                    return true;
+                }
+                _toastService.Notify(new(ToastType.Danger, "Failed to record manual payment."));
+                return false;
             }
             catch (Exception ex)
             {

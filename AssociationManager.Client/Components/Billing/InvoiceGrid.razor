@@ -83,15 +83,19 @@
         <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
             @if (context.Status == "Unpaid")
             {
-                <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true">
-                    <i class="bi bi-credit-card-2-back"></i>
-                </button>
-                @if (BillingService.AdvanceBalance >= (context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)))
+                @if (BillingService.Scope != "association")
                 {
-                    <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true">
-                        <i class="bi bi-patch-check"></i>
+                    <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true">
+                        <i class="bi bi-credit-card-2-back"></i>
                     </button>
+                    @if (BillingService.AdvanceBalance >= (context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)))
+                    {
+                        <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true">
+                            <i class="bi bi-patch-check"></i>
+                        </button>
+                    }
                 }
+                
                 <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
                     <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => OnRecordManualPayment.InvokeAsync(context)" @onclick:stopPropagation="true">
                         <i class="bi bi-cash-stack"></i>

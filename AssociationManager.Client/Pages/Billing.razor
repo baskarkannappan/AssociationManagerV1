@@ -42,6 +42,7 @@
                     <InvoiceGrid @ref="_invoiceGrid"
                                  OnInitiatePayment="OnInvoicePayNow" 
                                  OnPayWithAdvance="OnPayWithAdvance" 
+                                 OnRecordManualPayment="OnManualPayClicked"
                                  OnDownloadInvoice="OnDownloadPdf" />
                 }
                 else
@@ -66,6 +67,11 @@
 @if (BillingState.IdToAdjust != 0)
 {
     <AdjustInvoiceModal />
+}
+
+@if (BillingState.ShowManualPaymentModal)
+{
+    <RecordManualPaymentModal />
 }
 
 @code {
@@ -115,6 +121,12 @@
         {
             await _invoiceGrid.RefreshAsync();
         }
+    }
+
+    private void OnManualPayClicked(Invoice invoice)
+    {
+        BillingState.ManualPaymentInvoice = invoice;
+        BillingState.ShowManualPaymentModal = true;
     }
 
     private async Task OnDownloadPdf(Invoice invoice)
