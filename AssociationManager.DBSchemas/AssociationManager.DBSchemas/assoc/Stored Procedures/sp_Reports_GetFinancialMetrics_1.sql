@@ -1,4 +1,4 @@
-﻿CREATE PROCEDURE assoc.sp_Reports_GetFinancialMetrics
+CREATE PROCEDURE assoc.sp_Reports_GetFinancialMetrics
     @TenantId INT,
     @AssociationId INT
 AS
@@ -20,7 +20,7 @@ BEGIN
         ) fines
         WHERE i.TenantId = @TenantId 
         AND i.AssociationId = @AssociationId 
-        AND i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft')
+        AND i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft', 'Settled')
     )
     SELECT 
         SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) BETWEEN 0 AND 30 THEN TotalDue ELSE 0 END) AS Bucket0_30,
@@ -29,9 +29,9 @@ BEGIN
         SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) > 90 THEN TotalDue ELSE 0 END) AS BucketOver90
     FROM UnpaidInvoices;
 
-    -- 2. Monthly Collection Efficiency
+    -- 2. Monthly Collection Efficiency (Last 12 Months)
     ;WITH Months AS (
-        SELECT TOP 6 
+        SELECT TOP 12 
             FORMAT(DATEADD(MONTH, - (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), GETUTCDATE()), 'MMM yyyy') AS MonthLabel,
             DATEPART(MONTH, DATEADD(MONTH, - (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), GETUTCDATE())) AS [Month],
             DATEPART(YEAR, DATEADD(MONTH, - (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), GETUTCDATE())) AS [Year]
@@ -39,8 +39,8 @@ BEGIN
     ),
     MonthlyBilled AS (
         SELECT 
-            DATEPART(MONTH, i.CreatedDate) as [Month],
-            DATEPART(YEAR, i.CreatedDate) as [Year],
+            DATEPART(MONTH, i.DueDate) as [Month],
+            DATEPART(YEAR, i.DueDate) as [Year],
             SUM(i.Amount + ISNULL(fines.TotalFines, 0)) as TotalBilled
         FROM assoc.Invoices i
         OUTER APPLY (
@@ -50,19 +50,19 @@ BEGIN
             AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%')
         ) fines
         WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
-        AND i.Status != 'Draft'
-        GROUP BY DATEPART(MONTH, i.CreatedDate), DATEPART(YEAR, i.CreatedDate)
+        AND i.Status NOT IN ('Draft', 'Cancelled', 'Void')
+        GROUP BY DATEPART(MONTH, i.DueDate), DATEPART(YEAR, i.DueDate)
     ),
     MonthlyCollected AS (
         SELECT 
-            DATEPART(MONTH, i.CreatedDate) as [Month],
-            DATEPART(YEAR, i.CreatedDate) as [Year],
+            DATEPART(MONTH, i.DueDate) as [Month],
+            DATEPART(YEAR, i.DueDate) as [Year],
             SUM(p.Amount) as TotalCollected
         FROM assoc.Payments p
         INNER JOIN assoc.Invoices i ON p.InvoiceId = i.InvoiceId
         WHERE p.TenantId = @TenantId AND p.AssociationId = @AssociationId
         AND p.Status IN ('Paid', 'Completed', 'Captured')
-        GROUP BY DATEPART(MONTH, i.CreatedDate), DATEPART(YEAR, i.CreatedDate)
+        GROUP BY DATEPART(MONTH, i.DueDate), DATEPART(YEAR, i.DueDate)
     )
     SELECT 
         m.MonthLabel as [Month],
@@ -76,5 +76,13 @@ BEGIN
     -- 3. High Level Stats
     SELECT 
         (SELECT ISNULL(SUM(Amount), 0) FROM assoc.Payments WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Status IN ('Paid', 'Completed', 'Captured')) as TotalCollectedAllTime,
-        (SELECT ISNULL(SUM(Amount), 0) FROM assoc.Invoices WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Status NOT IN ('Paid', 'Cancelled', 'Draft')) as TotalUnpaidPrincipal
+        (SELECT ISNULL(SUM(i.Amount + ISNULL(fines.TotalFines, 0)), 0) 
+         FROM assoc.Invoices i 
+         OUTER APPLY (
+            SELECT SUM(li.Amount) as TotalFines 
+            FROM assoc.InvoiceLineItems li 
+            WHERE li.InvoiceId = i.InvoiceId 
+            AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%')
+         ) fines
+         WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId AND i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft', 'Settled')) as TotalUnpaidPrincipal
 END;
