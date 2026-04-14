@@ -1,37 +1,70 @@
-@using AssociationManager.Client.Services
-@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Components.Billing
+@using AssociationManager.Client.Components.Base
+@inherits StatefulComponentBase
 @inject AssetStateService AssetState
+@inject BillingStateService BillingService
 @inject ApiService Api
 @inject ToastService _toastService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="p-4">
-    <InvoiceList Invoices="AssetState.Invoices" 
-                 CreditAvailable="AssetState.AssetMetrics?.CreditAvailable ?? 0"
-                 OnPayNow="OnPayNow" 
-                 OnPayWithAdvance="OnPayWithAdvance" />
+    <InvoiceGrid @ref="_invoiceGrid"
+                 AssetId="AssetState.SelectedAsset?.AssetId"
+                 ForceAssociationScope="true"
+                 OnInitiatePayment="OnInvoicePayNow" 
+                 OnPayWithAdvance="OnPayWithAdvance" 
+                 OnRecordManualPayment="OnManualPayClicked"
+                 OnDownloadInvoice="OnDownloadPdf" />
 </div>
+
+@if (BillingService.ShowTransactionHistory && BillingService.TargetInvoiceId != 0)
+{
+    <TransactionHistoryModal />
+}
+
+@if (BillingService.IdToAdjust != 0)
+{
+    <AdjustInvoiceModal />
+}
+
+@if (BillingService.ShowManualPaymentModal)
+{
+    <RecordManualPaymentModal OnSuccess="() => _invoiceGrid.RefreshAsync()" />
+}
 
 @code {
     [Parameter] public EventCallback<Invoice> OnPayNow { get; set; }
-    
+    private InvoiceGrid _invoiceGrid = default!;
+
+    protected override void OnInitialized()
+    {
+        RegisterStateService(BillingService);
+    }
+
+    private async Task OnInvoicePayNow(Invoice invoice)
+    {
+        if (OnPayNow.HasDelegate)
+        {
+            await OnPayNow.InvokeAsync(invoice);
+        }
+    }
+
     private async Task OnPayWithAdvance(Invoice invoice)
     {
-        try
+        if (await BillingService.SettleInvoiceWithAdvanceAsync(invoice.InvoiceId))
         {
-            var success = await Api.PostAsync($"api/finance/invoices/{invoice.InvoiceId}/settled-with-advance", new { });
-            if (success)
-            {
-                _toastService.Notify(new(ToastType.Success, $"Invoice #{invoice.InvoiceId} paid successfully using advance credit!"));
-                await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId);
-            }
-            else
-            {
-                _toastService.Notify(new(ToastType.Danger, "Failed to pay using advance credit. Please check your balance."));
-            }
+            await _invoiceGrid.RefreshAsync();
         }
-        catch (Exception ex)
-        {
-            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
-        }
+    }
+
+    private void OnManualPayClicked(Invoice invoice)
+    {
+        BillingService.ManualPaymentInvoice = invoice;
+        BillingService.ShowManualPaymentModal = true;
+    }
+
+    private async Task OnDownloadPdf(Invoice invoice)
+    {
+        await BillingService.DownloadInvoicePdfAsync(invoice.InvoiceId);
     }
 }

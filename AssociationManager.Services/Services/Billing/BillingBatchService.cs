@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http;
 
 namespace AssociationManager.Services.Billing;
 
@@ -20,6 +22,8 @@ public class BillingBatchService
     private readonly IAuditService _auditService;
     private readonly IEnumerable<IBillingStrategy> _strategies;
     private readonly ITenantContext _tenantContext;
+    private readonly IConfiguration _config;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public BillingBatchService(
         IAssetRepository assetRepository,
@@ -29,7 +33,9 @@ public class BillingBatchService
         IAssociationRepository associationRepository,
         IAuditService auditService,
         ITenantContext tenantContext,
-        IEnumerable<IBillingStrategy> strategies)
+        IEnumerable<IBillingStrategy> strategies,
+        IConfiguration config,
+        IHttpClientFactory httpClientFactory)
     {
         _assetRepository = assetRepository;
         _tariffRepository = tariffRepository;
@@ -39,6 +45,8 @@ public class BillingBatchService
         _auditService = auditService;
         _tenantContext = tenantContext;
         _strategies = strategies;
+        _config = config;
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <summary>
@@ -250,7 +258,32 @@ public class BillingBatchService
             }
         }
 
+        if (!request.DryRun)
+        {
+            await NotifyCompletionAsync(request, tenantId);
+        }
+
         return result;
+    }
+
+    private async Task NotifyCompletionAsync(InvoiceBatchRequest request, int tenantId)
+    {
+        try
+        {
+            var baseUrl = _config["ApiSettings:GatewayUrl"];
+            if (string.IsNullOrEmpty(baseUrl)) return;
+
+            var client = _httpClientFactory.CreateClient();
+            var period = $"{request.Month}-{request.Year}";
+            var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={request.AssociationId}&period={period}";
+            
+            await client.PostAsync(url, null);
+        }
+        catch (Exception ex)
+        {
+            // Log notify failure but don't fail the entire batch job
+            await _auditService.LogAsync($"Failed to notify UI of batch completion: {ex.Message}", "System", 0);
+        }
     }
 
     public async Task<IEnumerable<BillingBatch>> GetBatchesAsync(int associationId, int tenantId)

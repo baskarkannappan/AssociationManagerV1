@@ -16,6 +16,9 @@ public class RealtimeService : IAsyncDisposable
         _hubUrl = hubUrl;
     }
 
+    public event Action<string>? OnNotificationReceived;
+    public event Action<int, string>? OnBatchCompleted;
+
     public async Task StartAsync()
     {
         var token = await _tokenService.GetToken();
@@ -31,13 +34,36 @@ public class RealtimeService : IAsyncDisposable
 
         _hubConnection.On<string>("ReceiveNotification", (message) =>
         {
+            if (message.StartsWith("BATCH_READY|"))
+            {
+                var parts = message.Split('|');
+                if (parts.Length == 3 && int.TryParse(parts[1], out int assocId))
+                {
+                    OnBatchCompleted?.Invoke(assocId, parts[2]);
+                    return;
+                }
+            }
             OnNotificationReceived?.Invoke(message);
         });
 
         await _hubConnection.StartAsync();
     }
 
-    public event Action<string>? OnNotificationReceived;
+    public async Task JoinTenantGroupAsync(int tenantId)
+    {
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            await _hubConnection.InvokeAsync("JoinTenantGroup", tenantId);
+        }
+    }
+
+    public async Task LeaveTenantGroupAsync(int tenantId)
+    {
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            await _hubConnection.InvokeAsync("LeaveTenantGroup", tenantId);
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {

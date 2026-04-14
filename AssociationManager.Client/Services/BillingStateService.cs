@@ -17,6 +17,7 @@ namespace AssociationManager.Client.Services
         private readonly IJSRuntime _js;
 
         private readonly ITenantContext _tenantContext;
+        private readonly RealtimeService _realtime;
         private int _lastAssociationId;
 
         public BillingStateService(
@@ -25,7 +26,8 @@ namespace AssociationManager.Client.Services
             NavigationManager navigation,
             ToastService toastService,
             IJSRuntime js,
-            ITenantContext tenantContext)
+            ITenantContext tenantContext,
+            RealtimeService realtime)
         {
             _api = api;
             _authStateProvider = authStateProvider;
@@ -33,8 +35,22 @@ namespace AssociationManager.Client.Services
             _toastService = toastService;
             _js = js;
             _tenantContext = tenantContext;
+            _realtime = realtime;
+            _realtime.OnBatchCompleted += HandleBatchCompleted;
             
             ParseQueryParameters();
+        }
+
+        private async void HandleBatchCompleted(int associationId, string period)
+        {
+            if (associationId == _tenantContext.AssociationId)
+            {
+                GeneratingBatchReference = null;
+                NotifyStateChanged(); // Update UI immediately to hide "Processing" card
+                
+                _toastService.Notify(new(ToastType.Success, $"Batch generation for {period} completed in the background."));
+                await InitializeAsync();
+            }
         }
 
         public event Action? OnChange;
@@ -55,6 +71,9 @@ namespace AssociationManager.Client.Services
         public InvoiceBatchRequest BatchRequest { get; private set; } = new() { Month = DateTime.Today.Month, Year = DateTime.Today.Year, DueDate = DateTime.Today.AddDays(15) };
         public InvoiceBatchResult? BatchResult { get; private set; }
         public bool IsProcessingBatch { get; private set; }
+        
+        public (int Month, int Year)? GeneratingBatchReference { get; private set; }
+        public bool IsGeneratingBatch => GeneratingBatchReference != null;
 
         // Modal State
         private bool _showCreateInvoiceModal;
@@ -153,6 +172,12 @@ namespace AssociationManager.Client.Services
                     RecentPayments = overview.RecentPayments;
                     AdvanceBalance = overview.AdvanceBalance;
                     ExistingBatches = overview.ExistingBatches;
+                    
+                    // Defensive check: If we are "generating" but the batch is already here, reset the flag
+                    if (GeneratingBatchReference != null && ExistingBatches != null && ExistingBatches.Any(b => b.Month == GeneratingBatchReference.Value.Month && b.Year == GeneratingBatchReference.Value.Year && b.Status == "Draft"))
+                    {
+                        GeneratingBatchReference = null;
+                    }
 
                     // Ensure batch request is tied to current association
                     BatchRequest.AssociationId = associationId;
@@ -210,9 +235,10 @@ namespace AssociationManager.Client.Services
                 var success = await _api.PostAsync("api/finance/batches/draft", BatchRequest);
                 if (success)
                 {
-                    _toastService.Notify(new(ToastType.Success, "Draft batch generation has been queued. It will appear in the grid once processed."));
+                    _toastService.Notify(new(ToastType.Info, "Draft batch generation has been queued. Please wait ...", "Processing Background Job"));
                     BatchResult = null;
-                    await InitializeAsync();
+                    GeneratingBatchReference = (BatchRequest.Month, BatchRequest.Year);
+                    NotifyStateChanged();
                 }
             }
             finally

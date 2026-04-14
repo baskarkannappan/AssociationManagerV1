@@ -83,7 +83,7 @@
         <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
             @if (context.Status == "Unpaid")
             {
-                @if (BillingService.Scope != "association")
+                @if (BillingService.Scope != "association" && !ForceAssociationScope)
                 {
                     <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true">
                         <i class="bi bi-credit-card-2-back"></i>
@@ -127,6 +127,8 @@
     [Parameter] public EventCallback<Invoice> OnRecordManualPayment { get; set; }
     [Parameter] public EventCallback<Invoice> OnDownloadInvoice { get; set; }
     [Parameter] public EventCallback<Invoice> OnShowAdjustModal { get; set; }
+    [Parameter] public int? AssetId { get; set; }
+    [Parameter] public bool ForceAssociationScope { get; set; }
 
     private Grid<Invoice> _grid = default!;
     private System.Threading.Timer? _searchTimer;
@@ -148,7 +150,12 @@
             filters.Add($"sortDirection={(sort.SortDirection == SortDirection.Ascending ? "ASC" : "DESC")}");
         }
 
-        if (BillingService.Scope == "association")
+        if (AssetId.HasValue)
+        {
+            filters.Add($"assetId={AssetId.Value}");
+        }
+
+        if (BillingService.Scope == "association" || ForceAssociationScope)
         {
             var aid = BillingService.GetAssociationId();
             if (aid != 0) filters.Add($"associationId={aid}");

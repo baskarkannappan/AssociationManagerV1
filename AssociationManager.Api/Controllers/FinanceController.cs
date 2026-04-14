@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using AssociationManager.Realtime.Hubs;
 
 namespace AssociationManager.Api.Controllers;
 
@@ -26,6 +28,7 @@ public class FinanceController : ControllerBase
     private readonly IRuleEngineService _ruleEngine;
     private readonly IFineService _fineService;
     private readonly IInvoicePdfService _pdfService;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public FinanceController(
         IFinanceService financeService, 
@@ -34,8 +37,9 @@ public class FinanceController : ControllerBase
         IPeopleService peopleService,
         BillingBatchService batchService,
         IRuleEngineService ruleEngine,
-        IFineService fineService,
-        IInvoicePdfService pdfService)
+        IFineService fineService, 
+        IInvoicePdfService pdfService,
+        IHubContext<NotificationHub> hubContext)
     {
         _financeService = financeService;
         _auditService = auditService;
@@ -45,6 +49,7 @@ public class FinanceController : ControllerBase
         _ruleEngine = ruleEngine;
         _fineService = fineService;
         _pdfService = pdfService;
+        _hubContext = hubContext;
     }
 
     [HttpPost("batch-generate")]
@@ -88,6 +93,14 @@ public class FinanceController : ControllerBase
         var success = await _financeService.CommitBatchAsync(id);
         if (!success) return BadRequest(ApiResponse.FailureResponse("Failed to commit batch. It may not exist or is not in Draft status."));
         return Ok(ApiResponse.SuccessResponse("Billing batch committed successfully. Invoices are now live in the ledger."));
+    }
+
+    [HttpPost("batches/notify-completion")]
+    [AllowAnonymous] // Allow background worker to call this without JWT
+    public async Task<IActionResult> NotifyBatchCompletion([FromQuery] int tenantId, [FromQuery] int associationId, [FromQuery] string period)
+    {
+        await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"BATCH_READY|{associationId}|{period}");
+        return Ok();
     }
 
     [HttpGet("invoices")]

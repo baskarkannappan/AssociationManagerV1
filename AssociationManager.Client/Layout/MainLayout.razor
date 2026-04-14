@@ -151,6 +151,7 @@
     [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
     [Inject] private ITenantContext TenantContext { get; set; } = default!;
     [Inject] private ToastService _toastService { get; set; } = default!;
+    [Inject] private RealtimeService _realtime { get; set; } = default!;
 
     private IEnumerable<Association>? _userTenants;
     private int _currentTenantId;
@@ -220,6 +221,10 @@
                 {
                     _currentAssociationId = _userTenants.First().AssociationId;
                 }
+
+                // Initialize SignalR and join group
+                await _realtime.StartAsync();
+                await _realtime.JoinTenantGroupAsync(_currentTenantId);
             }
         }
         finally { _isLoadingTenants = false; }
@@ -235,6 +240,7 @@
                 var response = await AuthService.SwitchTenant(target.TenantId, target.AssociationId);
                 if (response?.Success == true)
                 {
+                    await _realtime.LeaveTenantGroupAsync(_currentTenantId);
                     Navigation.NavigateTo("/", true);
                 }
             }

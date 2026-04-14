@@ -1,5 +1,6 @@
 @using AssociationManager.Client.Services
 @using AssociationManager.Shared.Models
+@inherits AssociationManager.Client.Components.Base.StatefulComponentBase
 @inject BillingStateService BillingService
 
 <div class="compact-card">
@@ -44,6 +45,22 @@
             }
         </div>
     </div>
+
+    @if (BillingService.GeneratingBatchReference != null && (BillingService.ExistingBatches == null || !BillingService.ExistingBatches.Any(b => b.Month == BillingService.GeneratingBatchReference.Value.Month && b.Year == BillingService.GeneratingBatchReference.Value.Year && b.Status == "Draft")))
+    {
+        <div class="mb-4">
+            <div class="compact-card bg-light border-vscode border-opacity-25 shadow-sm p-4 text-center">
+                <div class="spinner-grow text-vscode mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5 class="fw-bold mb-1">Batch Generation in Queue</h5>
+                <p class="text-muted small mb-0">
+                    We are calculating maintenance dues for @System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(BillingService.BatchRequest.Month) @BillingService.BatchRequest.Year. 
+                    <br/>This page will automatically refresh once the background job completes.
+                </p>
+            </div>
+        </div>
+    }
 
     @if (BillingService.ExistingBatches != null && BillingService.ExistingBatches.Any(b => b.Status == "Draft"))
     {
@@ -123,4 +140,9 @@
 
 @code {
     [Parameter] public EventCallback<BillingBatch> OnViewDetails { get; set; }
+
+    protected override void OnInitialized()
+    {
+        RegisterStateService(BillingService);
+    }
 }
