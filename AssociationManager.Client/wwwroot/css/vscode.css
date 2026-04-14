@@ -790,16 +790,27 @@ body {
 }
 
 .premium-tab {
-    padding: 12px 16px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
     color: #64748b;
     border-bottom: 2px solid transparent;
     cursor: pointer;
     white-space: nowrap;
+    transition: all 0.2s ease;
 }
 
-.premium-tab:hover { color: #1e293b; }
+.premium-tab:hover {
+    color: #1e293b;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.premium-tab.active {
+    color: var(--vscode-accent);
+    font-weight: 700;
+    border-bottom-color: var(--vscode-accent);
+    background: rgba(0, 122, 204, 0.05);
+}
 
 
 .vscode-tab.active {
