@@ -1,5 +1,6 @@
 @using AssociationManager.Client.Services
 @using AssociationManager.Shared.Models
+@using System.Security.Claims
 @inject BillingStateService BillingService
 @inject ApiService Api
 @inject AuthenticationStateProvider AuthStateProvider
@@ -83,15 +84,15 @@
         <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
             @if (context.Status == "Unpaid")
             {
-                @if (BillingService.Scope != "association" && !ForceAssociationScope)
+                @if (BillingService.Scope != "association" && !ForceAssociationScope || IsResident)
                 {
-                    <button class="btn btn-sm btn-link p-0 text-primary me-2" title="Pay with Razorpay" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true">
-                        <i class="bi bi-credit-card-2-back"></i>
+                    <button class="btn btn-sm btn-vscode py-1 px-2 me-2" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true" style="font-size: 10px; white-space: nowrap;">
+                        <i class="bi bi-credit-card me-1"></i> Pay Now
                     </button>
                     @if (BillingService.AdvanceBalance >= (context.Amount + context.LineItems.Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")).Sum(l => l.Amount)))
                     {
-                        <button class="btn btn-sm btn-link p-0 text-warning me-2" title="Pay with Advance" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true">
-                            <i class="bi bi-patch-check"></i>
+                        <button class="btn btn-sm btn-outline-warning py-1 px-2 me-2" @onclick="() => OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true" style="font-size: 10px; white-space: nowrap;">
+                            <i class="bi bi-wallet2 me-1"></i> Pay with Advance
                         </button>
                     }
                 }
@@ -130,8 +131,19 @@
     [Parameter] public int? AssetId { get; set; }
     [Parameter] public bool ForceAssociationScope { get; set; }
 
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
     private Grid<Invoice> _grid = default!;
     private System.Threading.Timer? _searchTimer;
+    private ClaimsPrincipal? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _user = authState.User;
+    }
+
+    private bool IsResident => _user?.IsInRole("Resident") ?? false;
 
     public async Task RefreshAsync() => await _grid.RefreshDataAsync();
 
