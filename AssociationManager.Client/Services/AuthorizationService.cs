@@ -11,6 +11,7 @@ public interface IAppAuthorizationService
     Task<bool> HasLevelAsync(ClaimsPrincipal user, int requiredLevel);
     Task<bool> IsInRoleOrHigherAsync(ClaimsPrincipal user, string role);
     int? GetUserId(ClaimsPrincipal user);
+    Task<bool> EvaluateRuleAsync(ClaimsPrincipal user, string ruleName, int? assetId = null);
 }
 
 public class AppAuthorizationService : IAppAuthorizationService
@@ -60,5 +61,20 @@ public class AppAuthorizationService : IAppAuthorizationService
     {
         var requiredLevel = AppRole.GetLevel(role);
         return await HasLevelAsync(user, requiredLevel);
+    }
+
+    public async Task<bool> EvaluateRuleAsync(ClaimsPrincipal user, string ruleName, int? assetId = null)
+    {
+        if (user.Identity?.IsAuthenticated != true) return false;
+
+        var securityContext = new SecurityContext
+        {
+            UserRole = string.Join(",", user.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role).Select(c => c.Value)),
+            UserLevel = AppRole.GetMaxLevel(user.Claims),
+            AssociationId = _tenantContext.AssociationId,
+            AssetId = assetId
+        };
+
+        return await _ruleEngine.EvaluateRuleAsync(ruleName, securityContext);
     }
 }

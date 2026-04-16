@@ -54,11 +54,11 @@ builder.Services.AddAuthorizationCore(options =>
     options.AddPolicy("ShowMenu_Operations", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Operations")));
     options.AddPolicy("ShowMenu_Users", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Users")));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager, "ShowMenu_Users")));
     options.AddPolicy("ShowMenu_Tariffs", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Tariffs")));
     options.AddPolicy("ShowMenu_Community", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Community")));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager, "ShowMenu_Community")));
     options.AddPolicy("ShowMenu_Broadcasts", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Broadcasts")));
     options.AddPolicy("ShowMenu_Governance", policy => 

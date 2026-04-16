@@ -18,12 +18,15 @@
                     <span>Dashboard</span>
                 </NavLink>
                 
-                <AuthorizeView Policy="ShowMenu_Assets" Context="assetMenuContext">
-                    <NavLink href="assets" class="vscode-tree-item text-decoration-none">
-                        <i class="bi bi-layers text-secondary"></i>
-                        <span>Assets</span>
-                    </NavLink>
-                </AuthorizeView>
+                @if (_showAssetsMenu)
+                {
+                    <AuthorizeView Policy="ShowMenu_Assets" Context="assetMenuContext">
+                        <NavLink href="assets" class="vscode-tree-item text-decoration-none">
+                            <i class="bi bi-layers text-secondary"></i>
+                            <span>Assets</span>
+                        </NavLink>
+                    </AuthorizeView>
+                }
                 
                 <AuthorizeView Policy="ShowMenu_Users" Context="userMenuContext">
                     <NavLink href="users?scope=association" class="vscode-tree-item text-decoration-none">
@@ -32,41 +35,56 @@
                     </NavLink>
                 </AuthorizeView>
 
-                <AuthorizeView Policy="ShowMenu_Tariffs" Context="tariffMenuContext">
-                    <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
-                        <i class="bi bi-tag text-success"></i>
-                        <span>Tariff Management</span>
-                    </NavLink>
-                </AuthorizeView>
-
-                <AuthorizeView Policy="ShowMenu_Finance" Context="financeMenuContext">
-                    <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
-                        <i class="bi bi-cash-stack text-success"></i>
-                        <span>Finance</span>
-                    </NavLink>
-                    
-                    <NavLink href="finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
-                        <i class="bi bi-wallet2 text-success"></i>
-                        <span class="small">Advance Ledgers</span>
-                    </NavLink>
-
-                    <AuthorizeView Policy="RequireFinanceManager">
-                        <NavLink href="finance/reports" class="vscode-tree-item ms-3 text-decoration-none">
-                            <i class="bi bi-graph-up-arrow text-success"></i>
-                            <span class="small">Reports</span>
+                @if (_showTariffMenu)
+                {
+                    <AuthorizeView Policy="ShowMenu_Tariffs" Context="tariffMenuContext">
+                        <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
+                            <i class="bi bi-tag text-success"></i>
+                            <span>Tariff Management</span>
                         </NavLink>
                     </AuthorizeView>
-                </AuthorizeView>
+                }
 
-                <AuthorizeView Policy="RequireResident" Context="residentWalletContext">
-                     @if (!_isAdmin)
-                     {
-                         <NavLink href="my-wallet" class="vscode-tree-item text-decoration-none">
-                            <i class="bi bi-wallet2 text-info"></i>
-                            <span>My Wallet</span>
+                @if (_showFinanceMenu)
+                {
+                    <AuthorizeView Policy="ShowMenu_Finance" Context="financeMenuContext">
+                        <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
+                            <i class="bi bi-cash-stack text-success"></i>
+                            <span>Finance</span>
                         </NavLink>
-                     }
-                </AuthorizeView>
+                        
+                        @if (_showAdvancesSubMenu)
+                        {
+                            <NavLink href="finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
+                                <i class="bi bi-wallet2 text-success"></i>
+                                <span class="small">Advance Ledgers</span>
+                            </NavLink>
+                        }
+    
+                        @if (_showReportsSubMenu)
+                        {
+                            <AuthorizeView Policy="RequireFinanceManager">
+                                <NavLink href="finance/reports" class="vscode-tree-item ms-3 text-decoration-none">
+                                    <i class="bi bi-graph-up-arrow text-success"></i>
+                                    <span class="small">Reports</span>
+                                </NavLink>
+                            </AuthorizeView>
+                        }
+                    </AuthorizeView>
+                }
+
+                @if (_showWalletMenu)
+                {
+                    <AuthorizeView Policy="RequireResident" Context="residentWalletContext">
+                         @if (!_isAdmin)
+                         {
+                             <NavLink href="my-wallet" class="vscode-tree-item text-decoration-none">
+                                <i class="bi bi-wallet2 text-info"></i>
+                                <span>My Wallet</span>
+                            </NavLink>
+                         }
+                    </AuthorizeView>
+                }
 
                 @* Removed as requested: ShowMenu_Operations *@
 
@@ -146,6 +164,12 @@
 
     private bool _isAdmin;
     private bool _hasAccess;
+    private bool _showFinanceMenu;
+    private bool _showWalletMenu;
+    private bool _showAdvancesSubMenu;
+    private bool _showReportsSubMenu;
+    private bool _showAssetsMenu;
+    private bool _showTariffMenu;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -157,11 +181,24 @@
             _isAdmin = await AuthService.HasLevelAsync(user, 90);
             var assocId = user.FindFirst("AssociationId")?.Value;
             _hasAccess = _isAdmin || (!string.IsNullOrEmpty(assocId) && assocId != "0");
+
+            _showFinanceMenu = await AuthService.EvaluateRuleAsync(user, "ShowMenu_Finance");
+            _showWalletMenu = await AuthService.EvaluateRuleAsync(user, "ShowMenu_Wallet");
+            _showAdvancesSubMenu = await AuthService.EvaluateRuleAsync(user, "ShowMenu_Advances");
+            _showReportsSubMenu = await AuthService.EvaluateRuleAsync(user, "ShowMenu_Reports");
+            _showAssetsMenu = await AuthService.EvaluateRuleAsync(user, "ShowMenu_Assets");
+            _showTariffMenu = await AuthService.EvaluateRuleAsync(user, "ShowMenu_Tariffs");
         }
         else
         {
             _isAdmin = false;
             _hasAccess = false;
+            _showFinanceMenu = false;
+            _showWalletMenu = false;
+            _showAdvancesSubMenu = false;
+            _showReportsSubMenu = false;
+            _showAssetsMenu = false;
+            _showTariffMenu = false;
         }
     }
 }

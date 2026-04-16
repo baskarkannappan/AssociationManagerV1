@@ -1,5 +1,7 @@
-@using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
+@using AssociationManager.Client.Services
+@inject IAppAuthorizationService AuthService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <Grid TItem="TariffLayer"
       Class="table table-hover table-bordered table-striped compact-table"
@@ -30,9 +32,12 @@
     </GridColumn>
 
     <GridColumn TItem="TariffLayer" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
-        <button class="btn btn-sm btn-link p-0 text-muted hover-danger" @onclick="() => OnDelete.InvokeAsync(context.TariffLayerId)">
-            <i class="bi bi-trash"></i>
-        </button>
+        @if (_canManageLayers)
+        {
+            <button class="btn btn-sm btn-link p-0 text-muted hover-danger" @onclick="() => OnDelete.InvokeAsync(context.TariffLayerId)">
+                <i class="bi bi-trash"></i>
+            </button>
+        }
     </GridColumn>
 </Grid>
 
@@ -45,6 +50,14 @@
 @code {
     [Parameter] public IEnumerable<TariffLayer> Layers { get; set; } = Enumerable.Empty<TariffLayer>();
     [Parameter] public EventCallback<int> OnDelete { get; set; }
+
+    private bool _canManageLayers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _canManageLayers = await AuthService.EvaluateRuleAsync(authState.User, "TariffRule_ManageLayers");
+    }
 
     private async Task<GridDataProviderResult<TariffLayer>> TariffLayersDataProvider(GridDataProviderRequest<TariffLayer> request)
     {

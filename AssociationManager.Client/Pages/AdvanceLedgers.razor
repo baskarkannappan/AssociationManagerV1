@@ -4,6 +4,9 @@
 @using Microsoft.AspNetCore.Authorization
 @inject ApiService ApiService
 @inject BlazorBootstrap.ToastService ToastService
+@inject IAppAuthorizationService AuthService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 @attribute [Authorize(Policy = "RequireResident")]
 
 <div class="premium-page-header border-bottom px-4 py-3 mb-0">
@@ -214,6 +217,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Finance");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         // Fetch summary for the header badge
         try 
         {

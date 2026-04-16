@@ -2,6 +2,8 @@
 @using AssociationManager.Shared.Enums
 @inject AssetStateService AssetState
 @inject ApiService ApiService
+@inject IAppAuthorizationService AuthService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="px-4 py-2">
     <div class="d-flex align-items-center justify-content-between mb-4">
@@ -9,7 +11,7 @@
             <i class="bi bi-shield-check text-primary"></i>
             <span class="fw-bold small text-uppercase text-muted">Billing Rules & Tariffs</span>
         </div>
-        @if (AssetState.CanManageAssets)
+        @if (AssetState.CanManageAssets && _canAssignRules)
         {
             <button class="btn btn-sm btn-vscode px-3" @onclick="() => _showAssignModal = true">
                 <i class="bi bi-plus-lg"></i> Assign Rule
@@ -79,9 +81,13 @@
 @code {
     private List<AssetTariffSummary>? _assignedTariffs;
     private bool _showAssignModal;
+    private bool _canAssignRules;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _canAssignRules = await AuthService.EvaluateRuleAsync(authState.User, "AssetRule_AssignBillingRules");
+
         if (AssetState.SelectedAsset != null)
         {
             await LoadRulesAsync();

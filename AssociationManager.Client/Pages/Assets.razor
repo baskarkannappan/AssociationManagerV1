@@ -11,6 +11,7 @@
 @inject ApiService ApiService
 @inject ToastService _toastService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IAppAuthorizationService AuthService
 
 <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
@@ -119,6 +120,14 @@
 
         await AssetState.InitializePermissionsAsync();
         var authState = await AuthStateTask;
+        
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Assets");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         if (authState.User.Identity?.IsAuthenticated == true) await AssetState.LoadHierarchyAsync();
     }
 

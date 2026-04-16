@@ -16,9 +16,12 @@ public class ClientRuleEngineService : IRuleEngineService
             int required = workflowName switch
             {
                 "ShowMenu_Settings" => 90,
-                "ShowMenu_Users" or "ShowMenu_Community" => 80,
+                "ShowMenu_Users" or "ShowMenu_Community" => 50, // Allowed for UserManager+
                 "ShowWidget_AuditLog" => 60,
-                "ShowMenu_Tariffs" or "ShowMenu_Broadcasts" or "ShowWidget_Outstanding" => 40,
+                "ShowMenu_Assets" => context.UserLevel != 50 ? 40 : 1000, // Explicitly block Level 50
+                "ShowMenu_Finance" or "ShowMenu_Advances" or "ShowMenu_Reports" or "ShowMenu_Wallet" => (context.UserLevel >= 40 && context.UserLevel != 60 && context.UserLevel != 50) ? 40 : 1000, 
+                "ShowMenu_Tariffs" => (context.UserLevel >= 40 && context.UserLevel != 50) ? 40 : 1000,
+                "ShowMenu_Broadcasts" or "ShowWidget_Outstanding" => 40,
                 _ => 10 // Most other menus/widgets are visible to residents (Level 10)
             };
             result = context.UserLevel >= required;
@@ -37,6 +40,28 @@ public class ClientRuleEngineService : IRuleEngineService
                 "RequireResident" => context.UserLevel >= 10,
                 "IsStaff" => context.UserLevel >= 40,
                 "IsResident" => context.UserLevel <= 10 && context.UserLevel > 0,
+
+                // --- NEW FUNCTIONAL RULES ---
+                "AssetRule_ManageOccupancy" => context.UserLevel >= 60, // Asset Manager+
+                "AssetRule_ManageVehicles" => context.UserLevel >= 50, // User Manager+
+                "AssetRule_ManagePets" => context.UserLevel >= 50,     // User Manager+
+                "FinanceRule_ManualInvoice" => context.UserLevel >= 80, // Association Admin+
+                "CommRule_PostAnnouncement" => context.UserLevel >= 80, // Association Admin+
+                "AssetRule_AssignBillingRules" => context.UserLevel >= 80, // Only Admin can assign rules
+
+                // --- ASSET MANAGER EXCLUSIONS ---
+                "AssetRule_ViewFinanceActions" => context.UserLevel != 60,
+
+                // --- REFINED ASSET MANAGER RULES ---
+                "ShowMenu_Finance" => context.UserLevel >= 40 && context.UserLevel != 60, 
+                "ShowMenu_Advances" => context.UserLevel >= 40 && context.UserLevel != 60,
+                "ShowMenu_Reports" => context.UserLevel >= 40 && context.UserLevel != 60,
+                "ShowMenu_Wallet" => context.UserLevel == 10 || context.UserLevel >= 80,
+                "BillingRule_ManageGeneration" => context.UserLevel >= 80,
+                
+                "TariffRule_ManageGroups" => context.UserLevel >= 80,
+                "TariffRule_ManageLayers" => context.UserLevel >= 80,
+                "TariffRule_ViewAssignments" => context.UserLevel >= 80,
                 _ => false
             };
         }
