@@ -33,6 +33,7 @@ builder.Services.AddScoped<ITariffRepository, TariffRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
+builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
 
 // Services
 builder.Services.AddScoped<BackgroundTenantContext>();
@@ -46,6 +47,9 @@ builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<AssociationManager.Services.Jobs.EmailDispatchJob>();
 
 // Billing Strategies
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
@@ -84,6 +88,13 @@ using (var scope = host.Services.CreateScope())
         "database-archiving",
         service => service.ArchiveAuditLogsAsync(180),
         Cron.Daily(3));
+
+    // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
+    // Using UTC equivalents: 00:30, 10:30, 12:30, 18:30 UTC
+    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
+        "automated-email-dispatch",
+        job => job.ProcessPendingEmailsAsync(),
+        "30 0,10,12,18 * * *");
 }
 
 host.Run();

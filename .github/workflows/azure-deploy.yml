@@ -19,7 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [Gateway, Api, Corporate.Api, Worker]
+        include:
+          - service: gateway
+            folder: Gateway
+          - service: api
+            folder: Api
+          - service: corp-api
+            folder: Corporate.Api
+          - service: worker
+            folder: Worker
     
     steps:
       - name: Checkout Code
@@ -36,7 +44,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.service }}/Dockerfile .
+          docker build -t ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.folder }}/Dockerfile .
           docker push ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
 
       - name: Deploy to Container App

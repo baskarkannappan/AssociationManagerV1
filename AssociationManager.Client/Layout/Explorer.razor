@@ -93,6 +93,12 @@
                         <i class="bi bi-chat-left-dots text-warning"></i>
                         <span>Communication</span>
                     </NavLink>
+                    <AuthorizeView Policy="RequireAssociationAdmin" Context="commQueueContext">
+                        <NavLink href="communication/queue" class="vscode-tree-item ms-3 text-decoration-none">
+                            <i class="bi bi-envelope-paper text-warning"></i>
+                            <span class="small">Email Queue</span>
+                        </NavLink>
+                    </AuthorizeView>
                 </AuthorizeView>
 
                 <AuthorizeView Policy="ShowMenu_Community" Context="communityMenuContext">

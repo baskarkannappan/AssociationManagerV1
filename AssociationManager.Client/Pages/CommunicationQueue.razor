@@ -1,0 +1,228 @@
+@page "/communication/queue"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@inject ApiService Api
+@inject ToastService Toasts
+@attribute [Authorize(Policy = "RequireAssociationAdmin")]
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 mb-1">Email Queue Management</h2>
+            <p class="text-muted small">Monitor and manage automated billing emails for your association.</p>
+        </div>
+        <div class="d-flex gap-2">
+            @if (_logs != null && _logs.Any(l => l.Status == CommunicationStatus.Posted || l.Status == CommunicationStatus.Resend))
+            {
+                <button class="btn btn-primary btn-sm" @onclick="ProcessQueue">
+                    <i class="bi bi-send-fill me-1"></i> Process Pending Now
+                </button>
+            }
+            <button class="btn btn-outline-secondary btn-sm" @onclick="LoadLogs">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (_logs == null || !_logs.Any())
+    {
+        <div class="text-center py-5 bg-light rounded border border-dashed">
+            <i class="bi bi-mailbox fs-1 text-muted opacity-50"></i>
+            <p class="mt-3 text-muted">No emails in the queue yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-3">Recipient</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Reference</th>
+                            <th>Scheduled</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in _logs)
+                        {
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-bold">@log.RecipientName</div>
+                                    <div class="small text-muted">@log.RecipientEmail</div>
+                                </td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 250px;" title="@log.Subject">
+                                        @log.Subject
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge @GetBadgeClass(log.Status)">
+                                        @log.Status
+                                    </span>
+                                    @if (!string.IsNullOrEmpty(log.ErrorMessage))
+                                    {
+                                        <i class="bi bi-info-circle ms-1 text-danger cursor-pointer" title="@log.ErrorMessage"></i>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@log.ReferenceType #@log.ReferenceId</span>
+                                </td>
+                                <td class="small">
+                                    @if (log.ScheduledDate.HasValue)
+                                    {
+                                        @log.ScheduledDate.Value.ToLocalTime().ToString("MMM dd, HH:mm")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted italic">Immediate</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-3">
+                                    @if (log.Status == CommunicationStatus.Posted || log.Status == CommunicationStatus.Resend || log.Status == CommunicationStatus.Failure)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger me-1" @onclick="() => CancelEmail(log.LogId)" title="Cancel & Archive">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    }
+                                    
+                                    @if (log.Status == CommunicationStatus.Failure || log.Status == CommunicationStatus.Archive)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ResendEmail(log.LogId)" title="Retry/Resend">
+                                            <i class="bi bi-reply-all"></i>
+                                        </button>
+                                    }
+                                    
+                                    <button class="btn btn-sm btn-outline-info ms-1" @onclick="() => ViewContent(log)" title="Preview HTML">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (_previewLog != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Email Preview: @_previewLog.Subject</h5>
+                    <button type="button" class="btn-close" @onclick="() => _previewLog = null"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <div class="email-container shadow-sm p-4 bg-white mx-auto" style="max-width: 700px;">
+                        @((MarkupString)_previewLog.HtmlBody)
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _previewLog = null">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .email-container { border: 1px solid #ddd; border-radius: 4px; min-height: 400px; }
+    .badge { font-weight: 500; font-size: 0.75rem; }
+    .italic { font-style: italic; }
+</style>
+
+@code {
+    private IEnumerable<CommunicationLog>? _logs;
+    private bool _isLoading = true;
+    private CommunicationLog? _previewLog;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        _isLoading = true;
+        // Api.GetAsync<T> already unwraps the ApiResponse<T> and returns the Data field
+        _logs = await Api.GetAsync<IEnumerable<CommunicationLog>>("api/communication/logs");
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task CancelEmail(int id)
+    {
+        try
+        {
+            await Api.PostAsync<object, object>("api/communication/logs/" + id + "/cancel", null);
+            Toasts.Notify(new(ToastType.Success, "Email cancelled and archived."));
+            await LoadLogs();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Notify(new(ToastType.Danger, ex.Message));
+        }
+    }
+
+    private async Task ResendEmail(int id)
+    {
+        try
+        {
+            await Api.PostAsync<object, object>("api/communication/logs/" + id + "/resend", null);
+            Toasts.Notify(new(ToastType.Success, "Email marked for resend."));
+            await LoadLogs();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Notify(new(ToastType.Danger, ex.Message));
+        }
+    }
+
+    private async Task ProcessQueue()
+    {
+        try
+        {
+            await Api.PostAsync<object, object>("api/communication/logs/process", null);
+            Toasts.Notify(new(ToastType.Success, "Background processing triggered. Emails will be sent shortly."));
+            await Task.Delay(2000); // Give it a moment to start
+            await LoadLogs();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Notify(new(ToastType.Danger, ex.Message));
+        }
+    }
+
+    private void ViewContent(CommunicationLog log)
+    {
+        _previewLog = log;
+    }
+
+    private string GetBadgeClass(CommunicationStatus status) => status switch
+    {
+        CommunicationStatus.Posted => "bg-info-subtle text-info border border-info-subtle",
+        CommunicationStatus.InProgress => "bg-warning-subtle text-warning border border-warning-subtle",
+        CommunicationStatus.Sent => "bg-success-subtle text-success border border-success-subtle",
+        CommunicationStatus.Success => "bg-success text-white",
+        CommunicationStatus.Failure => "bg-danger text-white",
+        CommunicationStatus.Complete => "bg-dark text-white",
+        CommunicationStatus.Resend => "bg-primary-subtle text-primary border border-primary-subtle",
+        CommunicationStatus.Archive => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+        _ => "bg-secondary"
+    };
+}

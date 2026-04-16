@@ -17,9 +17,9 @@ var envBaseName = '${baseName}-${environmentName}'
 var acrLoginServer = '${acrName}.azurecr.io'
 
 // Service-to-Service URLs (Internal)
-var gatewayUrl = 'https://assoc-gateway.${uniqueSuffix}.internal'
-var apiUrl = 'https://assoc-api.${uniqueSuffix}.internal'
-var corporateApiUrl = 'https://assoc-corp-api.${uniqueSuffix}.internal'
+var gatewayUrl = 'https://${envBaseName}-gateway.${uniqueSuffix}.internal'
+var apiUrl = 'https://${envBaseName}-api.${uniqueSuffix}.internal'
+var corporateApiUrl = 'https://${envBaseName}-corp-api.${uniqueSuffix}.internal'
 
 // Shared Template for consumption-based apps
 var defaultTemplate = {
@@ -64,7 +64,32 @@ resource gateway 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
     }
-    template: defaultTemplate
+    template: {
+      containers: [
+        {
+          name: 'main'
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: [
+            {
+              name: 'ReverseProxy__Clusters__api-cluster__Destinations__destination1__Address'
+              value: apiUrl
+            }
+            {
+              name: 'ReverseProxy__Clusters__corporate-api-cluster__Destinations__destination1__Address'
+              value: corporateApiUrl
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 3
+      }
+    }
   }
 }
 

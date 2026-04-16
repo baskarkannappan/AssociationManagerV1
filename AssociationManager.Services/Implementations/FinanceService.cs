@@ -21,6 +21,9 @@ public class FinanceService : IFinanceService
     private readonly IAssetRepository _assetRepository;
     private readonly IAuditService _auditService;
     private readonly IBillingBatchRepository _billingBatchRepository;
+    private readonly IEmailTemplateService _emailTemplateService;
+    private readonly ICommunicationRepository _communicationRepository;
+    private readonly IPersonRepository _personRepository;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -32,7 +35,10 @@ public class FinanceService : IFinanceService
         IFineService fineService,
         IAssetRepository assetRepository,
         IAuditService auditService,
-        IBillingBatchRepository billingBatchRepository)
+        IBillingBatchRepository billingBatchRepository,
+        IEmailTemplateService emailTemplateService,
+        ICommunicationRepository communicationRepository,
+        IPersonRepository personRepository)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -44,6 +50,9 @@ public class FinanceService : IFinanceService
         _assetRepository = assetRepository;
         _auditService = auditService;
         _billingBatchRepository = billingBatchRepository;
+        _emailTemplateService = emailTemplateService;
+        _communicationRepository = communicationRepository;
+        _personRepository = personRepository;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -724,6 +733,43 @@ public class FinanceService : IFinanceService
                         Category = "Billing",
                         Description = $"Batch Billing Committed: {inv.Title}"
                     });
+                }
+
+                // 3. Queue Email for resident
+                try
+                {
+                    if (inv.AssetId.HasValue)
+                    {
+                        var occupancies = await _occupancyRepository.GetByAssetIdAsync(inv.AssetId.Value, CurrentTenantId, CurrentAssociationId);
+                        var primary = occupancies.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies.FirstOrDefault();
+                        
+                        if (primary != null)
+                        {
+                            var person = await _personRepository.GetByIdAsync(primary.PersonId, CurrentTenantId, CurrentAssociationId);
+                            if (person != null && !string.IsNullOrEmpty(person.Email))
+                            {
+                                var htmlBody = await _emailTemplateService.GenerateInvoiceHtmlAsync(inv.InvoiceId);
+                                
+                                await _communicationRepository.CreateAsync(new CommunicationLog
+                                {
+                                    TenantId = CurrentTenantId,
+                                    AssociationId = CurrentAssociationId,
+                                    RecipientEmail = person.Email,
+                                    RecipientName = $"{person.FirstName} {person.LastName}",
+                                    Subject = $"Invoice Generated: {inv.Title} (Ref #{inv.InvoiceId})",
+                                    HtmlBody = htmlBody,
+                                    ReferenceType = "Invoice",
+                                    ReferenceId = inv.InvoiceId,
+                                    Status = AssociationManager.Shared.Enums.CommunicationStatus.Posted
+                                });
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Fail silently to ensure ledger commitment completes, but log audit
+                    await _auditService.LogAsync($"Failed to queue email for Invoice #{inv.InvoiceId}: {ex.Message}", "System", inv.InvoiceId);
                 }
             }
         }

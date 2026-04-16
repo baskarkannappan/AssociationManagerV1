@@ -67,6 +67,7 @@ builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
+builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -90,8 +91,11 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
+builder.Services.AddScoped<AssociationManager.Services.Jobs.EmailDispatchJob>();
 builder.Services.AddScoped<RulesEngineSeeder>();
 
 // Billing Strategies & Batch Service
