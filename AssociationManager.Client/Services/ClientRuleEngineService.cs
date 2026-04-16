@@ -18,10 +18,12 @@ public class ClientRuleEngineService : IRuleEngineService
                 "ShowMenu_Settings" => 90,
                 "ShowMenu_Users" or "ShowMenu_Community" => 50, // Allowed for UserManager+
                 "ShowWidget_AuditLog" => 60,
-                "ShowMenu_Assets" => context.UserLevel != 50 ? 40 : 1000, // Explicitly block Level 50
-                "ShowMenu_Finance" or "ShowMenu_Advances" or "ShowMenu_Reports" or "ShowMenu_Wallet" => (context.UserLevel >= 40 && context.UserLevel != 60 && context.UserLevel != 50) ? 40 : 1000, 
+                "ShowMenu_Assets" => context.UserLevel != 50 ? 10 : 1000, // Allowed for all except UserManager
+                "ShowMenu_Finance" or "ShowMenu_Wallet" => (context.UserLevel >= 10 && context.UserLevel != 60 && context.UserLevel != 50) ? 10 : 1000, 
+                "ShowMenu_Advances" or "ShowMenu_Reports" => (context.UserLevel >= 40 && context.UserLevel != 60 && context.UserLevel != 50) ? 40 : 1000,
                 "ShowMenu_Tariffs" => (context.UserLevel >= 40 && context.UserLevel != 50) ? 40 : 1000,
-                "ShowMenu_Broadcasts" or "ShowWidget_Outstanding" => 40,
+                "ShowMenu_Broadcasts" => 10,
+                "ShowWidget_Outstanding" => 40,
                 _ => 10 // Most other menus/widgets are visible to residents (Level 10)
             };
             result = context.UserLevel >= required;
