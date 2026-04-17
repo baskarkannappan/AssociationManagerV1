@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Reports_GetFinancialMetrics
+﻿CREATE   PROCEDURE assoc.sp_Reports_GetFinancialMetrics
     @TenantId INT,
     @AssociationId INT
 AS
@@ -86,4 +86,3 @@ BEGIN
          ) fines
          WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId AND i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft', 'Settled')) as TotalUnpaidPrincipal
 END
-GO

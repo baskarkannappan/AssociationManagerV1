@@ -4,4 +4,3 @@ BEGIN
     SELECT * FROM assoc.Pets 
     WHERE AssetId = @AssetId AND AssociationId = @AssociationId; 
 END
-GO

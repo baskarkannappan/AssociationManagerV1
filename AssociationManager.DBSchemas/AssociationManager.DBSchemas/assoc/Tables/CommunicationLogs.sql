@@ -1,4 +1,4 @@
-﻿CREATE TABLE [assoc].[CommunicationLogs] (
+CREATE TABLE [assoc].[CommunicationLogs] (
     [LogId]          INT            IDENTITY (1, 1) NOT NULL,
     [TenantId]       INT            NOT NULL,
     [AssociationId]  INT            NOT NULL,
@@ -15,7 +15,8 @@
     [ProcessedDate]  DATETIME2 (7)  NULL,
     [ScheduledDate]  DATETIME2 (7)  NULL,
     PRIMARY KEY CLUSTERED ([LogId] ASC)
-);
+)
+
 
 
 GO

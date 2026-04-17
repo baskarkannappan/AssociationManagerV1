@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Finance_GetAssociationSummary
+﻿CREATE   PROCEDURE assoc.sp_Finance_GetAssociationSummary
     @AssociationId INT,
     @TenantId INT,
     @TotalOutstanding_OUT DECIMAL(18,2) = NULL OUTPUT,
@@ -17,26 +17,12 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 1. Calculate Total Outstanding (JOIN with Line Items to include Penalties)
+    -- 1. Calculate Total Outstanding (Direct sum of Unpaid Invoices)
     DECLARE @TotalOutstanding DECIMAL(18,2) = 0;
-    
-    SELECT @TotalOutstanding = ISNULL(SUM(
-        CASE 
-            WHEN lt.LineCount = 0 THEN i.Amount
-            ELSE (CASE WHEN i.Amount > lt.PrincipalLineSum THEN i.Amount ELSE lt.PrincipalLineSum END) + lt.PenaltyLineSum
-        END
-    ), 0)
-    FROM assoc.Invoices i
-    OUTER APPLY (
-        SELECT 
-            COUNT(*) as LineCount,
-            ISNULL(SUM(CASE WHEN li.ChargeName NOT LIKE '%Penalty%' AND li.ChargeName NOT LIKE '%Fine%' THEN li.Amount ELSE 0 END), 0) as PrincipalLineSum,
-            ISNULL(SUM(CASE WHEN li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%' THEN li.Amount ELSE 0 END), 0) as PenaltyLineSum
-        FROM assoc.InvoiceLineItems li
-        WHERE li.InvoiceId = i.InvoiceId
-    ) lt
-    WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
-    AND i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft');
+    SELECT @TotalOutstanding = ISNULL(SUM(Amount), 0)
+    FROM assoc.Invoices
+    WHERE TenantId = @TenantId AND AssociationId = @AssociationId
+    AND Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft');
 
     -- 2. Calculate Total Advance Money (Spendable Wallet Balance)
     DECLARE @TotalAdvanceCredits DECIMAL(18,2) = 0;

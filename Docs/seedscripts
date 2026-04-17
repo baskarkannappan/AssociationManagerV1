@@ -1,0 +1,49 @@
+  insert into [corp].[Tenants] ([Name],[CreatedDate],[IsActive])
+  select 'Default Organization',GETDATE(),1
+
+
+  INSERT INTO [assoc].[CommitteeRoles] (RoleId, RoleName) VALUES
+(1, 'President'),
+(2, 'Secretary'),
+(3, 'Treasurer'),
+(4, 'Committee Member');
+
+
+ 
+GO
+
+INSERT INTO [corp].[Users]
+           ([TenantId]
+           ,[GoogleId]
+           ,[Email]
+           ,[Name]
+           ,[PictureUrl]
+           ,[CreatedDate]
+           ,[LastLoginDate]
+           ,[IsActive]
+           ,[Role] )
+     VALUES
+           (1
+           ,'113221420141977875291'
+           ,'baskar.kannappan@gmail.com'
+           ,'Baskar Kannappan'
+           ,'https://lh3.googleusercontent.com/a/ACg8ocKOKlFLmCTmI-odo2ld3A01-kl71SAFmtQSDX63ed6WI401vw=s96-c'
+           ,GETDATE()
+           ,GETDATE()
+           ,1
+           ,'PlatformAdmin' )
+GO
+
+
+
+  insert into [corp].[PlatformAccounts] ([AccountName]
+      ,[IsActive]
+      ,[LastUpdated]
+      ,[AccountNumber]
+      ,[BankName]
+      ,[IFSCCode]
+      ,[BranchName]
+      ,[RazorpayKeyId]
+      ,[RazorpayKeySecret])
+  values ('PLATFORM_MASTER_ACCOUNT',1,GETDATE(),'123123123123','ICICI','ICIC1234','NUNGAMBAKKAM'
+  ,'rzp_test_SWtZ26EZdULbQy','V0f3PBqMcmMEvBIRcx7LIdo7')

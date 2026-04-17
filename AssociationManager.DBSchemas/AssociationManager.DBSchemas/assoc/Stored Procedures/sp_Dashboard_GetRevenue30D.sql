@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Dashboard_GetRevenue30D
+﻿CREATE   PROCEDURE assoc.sp_Dashboard_GetRevenue30D
     @TenantId INT,
     @AssociationId INT,
     @Revenue_OUT DECIMAL(18,2) = NULL OUTPUT

@@ -1,4 +1,4 @@
-CREATE PROCEDURE assoc.sp_Dashboard_GetCommitteeCount
+﻿CREATE PROCEDURE assoc.sp_Dashboard_GetCommitteeCount
     @TenantId INT,
     @AssociationId INT
 AS

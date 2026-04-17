@@ -13,4 +13,3 @@ BEGIN
     LEFT JOIN assoc.Assets a ON o.AssetId = a.AssetId
     WHERE o.AssetId = @AssetId AND o.AssociationId = @AssociationId;
 END
-GO

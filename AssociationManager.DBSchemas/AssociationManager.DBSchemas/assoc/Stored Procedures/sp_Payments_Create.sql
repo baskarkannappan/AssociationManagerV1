@@ -1,4 +1,5 @@
-﻿-- Update core payment creation to include AssetId, InvoiceId, and Notes
+﻿
+-- Update core payment creation to include AssetId, InvoiceId, and Notes
 CREATE   PROCEDURE assoc.sp_Payments_Create
     @TenantId INT,
     @AssociationId INT,
