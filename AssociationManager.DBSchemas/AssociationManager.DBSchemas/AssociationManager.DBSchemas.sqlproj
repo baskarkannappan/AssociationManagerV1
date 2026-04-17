@@ -367,7 +367,6 @@
     <Build Include="corp\Stored Procedures\sp_PlatformPayments_GetRevenue.sql" />
     <Build Include="assoc\Stored Procedures\sp_FineSettings_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_FineSettings_Get.sql" />
-    <Build Include="corp\Tables\PlatformAccounts_1.sql" />
     <Build Include="corp\Stored Procedures\sp_PlatformInvoices_UpdateStatus.sql" />
     <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Update.sql" />
     <Build Include="corp\Stored Procedures\sp_PlatformAccounts_List.sql" />

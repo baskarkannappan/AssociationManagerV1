@@ -35,6 +35,7 @@ public class GovernanceController : ControllerBase
     public async Task<IActionResult> UpdateProfile([FromBody] AssociationProfile profile)
     {
         profile.AssociationId = _tenantContext.AssociationId;
+        EnsureSafeDates(profile);
         var success = await _governanceService.UpdateProfileAsync(profile);
         return success ? Ok(ApiResponse.SuccessResponse("Profile updated.")) : BadRequest(ApiResponse.FailureResponse("Failed to update profile."));
     }
