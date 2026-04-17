@@ -1,4 +1,4 @@
-CREATE PROCEDURE assoc.sp_Invoices_GetPaged
+﻿CREATE PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -29,18 +29,9 @@ BEGIN
             i.*,
             a.Name AS AssetName,
             CAST(COUNT(*) OVER() AS INT) as TotalCount,
-            CAST(SUM(CASE WHEN LTRIM(RTRIM(i.Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial') 
-                 THEN (CASE WHEN i.Amount > lt.PrincipalLineSum THEN i.Amount ELSE lt.PrincipalLineSum END) + lt.PenaltyLineSum
-                 ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
+            CAST(SUM(CASE WHEN LTRIM(RTRIM(i.Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial') THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
         FROM assoc.Invoices i
         LEFT JOIN assoc.Assets a ON i.AssetId = a.AssetId
-        OUTER APPLY (
-            SELECT 
-                ISNULL(SUM(CASE WHEN li.ChargeName NOT LIKE '%Penalty%' AND li.ChargeName NOT LIKE '%Fine%' THEN li.Amount ELSE 0 END), 0) as PrincipalLineSum,
-                ISNULL(SUM(CASE WHEN li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%' THEN li.Amount ELSE 0 END), 0) as PenaltyLineSum
-            FROM assoc.InvoiceLineItems li
-            WHERE li.InvoiceId = i.InvoiceId
-        ) lt
         WHERE i.TenantId = @TenantId
         AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId)
         AND (@AssetId IS NULL OR i.AssetId = @AssetId)
@@ -86,4 +77,4 @@ BEGIN
     OFFSET @Offset ROWS
     FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE); -- Solve parameter sniffing issues for optional filters
-END;
+END

@@ -1,4 +1,4 @@
-CREATE   PROCEDURE assoc.sp_AssociationProfile_Upsert
+﻿CREATE   PROCEDURE assoc.sp_AssociationProfile_Upsert
     @AssociationId INT,
     @RegistrationNumber NVARCHAR(100),
     @RegistrationDate DATETIME2,
@@ -18,12 +18,12 @@ BEGIN
             RegistrationDate = @RegistrationDate,
             Address = @Address, City = @City, State = @State, Pincode = @Pincode,
             ContactEmail = @ContactEmail, ContactPhone = @ContactPhone,
-            Logo = CONVERT(VARBINARY(MAX), @Logo)
+            Logo = @Logo
         WHERE AssociationId = @AssociationId;
     END
     ELSE
     BEGIN
         INSERT INTO assoc.AssociationProfile (AssociationId, RegistrationNumber, RegistrationDate, Address, City, State, Pincode, ContactEmail, ContactPhone, Logo)
-        VALUES (@AssociationId, @RegistrationNumber, @RegistrationDate, @Address, @City, @State, @Pincode, @ContactEmail, @ContactPhone, CONVERT(VARBINARY(MAX), @Logo));
+        VALUES (@AssociationId, @RegistrationNumber, @RegistrationDate, @Address, @City, @State, @Pincode, @ContactEmail, @ContactPhone, @Logo);
     END
 END;

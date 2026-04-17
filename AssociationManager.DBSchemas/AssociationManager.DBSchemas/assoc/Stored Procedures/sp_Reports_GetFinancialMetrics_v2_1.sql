@@ -1,0 +1,121 @@
+﻿CREATE   PROCEDURE assoc.sp_Reports_GetFinancialMetrics_v2
+    @TenantId INT,
+    @AssociationId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Local variables for Fine Settings
+    DECLARE @StrategyType NVARCHAR(50), @FineValue DECIMAL(18,2), @GracePeriodDays INT, @IsCompounding BIT, @ActivationDate DATETIME;
+    
+    SELECT TOP 1 
+        @StrategyType = StrategyType,
+        @FineValue = FineValue,
+        @GracePeriodDays = GracePeriodDays,
+        @IsCompounding = IsCompounding,
+        @ActivationDate = ActivationDate
+    FROM assoc.FineSettings
+    WHERE AssociationId = @AssociationId AND TenantId = @TenantId;
+
+    -- 1. Pre-calculate metrics into a Temp Table to share across Multiple Result Sets
+    WITH InvoiceData AS (
+        SELECT 
+            i.InvoiceId,
+            i.DueDate,
+            i.CreatedDate,
+            i.Amount,
+            i.[Status],
+            ISNULL(fines.TotalFines, 0) as RecordedFines,
+            ISNULL(payments.TotalPaid, 0) as TotalPaid
+        FROM assoc.Invoices i
+        OUTER APPLY (
+            SELECT SUM(li.Amount) as TotalFines 
+            FROM assoc.InvoiceLineItems li 
+            WHERE li.InvoiceId = i.InvoiceId 
+            AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%')
+        ) fines
+        OUTER APPLY (
+            SELECT SUM(p.Amount) as TotalPaid
+            FROM assoc.Payments p
+            WHERE p.InvoiceId = i.InvoiceId
+            AND p.Status IN ('Paid', 'Completed', 'Captured')
+        ) payments
+        WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
+        AND i.[Status] NOT IN ('Cancelled', 'Void', 'Draft')
+    ),
+    CalculatedFines AS (
+        SELECT 
+            d.*,
+            CASE 
+                WHEN d.[Status] = 'Paid' THEN 0 
+                WHEN d.DueDate >= GETUTCDATE() THEN 0
+                WHEN @StrategyType IS NULL OR @StrategyType = 'None' THEN 0
+                WHEN @ActivationDate IS NULL OR d.CreatedDate < @ActivationDate THEN 0
+                WHEN DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= @GracePeriodDays THEN 0
+                WHEN d.RecordedFines > 0 THEN 0 
+                ELSE 
+                    -- Months Late calculation (Ceiling)
+                    (SELECT 
+                        CASE 
+                            WHEN @StrategyType = 'FlatAmount' THEN @FineValue * monthsLate
+                            WHEN @StrategyType = 'OneTimeFlat' THEN @FineValue
+                            WHEN @StrategyType = 'OneTimePercentage' THEN ROUND(d.Amount * (@FineValue / 100.0), 2)
+                            WHEN @StrategyType = 'Percentage' AND @IsCompounding = 0 THEN ROUND(d.Amount * (@FineValue / 100.0) * monthsLate, 2)
+                            WHEN @StrategyType = 'Percentage' AND @IsCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (@FineValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2)
+                            ELSE 0
+                        END
+                     FROM (SELECT CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate) m
+                    )
+            END as DynamicFine
+        FROM InvoiceData d
+    ),
+    NetInvoiceStats AS (
+        SELECT 
+            *,
+            -- Explicitly cast to DECIMAL to avoid float issues from POWER function
+            CAST((Amount + RecordedFines + DynamicFine) - TotalPaid AS DECIMAL(18,2)) as NetDue,
+            CAST(Amount + RecordedFines + DynamicFine AS DECIMAL(18,2)) as GrossBilled
+        FROM CalculatedFines
+    )
+    SELECT * INTO #NetInvoiceStats FROM NetInvoiceStats;
+
+    -- 2. Aging Calculation
+    SELECT 
+        ISNULL(SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) BETWEEN 0 AND 30 AND NetDue > 0 THEN NetDue ELSE 0 END), 0) AS Bucket0_30,
+        ISNULL(SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) BETWEEN 31 AND 60 AND NetDue > 0 THEN NetDue ELSE 0 END), 0) AS Bucket31_60,
+        ISNULL(SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) BETWEEN 61 AND 90 AND NetDue > 0 THEN NetDue ELSE 0 END), 0) AS Bucket61_90,
+        ISNULL(SUM(CASE WHEN DATEDIFF(day, DueDate, GETUTCDATE()) > 90 AND NetDue > 0 THEN NetDue ELSE 0 END), 0) AS BucketOver90
+    FROM #NetInvoiceStats;
+
+    -- 3. Monthly Collection Efficiency
+    WITH Months AS (
+        SELECT TOP 12 
+            FORMAT(DATEADD(MONTH, - (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), GETUTCDATE()), 'MMM yyyy') AS MonthLabel,
+            DATEPART(MONTH, DATEADD(MONTH, - (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), GETUTCDATE())) AS [Month],
+            DATEPART(YEAR, DATEADD(MONTH, - (ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1), GETUTCDATE())) AS [Year]
+        FROM sys.objects
+    ),
+    MonthlyStats AS (
+        SELECT 
+            DATEPART(MONTH, DueDate) as [Month],
+            DATEPART(YEAR, DueDate) as [Year],
+            SUM(GrossBilled) as TotalBilled,
+            SUM(TotalPaid) as TotalCollected
+        FROM #NetInvoiceStats
+        GROUP BY DATEPART(MONTH, DueDate), DATEPART(YEAR, DueDate)
+    )
+    SELECT 
+        m.MonthLabel as [Month],
+        ISNULL(ms.TotalBilled, 0) as BilledAmount,
+        ISNULL(ms.TotalCollected, 0) as CollectedAmount
+    FROM Months m
+    LEFT JOIN MonthlyStats ms ON m.[Month] = ms.[Month] AND m.[Year] = ms.[Year]
+    ORDER BY m.[Year] ASC, m.[Month] ASC;
+
+    -- 4. High Level Stats
+    SELECT 
+        (SELECT ISNULL(SUM(Amount), 0) FROM assoc.Payments WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Status IN ('Paid', 'Completed', 'Captured')) as TotalCollectedAllTime,
+        (SELECT ISNULL(SUM(NetDue), 0) FROM #NetInvoiceStats WHERE NetDue > 0) as TotalUnpaidPrincipal
+
+    DROP TABLE #NetInvoiceStats;
+END
