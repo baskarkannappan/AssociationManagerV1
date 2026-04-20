@@ -62,4 +62,25 @@ public class DashboardRepository : IDashboardRepository
         if (result == null) return (0, 0);
         return ((decimal)result.TotalAdvanceCredits, (int)result.UnitsWithCredit);
     }
+
+    public async Task<(decimal TotalRevenue, decimal NetOutstanding, decimal HeldAdvanceMoney, int UnitsWithCredit, int TotalMembers, int CommitteeCount, int PendingWorkOrders)> GetAdminSnapshotAsync(int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var row = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            "assoc.sp_Dashboard_GetAdminSnapshot",
+            new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+
+        if (row == null) return (0m, 0m, 0m, 0, 0, 0, 0);
+
+        return (
+            (decimal)(row.TotalRevenue ?? 0m),
+            (decimal)(row.NetOutstanding ?? 0m),
+            (decimal)(row.HeldAdvanceMoney ?? 0m),
+            (int)(row.UnitsWithCredit ?? 0),
+            (int)(row.TotalMembers ?? 0),
+            (int)(row.CommitteeMembers ?? 0),
+            (int)(row.PendingWorkOrders ?? 0)
+        );
+    }
 }

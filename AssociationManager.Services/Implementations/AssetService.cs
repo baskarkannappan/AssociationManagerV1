@@ -6,6 +6,8 @@ using AssociationManager.Shared.Models;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using AssociationManager.Realtime.Hubs;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -14,12 +16,18 @@ public class AssetService : IAssetService
     private readonly IAssetRepository _assetRepository;
     private readonly IOccupancyRepository _occupancyRepository;
     private readonly ITenantContext _tenantContext;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public AssetService(IAssetRepository assetRepository, IOccupancyRepository occupancyRepository, ITenantContext tenantContext)
+    public AssetService(
+        IAssetRepository assetRepository, 
+        IOccupancyRepository occupancyRepository, 
+        ITenantContext tenantContext,
+        IHubContext<NotificationHub> hubContext)
     {
         _assetRepository = assetRepository;
         _occupancyRepository = occupancyRepository;
         _tenantContext = tenantContext;
+        _hubContext = hubContext;
     }
 
     public async Task<Asset?> GetByIdAsync(int id)
@@ -32,45 +40,12 @@ public class AssetService : IAssetService
         return await _assetRepository.GetHierarchyAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
-    public async Task<IEnumerable<Asset>> GetHierarchyAsync(int? userId = null)
+    public async Task<IEnumerable<Asset>> GetHierarchyAsync(int? userId = null, int? parentId = null)
     {
-        var allAssets = (await _assetRepository.GetHierarchyAsync(_tenantContext.TenantId, _tenantContext.AssociationId)).ToList();
-        
-        // Filter if userId is provided (Resident Mode)
-        if (userId.HasValue)
-        {
-            var userOccupancies = await _occupancyRepository.GetByUserIdAsync(userId.Value, _tenantContext.TenantId, _tenantContext.AssociationId);
-            var userAssetIds = userOccupancies.Select(o => o.AssetId).ToHashSet();
-
-            // Find all ancestors of these assets so we can build the path
-            var accessibleAssetIds = new HashSet<int>();
-            foreach (var assetId in userAssetIds)
-            {
-                AddAssetAndAncestors(assetId, allAssets, accessibleAssetIds);
-            }
-
-            allAssets = allAssets.Where(a => accessibleAssetIds.Contains(a.AssetId)).ToList();
-        }
-
-        // Build hierarchy in memory
-        var lookup = allAssets.ToLookup(a => a.ParentId);
-        var rootAssets = lookup[null].ToList();
-
-        void AddChildren(Asset parent)
-        {
-            parent.Children = lookup[parent.AssetId].ToList();
-            foreach (var child in parent.Children)
-            {
-                AddChildren(child);
-            }
-        }
-
-        foreach (var root in rootAssets)
-        {
-            AddChildren(root);
-        }
-
-        return rootAssets;
+        // For 10M asset scaling, we transition from full memory-tree build to lazy-loading.
+        // We fetch only the requested slice (roots or children of a specific parent).
+        // Identity filtering is now handled in SQL (recursive) for maximum performance.
+        return await _assetRepository.GetHierarchyAsync(_tenantContext.TenantId, _tenantContext.AssociationId, parentId, userId);
     }
 
     private async Task AddAssetAndAncestors(int assetId, List<Asset> allAssets, HashSet<int> result)
@@ -109,51 +84,92 @@ public class AssetService : IAssetService
 
     public async Task<int> BulkCreateAsync(BulkCreateRequest request)
     {
-        int count = 0;
-        switch (request.TemplateType)
+        var assets = new List<Asset>();
+        // Templates that require custom hierarchical logic
+        if (request.TemplateType == AssetTemplateType.VillaCommunity)
         {
-            case AssetTemplateType.ResidentialBuilding:
-                count = await CreateResidentialBuilding(request);
-                break;
-            case AssetTemplateType.VillaCommunity:
-                count = await CreateBulkAssetsByType(request, AssetType.Villa, "Villa");
-                break;
-            case AssetTemplateType.BulkUnits:
-                count = await CreateBulkAssetsByType(request, AssetType.Unit, "Unit");
-                break;
-            case AssetTemplateType.Floors:
-                count = await CreateBulkAssetsByType(request, AssetType.Floor, "Floor");
-                break;
-            case AssetTemplateType.CommonAreas:
-                count = await CreateBulkAssetsByType(request, AssetType.CommonArea, "Common Area");
-                break;
-            case AssetTemplateType.Amenities:
-                count = await CreateBulkAssetsByType(request, AssetType.Amenity, "Amenity");
-                break;
-            case AssetTemplateType.SecurityGates:
-                count = await CreateBulkAssetsByType(request, AssetType.SecurityGate, "Security Gate");
-                break;
+            assets = await BuildVillaCommunityNodes(request);
         }
-        return count;
+        else if (request.TemplateType == AssetTemplateType.ResidentialBuilding)
+        {
+            assets = await BuildBuildingFloorRoomNodes(request);
+        }
+        else
+        {
+            assets = await BuildBulkNodes(request);
+        }
+
+        if (!assets.Any()) return 0;
+        return await _assetRepository.BulkCreateAsync(assets);
     }
 
-    private async Task<int> CreateResidentialBuilding(BulkCreateRequest request)
+    public async Task ProcessBulkCreateJobAsync(int tenantId, int associationId, int userId, BulkCreateRequest request)
     {
+        // Background job runs on a thread without HTTP context. 
+        // We must manually initialize the context to ensure the subsequent service calls use the correct IDs.
+        if (_tenantContext is BackgroundTenantContext bgContext)
+        {
+            bgContext.SetContext(tenantId, associationId, userId);
+        }
+
+        // Background job uses the request data already populated with Tenant/Association context
+        await BulkCreateAsync(request);
+        
+        // Notify all clients in the association that the hierarchy has changed
+        await _hubContext.Clients.Group($"Association_{associationId}")
+            .SendAsync("ReceiveNotification", "System", $"Bulk creation of {request.Quantity ?? (request.NumberOfFloors * request.UnitsPerFloor)} assets complete.");
+            
+        await _hubContext.Clients.Group($"Association_{associationId}")
+            .SendAsync("HierarchyChanged");
+    }
+
+    private async Task<List<Asset>> BuildVillaCommunityNodes(BulkCreateRequest request)
+    {
+        var result = new List<Asset>();
+        int units = request.Quantity ?? 1;
+        
+        var parentId = await ValidateParentIdAsync(request.ParentId);
+
+        for (int i = 1; i <= units; i++)
+        {
+            result.Add(new Asset
+            {
+                Name = $"{request.BaseName} {i}",
+                AssetType = AssetType.Villa,
+                ParentId = parentId,
+                TenantId = _tenantContext.TenantId,
+                AssociationId = _tenantContext.AssociationId,
+                CreatedBy = _tenantContext.UserId,
+                CreatedDate = System.DateTime.Now,
+                IsActive = true,
+                Description = "Auto-generated villa",
+                MetadataJson = SerializeMetadata(request)
+            });
+        }
+        return result;
+    }
+
+    private async Task<List<Asset>> BuildBuildingFloorRoomNodes(BulkCreateRequest request)
+    {
+        var result = new List<Asset>();
+        int floors = request.NumberOfFloors ?? 1;
+        int unitsPerFloor = request.UnitsPerFloor ?? 1;
+        
+        // Create Building Root
         var building = new Asset
         {
-            Name = request.BaseName,
+            Name = request.BaseName ?? "Building",
             AssetType = AssetType.Building,
-            Description = request.Description ?? "Auto-generated residential building",
-            ParentId = await ValidateParentIdAsync(request.ParentId), // Validate root parent
+            ParentId = await ValidateParentIdAsync(request.ParentId),
             TenantId = _tenantContext.TenantId,
             AssociationId = _tenantContext.AssociationId,
-            CreatedBy = _tenantContext.UserId
+            CreatedBy = _tenantContext.UserId,
+            CreatedDate = System.DateTime.Now,
+            IsActive = true,
+            Description = request.Description ?? "Auto-generated building"
         };
+        
         var buildingId = await _assetRepository.CreateAsync(building);
-        int totalCreated = 1;
-
-        int floors = request.NumberOfFloors ?? 0;
-        int unitsPerFloor = request.UnitsPerFloor ?? 0;
 
         for (int f = 1; f <= floors; f++)
         {
@@ -164,14 +180,16 @@ public class AssetService : IAssetService
                 ParentId = buildingId,
                 TenantId = _tenantContext.TenantId,
                 AssociationId = _tenantContext.AssociationId,
-                CreatedBy = _tenantContext.UserId
+                CreatedBy = _tenantContext.UserId,
+                CreatedDate = System.DateTime.Now,
+                IsActive = true
             };
+            
             var floorId = await _assetRepository.CreateAsync(floor);
-            totalCreated++;
 
             for (int u = 1; u <= unitsPerFloor; u++)
             {
-                var unit = new Asset
+                result.Add(new Asset
                 {
                     Name = $"Unit {f}{u:D2}",
                     AssetType = AssetType.Unit,
@@ -179,14 +197,14 @@ public class AssetService : IAssetService
                     TenantId = _tenantContext.TenantId,
                     AssociationId = _tenantContext.AssociationId,
                     CreatedBy = _tenantContext.UserId,
+                    CreatedDate = System.DateTime.Now,
+                    IsActive = true,
                     Description = "Auto-generated unit",
                     MetadataJson = SerializeMetadata(request)
-                };
-                await _assetRepository.CreateAsync(unit);
-                totalCreated++;
+                });
             }
         }
-        return totalCreated;
+        return result;
     }
 
     private string? SerializeMetadata(BulkCreateRequest request)
@@ -202,29 +220,41 @@ public class AssetService : IAssetService
         return System.Text.Json.JsonSerializer.Serialize(metadata);
     }
 
-    private async Task<int> CreateBulkAssetsByType(BulkCreateRequest request, AssetType type, string defaultNamePrefix)
+    private async Task<List<Asset>> BuildBulkNodes(BulkCreateRequest request)
     {
+        var result = new List<Asset>();
         int quantity = request.Quantity ?? 0;
-        int totalCreated = 0;
         string? metadataJson = SerializeMetadata(request);
+        AssetType type = request.TemplateType switch
+        {
+            AssetTemplateType.VillaCommunity => AssetType.Villa,
+            AssetTemplateType.BulkUnits => AssetType.Unit,
+            AssetTemplateType.Floors => AssetType.Floor,
+            AssetTemplateType.CommonAreas => AssetType.CommonArea,
+            AssetTemplateType.Amenities => AssetType.Amenity,
+            AssetTemplateType.SecurityGates => AssetType.SecurityGate,
+            _ => AssetType.Unit
+        };
+
+        var parentId = await ValidateParentIdAsync(request.ParentId);
 
         for (int i = 1; i <= quantity; i++)
         {
-            var asset = new Asset
+            result.Add(new Asset
             {
-                Name = $"{request.BaseName} {defaultNamePrefix} {i}",
+                Name = $"{request.BaseName} {i}",
                 AssetType = type,
-                ParentId = await ValidateParentIdAsync(request.ParentId), // Validate bulk parent
-                Description = request.Description ?? $"Auto-generated {defaultNamePrefix}",
+                ParentId = parentId,
+                Description = request.Description ?? "Auto-generated asset",
                 MetadataJson = metadataJson,
                 TenantId = _tenantContext.TenantId,
                 AssociationId = _tenantContext.AssociationId,
-                CreatedBy = _tenantContext.UserId
-            };
-            await _assetRepository.CreateAsync(asset);
-            totalCreated++;
+                CreatedBy = _tenantContext.UserId,
+                CreatedDate = System.DateTime.Now,
+                IsActive = true
+            });
         }
-        return totalCreated;
+        return result;
     }
 
     public async Task<bool> UpdateAsync(Asset asset)

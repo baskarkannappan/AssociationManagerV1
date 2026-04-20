@@ -6,6 +6,7 @@ namespace AssociationManager.Shared.Models;
 public class AssociationDashboardMetrics
 {
     public int TotalMembers { get; set; }
+    public int CommitteeCount { get; set; }
     public decimal TotalRevenueCollected { get; set; }
     public decimal TotalOutstanding { get; set; }
     public decimal TotalAdvanceCredits { get; set; }
