@@ -1,7 +1,15 @@
-﻿CREATE   PROCEDURE assoc.sp_BillingBatches_GetByAssociation 
+CREATE   PROCEDURE assoc.sp_BillingBatches_GetByAssociation 
     @AssociationId INT, 
     @TenantId INT 
 AS 
 BEGIN 
-    SELECT * FROM assoc.BillingBatches WHERE AssociationId = @AssociationId AND TenantId = @TenantId ORDER BY CreatedDate DESC; 
+    SELECT b.*,
+           CAST(CASE WHEN EXISTS (
+               SELECT 1 FROM assoc.Invoices i 
+               WHERE i.BillingBatchId = b.BillingBatchId 
+                 AND i.Status = 'Draft'
+           ) THEN 1 ELSE 0 END AS BIT) AS HasDraftInvoices
+    FROM assoc.BillingBatches b 
+    WHERE AssociationId = @AssociationId AND TenantId = @TenantId 
+    ORDER BY CreatedDate DESC; 
 END

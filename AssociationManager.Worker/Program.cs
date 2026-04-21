@@ -12,6 +12,9 @@ using Microsoft.Extensions.Hosting;
 var builder = Host.CreateApplicationBuilder(args);
 
 // Data Access
+builder.Services.AddMemoryCache();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSignalR();
 builder.Services.AddScoped<DbConnectionFactory>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
@@ -50,6 +53,7 @@ builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<AssociationManager.Services.Jobs.EmailDispatchJob>();
+builder.Services.AddScoped<AssociationManager.Worker.Jobs.BalanceSyncJob>();
 
 // Billing Strategies
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
@@ -95,6 +99,12 @@ using (var scope = host.Services.CreateScope())
         "automated-email-dispatch",
         job => job.ProcessPendingEmailsAsync(),
         "30 0,10,12,18 * * *");
+
+    // Hourly Enterprise Balance Synchronization
+    recurringJobManager.AddOrUpdate<AssociationManager.Worker.Jobs.BalanceSyncJob>(
+        "enterprise-balance-sync",
+        job => job.ProcessAllAssociationsAsync(),
+        Cron.Hourly());
 }
 
 host.Run();

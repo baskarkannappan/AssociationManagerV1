@@ -56,15 +56,15 @@ if ($migrationOutput -match "DRIFT_DETECTED" -or $migrationOutput -match "WARNIN
 Write-Host "--- Starting Services ---" -ForegroundColor Cyan
 
 # 1. API (Hosts Data, Logic + SignalR Hubs)
-Write-Host "[1/5] Starting Association API (Port 5001)..."
+Write-Host "[1/6] Starting Association API (Port 5001)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Api\AssociationManager.Api.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 2. Corporate API
-Write-Host "[2/5] Starting Corporate API (Port 7010)..."
+Write-Host "[2/6] Starting Corporate API (Port 7010)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Corporate.Api\AssociationManager.Corporate.Api.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
-# 4. Gateway
-Write-Host "[3/5] Starting API Gateway (Port 7000)..."
+# 3. Gateway
+Write-Host "[3/6] Starting API Gateway (Port 7000)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Gateway\AssociationManager.Gateway.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 5. Association Client

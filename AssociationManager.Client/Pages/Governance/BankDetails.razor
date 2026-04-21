@@ -22,6 +22,8 @@
     else
     {
         <EditForm Model="_bankDetails" OnValidSubmit="HandleSaveBankDetails">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger small mb-3" />
             <div class="row g-4">
                 <!-- Primary Account Card -->
                 <div class="col-lg-6">
@@ -33,24 +35,29 @@
                         <CardBody Class="p-4">
                             <div class="row g-3">
                                 <div class="col-12">
-                                    <label class="form-label small fw-bold text-muted">Account Name</label>
+                                    <label class="form-label small fw-bold text-muted">Account Name <span class="text-danger">*</span></label>
                                     <InputText class="form-control" @bind-Value="_bankDetails.PrimaryAccountName" readonly="@(_isReadOnly)" placeholder="e.g. My Association Resident Fund" />
+                                    <ValidationMessage For="@(() => _bankDetails.PrimaryAccountName)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-muted">Account Number</label>
+                                    <label class="form-label small fw-bold text-muted">Account Number <span class="text-danger">*</span></label>
                                     <InputText class="form-control" @bind-Value="_bankDetails.PrimaryAccountNumber" readonly="@(_isReadOnly)" placeholder="Enter Number" />
+                                    <ValidationMessage For="@(() => _bankDetails.PrimaryAccountNumber)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-muted">IFSC Code</label>
+                                    <label class="form-label small fw-bold text-muted">IFSC Code <span class="text-danger">*</span></label>
                                     <InputText class="form-control" @bind-Value="_bankDetails.PrimaryIFSCCode" readonly="@(_isReadOnly)" placeholder="Enter IFSC" />
+                                    <ValidationMessage For="@(() => _bankDetails.PrimaryIFSCCode)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-muted">Bank Name</label>
+                                    <label class="form-label small fw-bold text-muted">Bank Name <span class="text-danger">*</span></label>
                                     <InputText class="form-control" @bind-Value="_bankDetails.PrimaryBankName" readonly="@(_isReadOnly)" placeholder="e.g. HDFC Bank" />
+                                    <ValidationMessage For="@(() => _bankDetails.PrimaryBankName)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-muted">Branch Name</label>
+                                    <label class="form-label small fw-bold text-muted">Branch Name <span class="text-danger">*</span></label>
                                     <InputText class="form-control" @bind-Value="_bankDetails.PrimaryBranchName" readonly="@(_isReadOnly)" placeholder="Branch Name" />
+                                    <ValidationMessage For="@(() => _bankDetails.PrimaryBranchName)" class="text-danger small" />
                                 </div>
                                 
                                 <div class="col-12 mt-4">

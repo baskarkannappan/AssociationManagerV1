@@ -18,10 +18,12 @@ public interface IInvoiceRepository
     // Line Items
     Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId);
     Task<int> CreateLineItemAsync(InvoiceLineItem lineItem);
+    Task<bool> CreateBulkAsync(int tenantId, int associationId, IEnumerable<Invoice> invoices, IEnumerable<InvoiceLineItem> lineItems);
 
     // Automation
     Task<IEnumerable<Invoice>> GetUnpaidOverdueInvoicesAsync();
     Task<IEnumerable<Invoice>> GetByBatchIdAsync(int batchId, int tenantId);
+    Task<IEnumerable<int>> GetInvoicedAssetIdsByPeriodAsync(int tenantId, int associationId, string periodPattern);
     
     // Management
     Task<bool> UpdateAsync(Invoice invoice);

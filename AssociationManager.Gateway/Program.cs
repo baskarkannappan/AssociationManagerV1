@@ -44,6 +44,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors("DefaultPolicy");
+app.UseWebSockets();
 app.UseRateLimiter();
 app.MapReverseProxy();
 

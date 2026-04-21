@@ -121,12 +121,7 @@ builder.Services.AddHangfire(configuration => configuration
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
-/*
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetSection("Redis:Configuration").Value;
-});
-*/
+builder.Services.AddMemoryCache();
 
 // Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>() 

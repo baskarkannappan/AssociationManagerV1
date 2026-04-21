@@ -169,7 +169,7 @@
     {
         try
         {
-            await Api.PostAsync<object, object>("api/communication/logs/" + id + "/cancel", null);
+            await Api.PostAsync<object, object>("api/communication/logs/" + id + "/cancel", new { });
             Toasts.Notify(new(ToastType.Success, "Email cancelled and archived."));
             await LoadLogs();
         }
@@ -183,7 +183,7 @@
     {
         try
         {
-            await Api.PostAsync<object, object>("api/communication/logs/" + id + "/resend", null);
+            await Api.PostAsync<object, object>("api/communication/logs/" + id + "/resend", new { });
             Toasts.Notify(new(ToastType.Success, "Email marked for resend."));
             await LoadLogs();
         }
@@ -197,7 +197,7 @@
     {
         try
         {
-            await Api.PostAsync<object, object>("api/communication/logs/process", null);
+            await Api.PostAsync<object, object>("api/communication/logs/process", new { });
             Toasts.Notify(new(ToastType.Success, "Background processing triggered. Emails will be sent shortly."));
             await Task.Delay(2000); // Give it a moment to start
             await LoadLogs();

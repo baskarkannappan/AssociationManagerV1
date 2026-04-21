@@ -7,8 +7,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 using System.Net.Http;
+using Hangfire;
 
 namespace AssociationManager.Services.Billing;
 
@@ -24,6 +27,9 @@ public class BillingBatchService
     private readonly ITenantContext _tenantContext;
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDistributedCache _cache;
+    private readonly IInvoiceRepository _invoiceRepository;
+    private readonly IAuditLogRepository _auditLogRepository;
 
     public BillingBatchService(
         IAssetRepository assetRepository,
@@ -35,7 +41,10 @@ public class BillingBatchService
         ITenantContext tenantContext,
         IEnumerable<IBillingStrategy> strategies,
         IConfiguration config,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        IDistributedCache cache,
+        IInvoiceRepository invoiceRepository,
+        IAuditLogRepository auditLogRepository)
     {
         _assetRepository = assetRepository;
         _tariffRepository = tariffRepository;
@@ -47,13 +56,16 @@ public class BillingBatchService
         _strategies = strategies;
         _config = config;
         _httpClientFactory = httpClientFactory;
+        _cache = cache;
+        _invoiceRepository = invoiceRepository;
+        _auditLogRepository = auditLogRepository;
     }
 
     /// <summary>
     /// Entry point for Hangfire background jobs.
     /// Safely sets the tenant context before executing the batch.
     /// </summary>
-    public async Task ExecuteBatchJobAsync(InvoiceBatchRequest request, int tenantId)
+    public async Task ExecuteBatchJobAsync(InvoiceBatchRequest request, int tenantId, string jobId)
     {
         // Set context if we are in a background execution environment
         if (_tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
@@ -61,15 +73,34 @@ public class BillingBatchService
             bgContext.SetContext(tenantId, request.AssociationId);
         }
 
-        await ProcessBatchAsync(request, tenantId);
+        var result = await ProcessBatchAsync(request, tenantId, jobId);
+        
+        // Store result in cache for the UI to fetch
+        // Store result in cache for the UI to fetch
+        if (request.DryRun)
+        {
+            try {
+                var json = JsonSerializer.Serialize(result);
+                var tempPath = Path.Combine(Path.GetTempPath(), $"batch_preview_{jobId}.json");
+                await File.WriteAllTextAsync(tempPath, json);
+                Console.WriteLine($"[Diagnostic] Preview saved to Shared File Cache: {tempPath}");
+            } catch (Exception ex) {
+                Console.WriteLine($"[Diagnostic] Failed to save shared cache file: {ex.Message}");
+            }
+        }
+
+        // Notify client via SignalR that job is complete
+        await NotifyCompletionAsync(request, tenantId, jobId, request.DryRun ? "PREVIEW_READY" : "BATCH_READY");
     }
 
-    public async Task<InvoiceBatchResult> ProcessBatchAsync(InvoiceBatchRequest request, int tenantId)
+    public async Task<InvoiceBatchResult> ProcessBatchAsync(InvoiceBatchRequest request, int tenantId, string jobId = "N/A")
     {
         var result = new InvoiceBatchResult();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         
         // 0. Verify Association Status
         var association = await _associationRepository.GetByIdAsync(request.AssociationId, tenantId);
+        Console.WriteLine($"[Perf] Step 0 - Verify Association: {sw.ElapsedMilliseconds}ms");
         if (association == null || association.Status != "Active")
         {
             result.Message = association == null 
@@ -80,13 +111,12 @@ public class BillingBatchService
         }
 
         // 1. Fetch Assets
-        var assets = (await _assetRepository.GetHierarchyAsync(tenantId, request.AssociationId)).ToList();
-        // Include more asset types that might be billable
-        var billableTypes = new[] { AssetType.Unit, AssetType.Villa, AssetType.Property, AssetType.Block, AssetType.Tower };
-        var allAssets = Flatten(assets).Where(a => billableTypes.Contains(a.AssetType)).ToList();
-        result.TotalAssets = allAssets.Count;
-
+        sw.Restart();
+        var allAssetsFlat = (await _assetRepository.GetAllFlatAsync(tenantId, request.AssociationId)).ToList();
+        Console.WriteLine($"[Perf] Step 1 - Fetch {allAssetsFlat.Count} Assets: {sw.ElapsedMilliseconds}ms");
+        
         // 2. Fetch all Tariffs and Assignments
+        sw.Restart();
         var groups = await _tariffRepository.GetGroupsByTenantIdAsync(tenantId, request.AssociationId);
         var allLayers = new List<TariffLayer>();
         foreach (var group in groups)
@@ -94,21 +124,44 @@ public class BillingBatchService
             var layers = await _tariffRepository.GetLayersByGroupIdAsync(group.TariffGroupId);
             allLayers.AddRange(layers);
         }
+        Console.WriteLine($"[Perf] Step 2a - Fetch Tariff Groups/Layers ({allLayers.Count} layers): {sw.ElapsedMilliseconds}ms");
+        
+        sw.Restart();
         var assignments = (await _tariffRepository.GetActiveTariffsByTenantIdAsync(tenantId)).ToList();
+        Console.WriteLine($"[Perf] Step 2b - Fetch {assignments.Count} Assignments: {sw.ElapsedMilliseconds}ms");
 
-        // 3. Fetch existing invoices for this period to avoid duplicates
-        var existingInvoices = (await _financeService.GetAllInvoicesAsync(request.AssociationId))
-            .Where(i => i.CreatedDate.Month == request.Month && i.CreatedDate.Year == request.Year && i.Title.Contains("Monthly Maintenance"))
-            .ToList();
+        // Build lookup dictionaries for O(1) access
+        sw.Restart();
+        var assignmentsByAssetId = assignments
+            .Where(a => a.IsActive)
+            .GroupBy(a => a.AssetId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        
+        var layerLookup = allLayers.ToDictionary(l => l.TariffLayerId);
 
+        var allAssets = allAssetsFlat.Where(a => assignmentsByAssetId.ContainsKey(a.AssetId)).ToList();
+        result.TotalAssets = allAssets.Count;
+        Console.WriteLine($"[Perf] Step 2c - Build Lookups & Filter ({allAssets.Count} billable): {sw.ElapsedMilliseconds}ms");
+
+        // 3. Duplicate Prevention - Lightweight stored procedure call (avoids N+1 line item loading)
+        sw.Restart();
         var periodName = new DateTime(request.Year, request.Month, 1).ToString("MMMM yyyy");
+        var periodPattern = $"%Monthly Maintenance - {periodName}%";
+        
+        var existingAssetIds = await _invoiceRepository.GetInvoicedAssetIdsByPeriodAsync(tenantId, request.AssociationId, periodPattern);
+        var invoicedAssetIds = new HashSet<int>(existingAssetIds);
+        bool hasExistingInvoices = invoicedAssetIds.Count > 0;
+        Console.WriteLine($"[Perf] Step 3 - Duplicate Check ({invoicedAssetIds.Count} existing): {sw.ElapsedMilliseconds}ms");
+        sw.Restart();
 
-        if (existingInvoices.Any())
+        if (hasExistingInvoices)
         {
             result.IsLocked = true;
+            result.Message = $"Billing period {periodName} is already locked.";
+            
             if (!request.DryRun)
             {
-                result.Message = $"Billing period {periodName} is already locked. Any adjustments should be handled in the next cycle.";
+                result.Message += " Any adjustments should be handled in the next cycle.";
                 return result;
             }
         }
@@ -116,81 +169,102 @@ public class BillingBatchService
         int? batchId = null;
         if (!request.DryRun)
         {
-            var batch = new BillingBatch
+            // Idempotency: Check if a "Draft" batch already exists for this period to prevent duplicates on retries
+            var existingBatch = await _billingBatchRepository.GetDraftBatchAsync(request.AssociationId, request.Month, request.Year, tenantId);
+            
+            if (existingBatch != null)
             {
-                TenantId = tenantId,
-                AssociationId = request.AssociationId,
-                Month = request.Month,
-                Year = request.Year,
-                Status = "Draft",
-                TotalAmount = 0,
-                InvoicesGenerated = 0,
-                CreatedDate = DateTime.UtcNow
-            };
-            batchId = await _billingBatchRepository.CreateAsync(batch);
+                batchId = existingBatch.BillingBatchId;
+                Console.WriteLine($"[Idempotency] Reusing existing Draft Batch ID: {batchId}");
+                
+                // Reset totals for the retry
+                await _billingBatchRepository.UpdateTotalsAsync(batchId.Value, 0, 0, tenantId, request.AssociationId);
+            }
+            else
+            {
+                var batch = new BillingBatch
+                {
+                    TenantId = tenantId,
+                    AssociationId = request.AssociationId,
+                    Month = request.Month,
+                    Year = request.Year,
+                    Status = "Draft",
+                    TotalAmount = 0,
+                    InvoicesGenerated = 0,
+                    CreatedDate = DateTime.UtcNow
+                };
+                batchId = await _billingBatchRepository.CreateAsync(batch);
+                Console.WriteLine($"[Idempotency] Created NEW Batch ID: {batchId}");
+            }
         }
 
-        foreach (var asset in allAssets)
+        try
         {
-            // Skip if already invoiced for this period
-            if (existingInvoices.Any(i => i.AssetId == asset.AssetId)) continue;
+            var invoicesToCreate = new List<Invoice>();
+            var lineItemsToCreate = new List<InvoiceLineItem>();
+            var logsToCreate = new List<AuditLog>();
+            var assetsProcessedInChunk = 0;
+            const int chunkSize = 100; // Updated every 100 assets for performance and feedback
 
-            var assetAssignments = assignments.Where(a => a.AssetId == asset.AssetId && a.IsActive).ToList();
-            if (!assetAssignments.Any()) continue;
-
-            decimal totalAmount = 0;
-            var lineItems = new List<InvoiceLineItem>();
-            bool hasZeroAmountCharge = false;
-
-            foreach (var aa in assetAssignments)
+            foreach (var asset in allAssets)
             {
-                var layer = allLayers.FirstOrDefault(l => l.TariffLayerId == aa.TariffLayerId);
-                if (layer == null) continue;
+                // Skip if already invoiced for this period (O(1) lookup)
+                if (invoicedAssetIds.Contains(asset.AssetId)) continue;
 
-                var strategy = _strategies.FirstOrDefault(s => s.SupportedType == layer.CalculationType);
-                if (strategy != null)
+                // Get assignments for this asset (O(1) lookup)
+                if (!assignmentsByAssetId.TryGetValue(asset.AssetId, out var assetAssignments) || !assetAssignments.Any()) continue;
+
+                decimal assetTotalAmount = 0;
+                var assetLineItems = new List<InvoiceLineItem>();
+                bool hasZeroAmountCharge = false;
+                var tempInvoiceId = Guid.NewGuid().ToString();
+
+                foreach (var aa in assetAssignments)
                 {
-                    var amount = strategy.Calculate(asset, layer, aa);
-                    
-                    var lineItem = new InvoiceLineItem
-                    {
-                        ChargeName = layer.Name,
-                        Amount = amount,
-                        Description = $"{layer.Name} calculation using {layer.CalculationType}",
-                        TariffLayerId = layer.TariffLayerId,
-                        Rate = layer.BaseRate // Point-in-time snapshot
-                    };
+                    if (!layerLookup.TryGetValue(aa.TariffLayerId, out var layer)) continue;
 
-                    if (amount == 0 && layer.CalculationType == CalculationType.AreaBased)
+                    var strategy = _strategies.FirstOrDefault(s => s.SupportedType == layer.CalculationType);
+                    if (strategy != null)
                     {
-                        hasZeroAmountCharge = true;
-                        lineItem.Description += " (Missing Area Metadata)";
+                        var amount = strategy.Calculate(asset, layer, aa);
+                        
+                        var lineItem = new InvoiceLineItem
+                        {
+                            ChargeName = layer.Name,
+                            Amount = amount,
+                            Description = $"{layer.Name} calculation using {layer.CalculationType}",
+                            TariffLayerId = layer.TariffLayerId,
+                            Rate = layer.BaseRate,
+                            TempId = tempInvoiceId
+                        };
+
+                        if (amount == 0 && layer.CalculationType == CalculationType.AreaBased)
+                        {
+                            hasZeroAmountCharge = true;
+                            lineItem.Description += " (Missing Area Metadata)";
+                        }
+                        else
+                        {
+                            assetTotalAmount += amount;
+                        }
+                        
+                        assetLineItems.Add(lineItem);
                     }
-                    else
-                    {
-                        totalAmount += amount;
-                    }
-                    
-                    lineItems.Add(lineItem);
                 }
-            }
 
-            try
-            {
-                // Show in preview even if total is 0 IF it has assignments (to help user debug)
-                if (totalAmount > 0 || hasZeroAmountCharge)
+                if (assetTotalAmount > 0 || hasZeroAmountCharge)
                 {
-                    var invoiceDescription = string.Join(" | ", lineItems.Select(l => $"{l.ChargeName}: ₹{l.Amount}"));
+                    var invoiceDescription = string.Join(" | ", assetLineItems.Select(l => $"{l.ChargeName}: ₹{l.Amount}"));
                     
                     result.Previews.Add(new InvoicePreviewItem
                     {
                         AssetId = asset.AssetId,
                         AssetName = asset.Name,
-                        Amount = totalAmount,
+                        Amount = assetTotalAmount,
                         Description = invoiceDescription
                     });
 
-                    if (!request.DryRun && totalAmount > 0)
+                    if (!request.DryRun && assetTotalAmount > 0)
                     {
                         var invoice = new Invoice
                         {
@@ -200,73 +274,109 @@ public class BillingBatchService
                             BillingBatchId = batchId,
                             Title = $"Monthly Maintenance - {periodName}",
                             Description = invoiceDescription,
-                            Amount = totalAmount,
+                            Amount = assetTotalAmount,
                             DueDate = request.DueDate,
                             Status = "Draft",
-                            CreatedDate = DateTime.UtcNow
+                            CreatedDate = DateTime.UtcNow,
+                            TempId = tempInvoiceId
                         };
-                        
-                        // Persist Invoice and Line Items through FinanceService to ensure Ledger integrity
-                        var invoiceId = await _financeService.CreateInvoiceAsync(invoice, lineItems);
-                        
-                        foreach (var line in lineItems)
+
+                        invoicesToCreate.Add(invoice);
+                        lineItemsToCreate.AddRange(assetLineItems);
+
+                        foreach (var line in assetLineItems)
                         {
-                            // Introspection Log
-                            await _auditService.LogAsync(
-                                action: $"Billed {line.ChargeName}: ₹{line.Amount} (Rate: ₹{line.Rate}, Logic: {line.Description})",
-                                entity: "Billing",
-                                entityId: invoiceId,
-                                associationId: request.AssociationId,
-                                assetId: asset.AssetId
-                            );
+                            logsToCreate.Add(new AuditLog
+                            {
+                                Action = $"Billed {line.ChargeName}: ₹{line.Amount} (Rate: ₹{line.Rate}, Logic: {line.Description})",
+                                Entity = "Billing",
+                                EntityId = 0, // Will be 0 in bulk insert but linked via InvoiceId mapping in SP
+                                AssociationId = request.AssociationId,
+                                AssetId = asset.AssetId,
+                                TenantId = tenantId,
+                                Timestamp = DateTime.UtcNow
+                            });
                         }
 
-                        // Deactivate One-Time Charges
+                        // Handle One-Time Charges (Bulk update for these might be needed if common, but keeping sequential for now unless it's the bottleneck)
                         foreach (var aa in assetAssignments)
                         {
                             if (!aa.IsRecurring)
                             {
                                 aa.IsActive = false;
                                 await _tariffRepository.UpsertAssetTariffAsync(aa);
-                                
-                                await _auditService.LogAsync(
-                                    action: $"Deactivated One-Time Charge: {aa.TariffLayerId}",
-                                    entity: "AssetTariff",
-                                    entityId: aa.AssetId,
-                                    associationId: request.AssociationId,
-                                    assetId: asset.AssetId
-                                );
+                                logsToCreate.Add(new AuditLog
+                                {
+                                    Action = $"Deactivated One-Time Charge: {aa.TariffLayerId}",
+                                    Entity = "AssetTariff",
+                                    EntityId = aa.AssetId,
+                                    AssociationId = request.AssociationId,
+                                    AssetId = asset.AssetId,
+                                    TenantId = tenantId,
+                                    Timestamp = DateTime.UtcNow
+                                });
                             }
                         }
-                        
+
                         result.InvoicesGenerated++;
+                        result.TotalAmount += assetTotalAmount;
                     }
 
-                    result.TotalAmount += totalAmount;
+                    assetsProcessedInChunk++;
+
+                    // Flush Chunk
+                    if (!request.DryRun && assetsProcessedInChunk >= chunkSize)
+                    {
+                        await _invoiceRepository.CreateBulkAsync(tenantId, request.AssociationId, invoicesToCreate, lineItemsToCreate);
+                        await _auditLogRepository.CreateBulkAsync(tenantId, request.AssociationId, _tenantContext.UserId, logsToCreate);
+                        
+                        // Periodic Progress Update to UI
+                        if (batchId.HasValue)
+                        {
+                            await _billingBatchRepository.UpdateTotalsAsync(batchId.Value, result.TotalAmount, result.InvoicesGenerated, tenantId, request.AssociationId);
+                        }
+
+                        invoicesToCreate.Clear();
+                        lineItemsToCreate.Clear();
+                        logsToCreate.Clear();
+                        assetsProcessedInChunk = 0;
+                        Console.WriteLine($"[Perf] Flushed chunk of {chunkSize} assets. Total generated: {result.InvoicesGenerated}");
+                    }
                 }
             }
-            catch (Exception ex)
+
+            // Final Flush
+            if (!request.DryRun && invoicesToCreate.Any())
             {
-                // Log failure for this asset and continue
-                await _auditService.LogAsync(
-                    action: $"Batch Generation Failed for Asset {asset.Name}: {ex.Message}",
-                    entity: "BillingBatch",
-                    entityId: batchId,
-                    associationId: request.AssociationId,
-                    assetId: asset.AssetId
-                );
+                await _invoiceRepository.CreateBulkAsync(tenantId, request.AssociationId, invoicesToCreate, lineItemsToCreate);
+                await _auditLogRepository.CreateBulkAsync(tenantId, request.AssociationId, _tenantContext.UserId, logsToCreate);
+                
+                if (batchId.HasValue)
+                {
+                    await _billingBatchRepository.UpdateTotalsAsync(batchId.Value, result.TotalAmount, result.InvoicesGenerated, tenantId, request.AssociationId);
+                }
+                Console.WriteLine($"[Perf] Flushed final chunk. Total generated: {result.InvoicesGenerated}");
             }
         }
-
-        if (!request.DryRun)
+        catch (Exception ex)
         {
-            await NotifyCompletionAsync(request, tenantId);
+            Console.WriteLine($"[Critical] Batch Generation Loop Failed: {ex.Message}");
+            await _auditService.LogAsync($"Critical Batch Failure: {ex.Message}", "BillingBatch", batchId);
+            throw; // Let Hangfire handle retry/failure state
+        }
+        finally
+        {
+            Console.WriteLine($"[Perf] Step 4 - Process {allAssets.Count} Assets Loop: {sw.ElapsedMilliseconds}ms (Generated {result.InvoicesGenerated} invoices, {result.Previews.Count} previews)");
+            if (!request.DryRun)
+            {
+                await NotifyCompletionAsync(request, tenantId, jobId, "BATCH_READY");
+            }
         }
 
         return result;
     }
 
-    private async Task NotifyCompletionAsync(InvoiceBatchRequest request, int tenantId)
+    private async Task NotifyCompletionAsync(InvoiceBatchRequest request, int tenantId, string jobId, string status)
     {
         try
         {
@@ -275,12 +385,15 @@ public class BillingBatchService
 
             var client = _httpClientFactory.CreateClient();
             var period = $"{request.Month}-{request.Year}";
-            var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={request.AssociationId}&period={period}";
+            var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={request.AssociationId}&period={period}&jobId={jobId}&status={status}";
             
-            await client.PostAsync(url, null);
+            Console.WriteLine($"[Diagnostic] Notifying UI/Gateway: {url}");
+            var response = await client.PostAsync(url, null);
+            Console.WriteLine($"[Diagnostic] Notification Result: {response.StatusCode}");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[Diagnostic] Notification Exception: {ex.Message}");
             // Log notify failure but don't fail the entire batch job
             await _auditService.LogAsync($"Failed to notify UI of batch completion: {ex.Message}", "System", 0);
         }
@@ -291,16 +404,4 @@ public class BillingBatchService
         return await _billingBatchRepository.GetByAssociationAsync(associationId, tenantId);
     }
 
-    private IEnumerable<Asset> Flatten(IEnumerable<Asset> assets)
-    {
-        foreach (var asset in assets)
-        {
-            yield return asset;
-            if (asset.Children != null)
-            {
-                foreach (var child in Flatten(asset.Children))
-                    yield return child;
-            }
-        }
-    }
 }

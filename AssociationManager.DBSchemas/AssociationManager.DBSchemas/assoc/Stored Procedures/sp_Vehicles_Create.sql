@@ -1,2 +1,7 @@
-﻿CREATE   PROCEDURE assoc.sp_Vehicles_Create @AssetId INT, @TenantId INT, @AssociationId INT, @Make NVARCHAR(100), @Model NVARCHAR(100), @LicensePlate NVARCHAR(50), @Color NVARCHAR(50), @ParkingSlot NVARCHAR(100), @IsActive BIT AS 
-BEGIN INSERT INTO assoc.Vehicles (AssetId, TenantId, AssociationId, Make, Model, LicensePlate, Color, ParkingSlot, IsActive) OUTPUT INSERTED.VehicleId VALUES (@AssetId, @TenantId, @AssociationId, @Make, @Model, @LicensePlate, @Color, @ParkingSlot, @IsActive); END
+CREATE   PROCEDURE assoc.sp_Vehicles_Create @AssetId INT, @TenantId INT, @AssociationId INT, @Make NVARCHAR(100), @Model NVARCHAR(100), @LicensePlate NVARCHAR(50), @Color NVARCHAR(50), @ParkingSlot NVARCHAR(100), @IsActive BIT AS 
+BEGIN 
+    INSERT INTO assoc.Vehicles (AssetId, TenantId, AssociationId, Make, Model, LicensePlate, Color, ParkingSlot, IsActive) 
+    VALUES (@AssetId, @TenantId, @AssociationId, @Make, @Model, @LicensePlate, @Color, @ParkingSlot, @IsActive); 
+
+    SELECT SCOPE_IDENTITY();
+END

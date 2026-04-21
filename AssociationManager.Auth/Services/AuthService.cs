@@ -189,12 +189,13 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("Refreshing token for {Email}", email);
 
-        var cacheKey = $"refreshToken:{email.ToLowerInvariant()}";
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var cacheKey = $"refreshToken:{normalizedEmail}";
         var savedRefreshToken = await _cache.GetStringAsync(cacheKey);
         
         if (string.IsNullOrEmpty(savedRefreshToken))
         {
-            _logger.LogWarning("No refresh token found in cache for {Email}", email);
+            _logger.LogWarning("No refresh token found in cache for {Email} (Key: {CacheKey})", email, cacheKey);
             return new AuthResponse { Success = false, Message = "Session expired. Please login again." };
         }
 
@@ -245,7 +246,8 @@ public class AuthService : IAuthService
         var refreshToken = GenerateRefreshToken();
 
         // Store refresh token in Redis with expiry
-        await _cache.SetStringAsync($"refreshToken:{user.Email.ToLowerInvariant()}", refreshToken, new DistributedCacheEntryOptions
+        var cacheKey = $"refreshToken:{user.Email.Trim().ToLowerInvariant()}";
+        await _cache.SetStringAsync(cacheKey, refreshToken, new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(_jwtSettings.RefreshExpiryInDays)
         });

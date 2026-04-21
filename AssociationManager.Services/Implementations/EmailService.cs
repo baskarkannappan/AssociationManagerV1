@@ -30,15 +30,15 @@ public class EmailService : IEmailService
             var fromEmail = _configuration["Smtp:FromEmail"] ?? username;
             var fromName = _configuration["Smtp:FromName"] ?? "Association Manager";
 
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(toEmail))
             {
-                _logger.LogError("SMTP credentials not configured.");
+                _logger.LogError("SMTP credentials not configured or recipient address missing.");
                 return false;
             }
 
             var message = new MimeMessage();
-            message.From.Add(new MailboxAddress(fromName, fromEmail));
-            message.To.Add(new MailboxAddress(toName, toEmail));
+            message.From.Add(new MailboxAddress(fromName, fromEmail ?? username));
+            message.To.Add(new MailboxAddress(toName ?? toEmail, toEmail));
             message.Subject = subject;
 
             var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };

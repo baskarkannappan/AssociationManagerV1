@@ -96,6 +96,7 @@ builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClie
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddMemoryCache();
 
 // Authentication
 var jwtSettingsData = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();

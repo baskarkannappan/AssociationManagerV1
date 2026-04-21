@@ -1,4 +1,4 @@
-﻿CREATE TABLE [assoc].[Payments] (
+CREATE TABLE [assoc].[Payments] (
     [PaymentId]        INT             IDENTITY (1, 1) NOT NULL,
     [TenantId]         INT             NOT NULL,
     [UserId]           INT             NOT NULL,
@@ -22,4 +22,22 @@
 GO
 CREATE NONCLUSTERED INDEX [IX_Payments_AssociationId]
     ON [assoc].[Payments]([AssociationId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Payments_TenantId]
+    ON [assoc].[Payments]([TenantId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Payments_Status]
+    ON [assoc].[Payments]([Status] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Payments_AssetId]
+    ON [assoc].[Payments]([AssetId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Payments_Association_Status_Date]
+    ON [assoc].[Payments]([AssociationId] ASC, [Status] ASC, [CreatedDate] ASC)
+    INCLUDE ([Amount]);
+
 

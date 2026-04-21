@@ -16,12 +16,16 @@ public interface IFinanceService
     Task<int> CreateInvoiceAsync(Invoice invoice, IEnumerable<InvoiceLineItem>? lineItems = null);
     Task<bool> UpdateInvoiceStatusAsync(int id, string status, int? associationId = null);
     Task<bool> DeleteInvoiceAsync(int id, int? associationId = null);
-    Task<bool> CommitBatchAsync(int batchId);
+    Task<bool> CommitBatchAsync(int batchId, int tenantId = 0, int associationId = 0);
+    Task<bool> DeleteBatchAsync(int batchId, int? associationId = null);
     Task<bool> AdjustInvoiceLineItemsAsync(int invoiceId, IEnumerable<InvoiceLineItem> items);
     Task<IEnumerable<PaymentHistoryItem>> GetInvoicePaymentHistoryAsync(int invoiceId);
+    Task EnqueueBatchNotificationsAsync(int batchId, int tenantId, int associationId);
+    Task SendInvoiceNotificationAsync(int invoiceId, int tenantId, int associationId);
 
     // Payment Operations
     Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null, IEnumerable<int>? assetIds = null);
+    Task<IEnumerable<Payment>> GetRecentPaymentsAsync(int? associationId = null, int count = 20, IEnumerable<int>? assetIds = null);
     Task<int> CreatePaymentAsync(Payment payment);
 
     // Ledger & Transactions
@@ -46,4 +50,5 @@ public interface IFinanceService
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId);
     Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null);
     Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria);
+    Task NotifyCommitStatusAsync(int batchId, int tenantId, int associationId, string status);
 }

@@ -20,5 +20,6 @@
     <ProjectReference Include="..\AssociationManager.Services\AssociationManager.Services.csproj" />
     <ProjectReference Include="..\AssociationManager.Data\AssociationManager.Data.csproj" />
     <ProjectReference Include="..\AssociationManager.Shared\AssociationManager.Shared.csproj" />
+    <ProjectReference Include="..\AssociationManager.Realtime\AssociationManager.Realtime.csproj" />
   </ItemGroup>
 </Project>

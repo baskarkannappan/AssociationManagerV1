@@ -8,6 +8,14 @@ using BlazorBootstrap;
 
 namespace AssociationManager.Client.Services
 {
+    public class FlatAssetNode
+    {
+        public Asset Asset { get; set; } = null!;
+        public int Level { get; set; }
+        public bool IsExpanded { get; set; }
+        public bool HasChildren { get; set; }
+    }
+
     public class AssetStateService
     {
         private readonly ApiService _api;
@@ -69,6 +77,13 @@ namespace AssociationManager.Client.Services
         }
 
         public HashSet<int> ExpandedIds { get; } = new();
+        public List<FlatAssetNode> VisibleNodes { get; private set; } = new();
+        private string _searchTerm = "";
+        public string SearchTerm 
+        { 
+            get => _searchTerm; 
+            set { _searchTerm = value; RefreshVisibleNodes(); NotifyStateChanged(); } 
+        }
 
         // Unit-specific Data
         public List<Occupancy>? Occupants { get; private set; }
@@ -93,25 +108,29 @@ namespace AssociationManager.Client.Services
 
         public async Task LoadHierarchyAsync()
         {
+            // Initial load only fetches root assets (parentId = null)
             Hierarchy = await _api.GetAsync<List<Asset>>("api/assets/hierarchy");
             
             if (SelectedAsset != null && !IsNew)
             {
                 SelectedAsset = FindInHierarchy(Hierarchy, SelectedAsset.AssetId);
             }
+            
+            RefreshVisibleNodes();
             NotifyStateChanged();
         }
 
         public async Task SelectAssetAsync(Asset asset)
         {
-            SelectedAsset = asset;
+            var fullAsset = await _api.GetAsync<Asset>($"api/assets/{asset.AssetId}");
+            SelectedAsset = fullAsset ?? asset;
             IsNew = false;
             ActiveTab = "details";
             ShowDetailOnMobile = true;
             
-            if (IsUnitType(asset.AssetType))
+            if (IsUnitType(SelectedAsset.AssetType))
             {
-                await LoadUnitDataAsync(asset.AssetId);
+                await LoadUnitDataAsync(SelectedAsset.AssetId);
             }
             NotifyStateChanged();
         }
@@ -171,14 +190,86 @@ namespace AssociationManager.Client.Services
             return success;
         }
 
-        public void ToggleExpand(int assetId)
+        public async Task ToggleExpand(int assetId)
         {
             if (ExpandedIds.Contains(assetId))
+            {
                 ExpandedIds.Remove(assetId);
+            }
             else
+            {
                 ExpandedIds.Add(assetId);
+                
+                // Lazy Load: If children aren't already loaded, fetch them from the server
+                var parent = FindInHierarchy(Hierarchy, assetId);
+                if (parent != null && (parent.Children == null || !parent.Children.Any()))
+                {
+                    var children = await _api.GetAsync<List<Asset>>($"api/assets/hierarchy?parentId={assetId}");
+                    if (children != null)
+                    {
+                        parent.Children = children;
+                    }
+                }
+            }
+            RefreshVisibleNodes();
             NotifyStateChanged();
         }
+
+        public void RefreshVisibleNodes()
+        {
+            var nodes = new List<FlatAssetNode>();
+            if (Hierarchy != null)
+            {
+                foreach (var root in Hierarchy)
+                {
+                    Flatten(root, 0, nodes);
+                }
+            }
+            VisibleNodes = nodes;
+        }
+
+        private void Flatten(Asset asset, int level, List<FlatAssetNode> result)
+        {
+            bool matchesSearch = string.IsNullOrWhiteSpace(SearchTerm) || 
+                                asset.Name.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase);
+
+            // In search mode, we show everything that matches or has matching children
+            // For now, simple implementation: if search is active, show only matching or their parents
+            // For normal mode: show if parent is expanded
+            
+            var node = new FlatAssetNode
+            {
+                Asset = asset,
+                Level = level,
+                IsExpanded = ExpandedIds.Contains(asset.AssetId),
+                HasChildren = CanHaveChildren(asset.AssetType)
+            };
+
+            bool shouldShow = string.IsNullOrWhiteSpace(SearchTerm) || matchesSearch || ChildrenMatch(asset, SearchTerm);
+
+            if (shouldShow)
+            {
+                result.Add(node);
+                if (node.IsExpanded || !string.IsNullOrWhiteSpace(SearchTerm))
+                {
+                    if (asset.Children != null)
+                    {
+                        foreach (var child in asset.Children)
+                        {
+                            Flatten(child, level + 1, result);
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool ChildrenMatch(Asset asset, string term)
+        {
+            if (asset.Children == null) return false;
+            return asset.Children.Any(c => c.Name.Contains(term, StringComparison.OrdinalIgnoreCase) || ChildrenMatch(c, term));
+        }
+
+        private bool CanHaveChildren(AssetType type) => type != AssetType.Unit && type != AssetType.Villa && type != AssetType.Amenity;
 
         private Asset? FindInHierarchy(IEnumerable<Asset>? assets, int id)
         {

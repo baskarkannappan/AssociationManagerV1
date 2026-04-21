@@ -1,4 +1,4 @@
-﻿CREATE PROCEDURE assoc.sp_Invoices_GetPaged
+CREATE OR ALTER PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -11,7 +11,8 @@
     @PageSize INT = 10,
     @SortColumn NVARCHAR(50) = 'CreatedDate',
     @SortDirection NVARCHAR(10) = 'DESC',
-    @IncludeDraft BIT = 0
+    @IncludeDraft BIT = 0,
+    @ReferenceId INT = NULL -- Keyset Pagination Support
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -24,28 +25,46 @@ BEGIN
     IF @SortDirection NOT IN ('ASC', 'DESC')
         SET @SortDirection = 'DESC';
 
+    -- Note: For 10M+ scaling, Keyset pagination is invoked if @ReferenceId is provided.
+    -- If @ReferenceId is null, we fall back to OFFSET/FETCH (legacy support).
+
     ;WITH FilteredInvoices AS (
         SELECT 
-            i.*,
+            i.InvoiceId, i.TenantId, i.AssociationId, i.AssetId, i.BillingBatchId, i.Title, i.Description, 
+            CASE WHEN i.Amount > ISNULL(li.TotalAmount, 0) THEN i.Amount ELSE ISNULL(li.TotalAmount, 0) END as Amount,
+            i.DueDate, i.Status, i.CreatedDate,
             a.Name AS AssetName,
             CAST(COUNT(*) OVER() AS INT) as TotalCount,
-            CAST(SUM(CASE WHEN LTRIM(RTRIM(i.Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial') THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
-        FROM assoc.Invoices i
-        LEFT JOIN assoc.Assets a ON i.AssetId = a.AssetId
+            CAST(SUM(CASE WHEN i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft') 
+                     THEN (CASE WHEN i.Amount > ISNULL(li.TotalAmount, 0) THEN i.Amount ELSE ISNULL(li.TotalAmount, 0) END) 
+                     ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
+        FROM assoc.Invoices i WITH (NOLOCK)
+        LEFT JOIN assoc.Assets a WITH (NOLOCK) ON i.AssetId = a.AssetId
+        OUTER APPLY (
+            SELECT SUM(Amount) as TotalAmount 
+            FROM assoc.InvoiceLineItems li WITH (NOLOCK)
+            WHERE li.InvoiceId = i.InvoiceId
+        ) li
         WHERE i.TenantId = @TenantId
         AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId)
         AND (@AssetId IS NULL OR i.AssetId = @AssetId)
         AND (@AssetIds IS NULL OR i.AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
         AND (@Status IS NULL OR i.Status = @Status)
-        AND (@IncludeDraft = 1 OR i.Status != 'Draft')
+        AND (@IncludeDraft = 1 OR i.Status NOT IN ('Draft', 'Error'))
         AND (@SearchTerm IS NULL OR i.Title LIKE '%' + @SearchTerm + '%' OR a.Name LIKE '%' + @SearchTerm + '%')
         AND (@StartDate IS NULL OR i.CreatedDate >= @StartDate)
         AND (@EndDate IS NULL OR i.CreatedDate <= @EndDate)
+        AND (
+            @ReferenceId IS NULL OR 
+            (@SortDirection = 'DESC' AND i.InvoiceId < @ReferenceId) OR 
+            (@SortDirection = 'ASC' AND i.InvoiceId > @ReferenceId)
+        )
     )
     SELECT 
         * 
     FROM FilteredInvoices
     ORDER BY 
+        -- ORDER BY logic preserved for sorting compatibility
         CASE WHEN @SortDirection = 'ASC' THEN
             CASE 
                 WHEN @SortColumn = 'Title' THEN Title
@@ -74,7 +93,8 @@ BEGIN
                 WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT)
             END
         END DESC
-    OFFSET @Offset ROWS
+    OFFSET (CASE WHEN @ReferenceId IS NOT NULL THEN 0 ELSE @Offset END) ROWS
     FETCH NEXT @PageSize ROWS ONLY
-    OPTION (RECOMPILE); -- Solve parameter sniffing issues for optional filters
+    OPTION (RECOMPILE); 
 END
+GO

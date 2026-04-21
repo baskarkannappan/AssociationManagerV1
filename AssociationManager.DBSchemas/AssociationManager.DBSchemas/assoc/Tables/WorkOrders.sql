@@ -1,4 +1,4 @@
-﻿CREATE TABLE [assoc].[WorkOrders] (
+CREATE TABLE [assoc].[WorkOrders] (
     [WorkOrderId]   INT            IDENTITY (1, 1) NOT NULL,
     [TenantId]      INT            NOT NULL,
     [AssetId]       INT            NULL,
@@ -21,4 +21,13 @@
 GO
 CREATE NONCLUSTERED INDEX [IX_WorkOrders_AssociationId]
     ON [assoc].[WorkOrders]([AssociationId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_WorkOrders_TenantId]
+    ON [assoc].[WorkOrders]([TenantId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_WorkOrders_Status]
+    ON [assoc].[WorkOrders]([Status] ASC);
+
 

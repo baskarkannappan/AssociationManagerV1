@@ -21,4 +21,5 @@ public class Invoice
     // Navigation helper (not mapped by Dapper automatically)
     public string? AssetName { get; set; }
     public bool IsAdvancePaid { get; set; }
+    public string? TempId { get; set; } // For bulk mapping
 }

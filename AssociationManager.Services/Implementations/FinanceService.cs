@@ -1,11 +1,16 @@
+using AssociationManager.Data;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
+using Dapper;
+using System.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -24,6 +29,9 @@ public class FinanceService : IFinanceService
     private readonly IEmailTemplateService _emailTemplateService;
     private readonly ICommunicationRepository _communicationRepository;
     private readonly IPersonRepository _personRepository;
+    private readonly DbConnectionFactory _dbConnectionFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _config;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -38,7 +46,10 @@ public class FinanceService : IFinanceService
         IBillingBatchRepository billingBatchRepository,
         IEmailTemplateService emailTemplateService,
         ICommunicationRepository communicationRepository,
-        IPersonRepository personRepository)
+        IPersonRepository personRepository,
+        DbConnectionFactory dbConnectionFactory,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration config)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -53,6 +64,9 @@ public class FinanceService : IFinanceService
         _emailTemplateService = emailTemplateService;
         _communicationRepository = communicationRepository;
         _personRepository = personRepository;
+        _dbConnectionFactory = dbConnectionFactory;
+        _httpClientFactory = httpClientFactory;
+        _config = config;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -134,53 +148,11 @@ public class FinanceService : IFinanceService
 
     public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null, int? userId = null)
     {
-        // Get base stats from repository
-        var (_, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
+        // 1. Calculate REAL unpaid balance and 30-day collection stats
+        // UNIFIED FETCH: Use optimized repository stats which include penalty calculations in SQL
+        var (totalUnpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
         
-        // Calculate REAL unpaid balance including ONLY virtual dynamic fines (to avoid double-counting persisted maintenance items)
-        IEnumerable<Invoice> unpaidInvoices;
-        
-        // If userId is provided, resolve their asset IDs first (UNIFIED: Occupancy + Payment History)
-        if (userId.HasValue && (assetIds == null || !assetIds.Any()))
-        {
-            // 1. Resolve from Occupancy
-            var occupancies = await _occupancyRepository.GetByUserIdAsync(userId.Value, CurrentTenantId, associationId ?? CurrentAssociationId);
-            var resolvedIds = occupancies.Select(o => o.AssetId).ToList();
-
-            // 2. Resolve from Payment History (for units paid but not yet officially occupied)
-            // Use non-paged GetAdvancesAsync for internal resolution
-            var advances = await _paymentRepository.GetAdvancesAsync(CurrentTenantId, associationId ?? CurrentAssociationId, userId: userId.Value);
-            var unitIdsFromHistory = advances.Where(h => h.AssetId.HasValue).Select(h => h.AssetId!.Value);
-
-            assetIds = resolvedIds.Union(unitIdsFromHistory).Distinct().ToList();
-        }
-
-        if (assetId.HasValue)
-        {
-            unpaidInvoices = (await GetInvoicesByAssetIdAsync(assetId.Value, associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        }
-        else if (assetIds != null && assetIds.Any())
-        {
-            var allInUserScope = new List<Invoice>();
-            foreach(var id in assetIds)
-            {
-                allInUserScope.AddRange(await GetInvoicesByAssetIdAsync(id, associationId));
-            }
-            unpaidInvoices = allInUserScope.Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        }
-        else
-        {
-            // STAFF/GLOBAL VIEW
-            unpaidInvoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        }
-
-        // SMART SUM: Amount (Principal) + all Fine items + any virtual items
-        decimal realUnpaid = 0;
-        foreach (var inv in unpaidInvoices)
-        {
-            realUnpaid += await GetTotalInvoiceAmountAsync(inv);
-        }
-        
+        // 2. Resolve Wallet Balance (Credits)
         decimal totalWallet = 0;
         if (userId.HasValue)
         {
@@ -191,23 +163,23 @@ public class FinanceService : IFinanceService
             var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
             if (!ids.Any() && (associationId.HasValue || CurrentAssociationId != 0))
             {
-                // ASSOCIATION-WIDE FETCH
-                var aid = associationId ?? CurrentAssociationId;
-                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(aid, CurrentTenantId);
+                // ASSOCIATION-WIDE FETCH: Uses optimized sp_Finance_GetAssociationSummary
+                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(associationId ?? CurrentAssociationId, CurrentTenantId);
                 totalWallet = baseStats.TotalCredits;
             }
             else
             {
+                // Mapped Asset Fetch (Fallback for specific lists)
                 foreach (var aid in ids)
                 {
                     totalWallet += await GetAssetWalletBalanceAsync(aid);
                 }
             }
         }
-
+        
         return new FinanceSummary 
         { 
-            TotalUnpaid = realUnpaid, 
+            TotalUnpaid = totalUnpaid, 
             Collected30Days = collected,
             TotalAdvanceCredits = totalWallet
         };
@@ -272,6 +244,11 @@ public class FinanceService : IFinanceService
         }
         
         return payments;
+    }
+
+    public async Task<IEnumerable<Payment>> GetRecentPaymentsAsync(int? associationId = null, int count = 20, IEnumerable<int>? assetIds = null)
+    {
+        return await _paymentRepository.GetRecentByAssociationIdAsync(CurrentTenantId, associationId ?? CurrentAssociationId, count, assetIds);
     }
 
     public async Task<int> CreatePaymentAsync(Payment payment)
@@ -538,19 +515,22 @@ public class FinanceService : IFinanceService
 
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
-        // UNIFIED LOGIC: Use the smart summary to include penalties/fines
-        var summary = await GetFinanceSummaryAsync(associationId);
-        
-        // Fetch auxiliary stats (TotalCredits and UnitsWithCredit) from the optimized repository call
-        // summary.TotalAdvanceCredits might be scoped poorly for association-wide views
+        // OPTIMIZED: Single call to the snapshot SP which returns all three values.
+        // sp_Finance_GetAssociationSummary_Snapshot reads from AssociationBalances cache table (fast path)
+        // and only falls back to live calculation when no snapshot exists.
         var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(associationId, tenantId);
         
-        return (summary.TotalUnpaid, baseStats.TotalCredits, baseStats.UnitsWithCredit);
+        return (baseStats.TotalOutstanding, baseStats.TotalCredits, baseStats.UnitsWithCredit);
     }
 
     public async Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null)
     {
         return await _paymentRepository.GetAdvancesAsync(tenantId, associationId, userId, assetId);
+    }
+
+    public async Task<bool> SyncAssociationBalancesAsync(int associationId, int tenantId)
+    {
+        return await _ledgerService.SyncAssociationBalancesAsync(associationId, tenantId);
     }
 
     public async Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria)
@@ -704,78 +684,138 @@ public class FinanceService : IFinanceService
         return totalPostedCount;
     }
 
-    public async Task<bool> CommitBatchAsync(int batchId)
+    public async Task<bool> DeleteBatchAsync(int batchId, int? associationId = null)
     {
-        var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, CurrentAssociationId);
-        if (batch == null || batch.Status != "Draft") return false;
+        var aid = associationId ?? CurrentAssociationId;
+        var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, aid);
+        
+        if (batch == null) return false;
+        
+        // Safety: Only Draft, Failed, or inconsistent (with draft invoices) batches can be deleted
+        if (batch.Status != "Draft" && batch.Status != "COMMIT_FAILED" && !batch.HasDraftInvoices)
+        {
+            throw new InvalidOperationException("Only Draft, Failed, or incomplete batches can be deleted.");
+        }
 
-        // 1. Update Batch Status
-        await _billingBatchRepository.UpdateStatusAsync(batchId, "Committed", CurrentTenantId, CurrentAssociationId);
+        return await _billingBatchRepository.DeleteBatchAsync(batchId, CurrentTenantId, aid);
+    }
 
-        // 2. Transmit Invoices to Ledger
+    public async Task<bool> CommitBatchAsync(int batchId, int tenantId = 0, int associationId = 0)
+    {
+        if (tenantId > 0 && _tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
+        {
+            bgContext.SetContext(tenantId, associationId);
+        }
+
+        try
+        {
+            var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, CurrentAssociationId);
+            if (batch == null || (batch.Status != "Draft" && batch.Status != "Committed")) return false;
+
+            // 1. High-Performance Bulk Commit (Status + Ledger + Sync)
+            var success = await _billingBatchRepository.BulkCommitAsync(batchId, CurrentTenantId, CurrentAssociationId);
+            
+            if (success)
+            {
+                // 2. Offload Emails to Background Queue (Non-Blocking)
+                Hangfire.BackgroundJob.Enqueue<IFinanceService>(x => x.EnqueueBatchNotificationsAsync(batchId, CurrentTenantId, CurrentAssociationId));
+
+                // 3. Notify UI of Success
+                await NotifyCommitStatusAsync(batchId, CurrentTenantId, CurrentAssociationId, "COMMIT_READY");
+            }
+            else
+            {
+                await NotifyCommitStatusAsync(batchId, CurrentTenantId, CurrentAssociationId, "COMMIT_FAILED");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            // Log the error
+            await _auditService.LogAsync($"Batch Commitment Error: {ex.Message}", "BillingBatch", batchId, associationId: associationId, tenantId: tenantId);
+            
+            // Notify UI of Failure
+            await NotifyCommitStatusAsync(batchId, tenantId, associationId, "COMMIT_FAILED");
+            
+            throw; // Re-throw for Hangfire retry
+        }
+    }
+
+    public async Task NotifyCommitStatusAsync(int batchId, int tenantId, int associationId, string status)
+    {
+        try
+        {
+            var baseUrl = _config["ApiSettings:GatewayUrl"];
+            if (string.IsNullOrEmpty(baseUrl)) return;
+
+            var client = _httpClientFactory.CreateClient();
+            var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={associationId}&period=batch-{batchId}&jobId=commit-{batchId}&status={status}";
+            
+            Console.WriteLine($"[Diagnostic] Notifying UI of Commit Status: {url}");
+            await client.PostAsync(url, null);
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[Diagnostic] Commit Notification Exception: {ex.Message}");
+             await _auditService.LogAsync($"Failed to notify UI of commit completion: {ex.Message}", "System", 0, associationId: associationId, tenantId: tenantId);
+        }
+    }
+
+    public async Task EnqueueBatchNotificationsAsync(int batchId, int tenantId, int associationId)
+    {
+         if (tenantId > 0 && _tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
+        {
+            bgContext.SetContext(tenantId, associationId);
+        }
+
         var invoices = await _invoiceRepository.GetByBatchIdAsync(batchId, CurrentTenantId);
         foreach (var inv in invoices)
         {
-            if (inv.Status == "Draft")
+            // Only notify if Unpaid (which they should be now after BulkCommit)
+            if (inv.Status == "Unpaid" && inv.AssetId.HasValue)
             {
-                // Update Status to Unpaid (or Paid if we eventually want immediate auto-settle here)
-                await _invoiceRepository.UpdateStatusAsync(inv.InvoiceId, "Unpaid", CurrentTenantId, CurrentAssociationId);
-
-                // Record Ledger Transaction (Debit)
-                if (inv.AssetId.HasValue)
-                {
-                    await _ledgerService.RecordTransactionAsync(new Transaction
-                    {
-                        AssetId = inv.AssetId.Value,
-                        InvoiceId = inv.InvoiceId,
-                        Type = "Debit",
-                        Amount = inv.Amount,
-                        Category = "Billing",
-                        Description = $"Batch Billing Committed: {inv.Title}"
-                    });
-                }
-
-                // 3. Queue Email for resident
-                try
-                {
-                    if (inv.AssetId.HasValue)
-                    {
-                        var occupancies = await _occupancyRepository.GetByAssetIdAsync(inv.AssetId.Value, CurrentTenantId, CurrentAssociationId);
-                        var primary = occupancies.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies.FirstOrDefault();
-                        
-                        if (primary != null)
-                        {
-                            var person = await _personRepository.GetByIdAsync(primary.PersonId, CurrentTenantId, CurrentAssociationId);
-                            if (person != null && !string.IsNullOrEmpty(person.Email))
-                            {
-                                var htmlBody = await _emailTemplateService.GenerateInvoiceHtmlAsync(inv.InvoiceId);
-                                
-                                await _communicationRepository.CreateAsync(new CommunicationLog
-                                {
-                                    TenantId = CurrentTenantId,
-                                    AssociationId = CurrentAssociationId,
-                                    RecipientEmail = person.Email,
-                                    RecipientName = $"{person.FirstName} {person.LastName}",
-                                    Subject = $"Invoice Generated: {inv.Title} (Ref #{inv.InvoiceId})",
-                                    HtmlBody = htmlBody,
-                                    ReferenceType = "Invoice",
-                                    ReferenceId = inv.InvoiceId,
-                                    Status = AssociationManager.Shared.Enums.CommunicationStatus.Posted
-                                });
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Fail silently to ensure ledger commitment completes, but log audit
-                    await _auditService.LogAsync($"Failed to queue email for Invoice #{inv.InvoiceId}: {ex.Message}", "System", inv.InvoiceId);
-                }
+                // Enqueue each individual email as its own job for maximum reliability
+                Hangfire.BackgroundJob.Enqueue<IFinanceService>(x => x.SendInvoiceNotificationAsync(inv.InvoiceId, tenantId, associationId));
             }
         }
+    }
 
-        await _auditService.LogAsync($"Committed Billing Batch #{batchId}", "BillingBatch", batchId);
-        return true;
+    // New helper for Hangfire to send a single resident notification
+    public async Task SendInvoiceNotificationAsync(int invoiceId, int tenantId, int associationId)
+    {
+         if (tenantId > 0 && _tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
+        {
+            bgContext.SetContext(tenantId, associationId);
+        }
+
+        var inv = await _invoiceRepository.GetByIdAsync(invoiceId, CurrentTenantId, CurrentAssociationId);
+        if (inv == null || !inv.AssetId.HasValue) return;
+
+        var occupancies = await _occupancyRepository.GetByAssetIdAsync(inv.AssetId.Value, CurrentTenantId, CurrentAssociationId);
+        var primary = occupancies.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies.FirstOrDefault();
+        
+        if (primary != null)
+        {
+            var person = await _personRepository.GetByIdAsync(primary.PersonId, CurrentTenantId, CurrentAssociationId);
+            if (person != null && !string.IsNullOrEmpty(person.Email))
+            {
+                var htmlBody = await _emailTemplateService.GenerateInvoiceHtmlAsync(inv.InvoiceId);
+                
+                await _communicationRepository.CreateAsync(new CommunicationLog
+                {
+                    TenantId = CurrentTenantId,
+                    AssociationId = CurrentAssociationId,
+                    RecipientEmail = person.Email,
+                    RecipientName = $"{person.FirstName} {person.LastName}",
+                    Subject = $"Invoice Generated: {inv.Title} (Ref #{inv.InvoiceId})",
+                    HtmlBody = htmlBody,
+                    ReferenceType = "Invoice",
+                    ReferenceId = inv.InvoiceId,
+                    Status = AssociationManager.Shared.Enums.CommunicationStatus.Posted
+                });
+            }
+        }
     }
 
     public async Task<bool> AdjustInvoiceLineItemsAsync(int invoiceId, IEnumerable<InvoiceLineItem> items)

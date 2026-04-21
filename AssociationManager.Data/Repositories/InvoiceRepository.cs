@@ -63,6 +63,7 @@ public class InvoiceRepository : IInvoiceRepository
         parameters.Add("@SortColumn", criteria.SortColumn);
         parameters.Add("@SortDirection", criteria.SortDirection);
         parameters.Add("@IncludeDraft", criteria.IncludeDrafts);
+        parameters.Add("@ReferenceId", criteria.ReferenceId);
 
         var result = new PagedResult<Invoice>
         {
@@ -103,7 +104,7 @@ public class InvoiceRepository : IInvoiceRepository
         }
         
         result.Items = invoices;
-        result.FilteredCount = result.TotalCount; // SP currently returns total count for the filtered set
+        result.FilteredCount = result.TotalCount; 
 
         return result;
     }
@@ -120,11 +121,11 @@ public class InvoiceRepository : IInvoiceRepository
                 AssetId = assetId,
                 AssetIds = assetIds != null && assetIds.Any() ? string.Join(",", assetIds) : null 
             },
-            commandType: CommandType.StoredProcedure);
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: 90);
 
         return (stats?.TotalUnpaid ?? 0, stats?.Collected30Days ?? 0);
     }
-
 
     public async Task<int> CreateAsync(Invoice invoice)
     {
@@ -244,14 +245,72 @@ public class InvoiceRepository : IInvoiceRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         var stats = await connection.QueryFirstOrDefaultAsync<dynamic>(
-            "assoc.sp_Finance_GetAssociationSummary",
+            "assoc.sp_Finance_GetAssociationSummary_Snapshot",
             new { AssociationId = associationId, TenantId = tenantId },
-            commandType: CommandType.StoredProcedure);
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: 60);
+
+        if (stats == null) return (0, 0, 0);
 
         return (
-            Convert.ToDecimal(stats?.TotalOutstanding ?? 0m),
-            Convert.ToDecimal(stats?.TotalAdvanceCredits ?? 0m),
-            Convert.ToInt32(stats?.UnitsWithCredit ?? 0)
+            (decimal)(stats.TotalOutstanding ?? 0m),
+            (decimal)(stats.TotalCredits ?? 0m),
+            (int)(stats.UnitsWithCredit ?? 0)
         );
+    }
+
+    public async Task<IEnumerable<int>> GetInvoicedAssetIdsByPeriodAsync(int tenantId, int associationId, string periodPattern)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<int>(
+            "assoc.sp_Invoices_GetInvoicedAssetsByPeriod",
+            new { TenantId = tenantId, AssociationId = associationId, PeriodPattern = periodPattern },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> CreateBulkAsync(int tenantId, int associationId, IEnumerable<Invoice> invoices, IEnumerable<InvoiceLineItem> lineItems)
+    {
+        var invoiceDt = new DataTable();
+        invoiceDt.Columns.Add("AssetId", typeof(int));
+        invoiceDt.Columns.Add("Title", typeof(string));
+        invoiceDt.Columns.Add("Description", typeof(string));
+        invoiceDt.Columns.Add("Amount", typeof(decimal));
+        invoiceDt.Columns.Add("DueDate", typeof(DateTime));
+        invoiceDt.Columns.Add("Status", typeof(string));
+        invoiceDt.Columns.Add("CreatedDate", typeof(DateTime));
+        invoiceDt.Columns.Add("BillingBatchId", typeof(int));
+        invoiceDt.Columns.Add("TempId", typeof(string));
+
+        foreach (var inv in invoices)
+        {
+            invoiceDt.Rows.Add(inv.AssetId, inv.Title, inv.Description, inv.Amount, inv.DueDate, inv.Status, inv.CreatedDate, inv.BillingBatchId, inv.TempId);
+        }
+
+        var lineItemDt = new DataTable();
+        lineItemDt.Columns.Add("TempInvoiceId", typeof(string));
+        lineItemDt.Columns.Add("ChargeName", typeof(string));
+        lineItemDt.Columns.Add("Amount", typeof(decimal));
+        lineItemDt.Columns.Add("Description", typeof(string));
+        lineItemDt.Columns.Add("TariffLayerId", typeof(int));
+        lineItemDt.Columns.Add("Rate", typeof(decimal));
+
+        foreach (var li in lineItems)
+        {
+            lineItemDt.Rows.Add(li.TempId, li.ChargeName, li.Amount, li.Description, li.TariffLayerId, li.Rate);
+        }
+
+        using var connection = _dbConnectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "assoc.sp_Invoices_CreateBulk",
+            new
+            {
+                TenantId = tenantId,
+                AssociationId = associationId,
+                Invoices = invoiceDt.AsTableValuedParameter("assoc.typ_InvoiceBatch"),
+                LineItems = lineItemDt.AsTableValuedParameter("assoc.typ_InvoiceLineItemBatch")
+            },
+            commandType: CommandType.StoredProcedure);
+
+        return true;
     }
 }

@@ -1,4 +1,4 @@
-﻿CREATE TABLE [assoc].[Transactions] (
+CREATE TABLE [assoc].[Transactions] (
     [TransactionId]   BIGINT          IDENTITY (1, 1) NOT NULL,
     [TenantId]        INT             NOT NULL,
     [AssetId]         INT             NOT NULL,
@@ -20,4 +20,10 @@
 GO
 CREATE NONCLUSTERED INDEX [IX_Transactions_AssociationId]
     ON [assoc].[Transactions]([AssociationId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Transactions_WalletSearch]
+    ON [assoc].[Transactions]([AssociationId] ASC, [TenantId] ASC, [AssetId] ASC)
+    INCLUDE ([Type], [Category], [Amount]);
+
 

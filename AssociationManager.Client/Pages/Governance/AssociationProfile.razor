@@ -81,38 +81,49 @@
                     </CardHeader>
                     <CardBody Class="p-4">
                         <EditForm Model="_profileModel" OnValidSubmit="HandleSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="mb-4 text-danger small" />
+
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold">Registration Number</label>
-                                    <InputText @bind-Value="_profileModel.RegistrationNumber" class="form-control" disabled="@(!_isAdmin)" />
+                                    <label class="form-label small fw-bold">Registration Number <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="_profileModel.RegistrationNumber" class="form-control" placeholder="ABC-123-XYZ" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.RegistrationNumber)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold">Registration Date</label>
+                                    <label class="form-label small fw-bold">Registration Date <span class="text-danger">*</span></label>
                                     <InputDate @bind-Value="_profileModel.RegistrationDate" class="form-control" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.RegistrationDate)" class="text-danger small" />
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label small fw-bold">Address</label>
-                                    <InputTextArea @bind-Value="_profileModel.Address" class="form-control" rows="2" disabled="@(!_isAdmin)" />
+                                    <label class="form-label small fw-bold">Address <span class="text-danger">*</span></label>
+                                    <InputTextArea @bind-Value="_profileModel.Address" class="form-control" rows="2" placeholder="Street, Area, etc." disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.Address)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">City</label>
+                                    <label class="form-label small fw-bold">City <span class="text-danger">*</span></label>
                                     <InputText @bind-Value="_profileModel.City" class="form-control" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.City)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">State</label>
+                                    <label class="form-label small fw-bold">State <span class="text-danger">*</span></label>
                                     <InputText @bind-Value="_profileModel.State" class="form-control" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.State)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small fw-bold">Pincode</label>
-                                    <InputText @bind-Value="_profileModel.Pincode" class="form-control" disabled="@(!_isAdmin)" />
+                                    <label class="form-label small fw-bold">Pincode <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="_profileModel.Pincode" class="form-control" placeholder="600019" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.Pincode)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold">Contact Email</label>
-                                    <InputText @bind-Value="_profileModel.ContactEmail" class="form-control" disabled="@(!_isAdmin)" />
+                                    <label class="form-label small fw-bold">Contact Email <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="_profileModel.ContactEmail" class="form-control" placeholder="admin@association.com" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.ContactEmail)" class="text-danger small" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold">Contact Phone</label>
-                                    <InputText @bind-Value="_profileModel.ContactPhone" class="form-control" disabled="@(!_isAdmin)" />
+                                    <label class="form-label small fw-bold">Contact Phone <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="_profileModel.ContactPhone" class="form-control" placeholder="+91 9500037967" disabled="@(!_isAdmin)" />
+                                    <ValidationMessage For="@(() => _profileModel.ContactPhone)" class="text-danger small" />
                                 </div>
                             </div>
 

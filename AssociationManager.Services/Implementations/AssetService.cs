@@ -8,6 +8,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using AssociationManager.Realtime.Hubs;
+using System.Net.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -17,17 +20,23 @@ public class AssetService : IAssetService
     private readonly IOccupancyRepository _occupancyRepository;
     private readonly ITenantContext _tenantContext;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
     public AssetService(
         IAssetRepository assetRepository, 
         IOccupancyRepository occupancyRepository, 
         ITenantContext tenantContext,
-        IHubContext<NotificationHub> hubContext)
+        IHubContext<NotificationHub> hubContext,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _assetRepository = assetRepository;
         _occupancyRepository = occupancyRepository;
         _tenantContext = tenantContext;
         _hubContext = hubContext;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     public async Task<Asset?> GetByIdAsync(int id)
@@ -105,22 +114,46 @@ public class AssetService : IAssetService
 
     public async Task ProcessBulkCreateJobAsync(int tenantId, int associationId, int userId, BulkCreateRequest request)
     {
+        bool isWorker = false;
         // Background job runs on a thread without HTTP context. 
         // We must manually initialize the context to ensure the subsequent service calls use the correct IDs.
         if (_tenantContext is BackgroundTenantContext bgContext)
         {
             bgContext.SetContext(tenantId, associationId, userId);
+            isWorker = true;
         }
 
         // Background job uses the request data already populated with Tenant/Association context
         await BulkCreateAsync(request);
         
-        // Notify all clients in the association that the hierarchy has changed
-        await _hubContext.Clients.Group($"Association_{associationId}")
-            .SendAsync("ReceiveNotification", "System", $"Bulk creation of {request.Quantity ?? (request.NumberOfFloors * request.UnitsPerFloor)} assets complete.");
-            
-        await _hubContext.Clients.Group($"Association_{associationId}")
-            .SendAsync("HierarchyChanged");
+        if (isWorker)
+        {
+            // If running in Worker, call the API to broadcast SignalR notification
+            // Worker is isolated, so its _hubContext has no clients.
+            try
+            {
+                var apiUrl = _configuration["AssociationApiUrl"] ?? "https://localhost:5001";
+                var client = _httpClientFactory.CreateClient();
+                var response = await client.PostAsync($"{apiUrl}/api/internal/broadcast/hierarchy-changed/{associationId}", null);
+                if (!response.IsSuccessStatusCode)
+                {
+                    System.Console.WriteLine($"[AssetService] Failed to broadcast hierarchy change. Status: {response.StatusCode}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                System.Console.WriteLine($"[AssetService] Error broadcasting hierarchy change: {ex.Message}");
+            }
+        }
+        else
+        {
+            // If running in same process (e.g. monolithic), use SignalR directly
+            await _hubContext.Clients.Group($"Association_{associationId}")
+                .SendAsync("ReceiveNotification", "System", $"Bulk creation of {request.Quantity ?? (request.NumberOfFloors * request.UnitsPerFloor)} assets complete.");
+                
+            await _hubContext.Clients.Group($"Association_{associationId}")
+                .SendAsync("HierarchyChanged");
+        }
     }
 
     private async Task<List<Asset>> BuildVillaCommunityNodes(BulkCreateRequest request)

@@ -39,3 +39,13 @@ GO
 CREATE NONCLUSTERED INDEX [IX_Invoices_BillingBatchId] 
     ON [assoc].[Invoices]([BillingBatchId] ASC);
 
+GO
+CREATE NONCLUSTERED INDEX [IX_Invoices_TenantId]
+    ON [assoc].[Invoices]([TenantId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Invoices_AssociationStatus]
+    ON [assoc].[Invoices]([AssociationId] ASC, [Status] ASC)
+    INCLUDE ([Amount], [DueDate]);
+
+

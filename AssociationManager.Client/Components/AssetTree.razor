@@ -26,20 +26,20 @@
                    class="explorer-search-input" 
                    placeholder="Filter assets..." 
                    style="padding-left: 28px;"
-                   @bind="_searchTerm" 
+                   @bind="AssetState.SearchTerm" 
                    @bind:event="oninput" />
         </div>
     </div>
     
     <div class="tree-content">
-        @if (Hierarchy == null)
+        @if (AssetState.Hierarchy == null)
         {
             <div class="text-center py-5">
                 <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                 <p class="mt-2 text-muted" style="font-size: 11px;">Building Hierarchy...</p>
             </div>
         }
-        else if (!Hierarchy.Any())
+        else if (!AssetState.Hierarchy.Any())
         {
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-building-add" style="font-size: 2rem; opacity: 0.2;"></i>
@@ -49,16 +49,12 @@
         else
         {
             <div class="tree-container">
-                @foreach (var root in GetFilteredHierarchy())
-                {
-                    <AssetTreeNode Asset="root" 
-                                   Level="0"
+                <Virtualize Items="AssetState.VisibleNodes" Context="node" SpacerElement="div">
+                    <AssetTreeNode Node="node" 
                                    OnSelected="OnSelected" 
                                    SelectedAsset="SelectedAsset"
-                                   ExpandedIds="ExpandedIds"
-                                   OnToggleExpand="OnToggleExpand"
-                                   SearchTerm="@_searchTerm" />
-                }
+                                   OnToggleExpand="OnToggleExpand" />
+                </Virtualize>
             </div>
         }
     </div>
@@ -96,65 +92,14 @@
     }
 </style>
 
+@inject AssetStateService AssetState
+
 @code {
-    [Parameter] public List<Asset>? Hierarchy { get; set; }
     [Parameter] public Asset? SelectedAsset { get; set; }
-    [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
     [Parameter] public bool CanManage { get; set; }
     [Parameter] public EventCallback<Asset> OnSelected { get; set; }
     [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
     [Parameter] public EventCallback OnCollapse { get; set; }
     [Parameter] public EventCallback OnAddRoot { get; set; }
     [Parameter] public EventCallback OnBulkCreate { get; set; }
-
-    private string _searchTerm = "";
-
-    private List<Asset> GetFilteredHierarchy()
-    {
-        if (Hierarchy == null) return new();
-        if (string.IsNullOrWhiteSpace(_searchTerm)) return Hierarchy;
-        
-        return Hierarchy.Select(a => FilterAsset(a, _searchTerm))
-                        .Where(a => a != null)
-                        .Cast<Asset>()
-                        .ToList();
-    }
-
-    private Asset? FilterAsset(Asset asset, string term)
-    {
-        // Recursively filter children first
-        var filteredChildren = asset.Children
-            .Select(c => FilterAsset(c, term))
-            .Where(c => c != null)
-            .Cast<Asset>()
-            .ToList();
-
-        // If name matches OR any child matches, keep this asset
-        if (asset.Name.Contains(term, StringComparison.OrdinalIgnoreCase) || filteredChildren.Any())
-        {
-            var clone = new Asset 
-            {
-                AssetId = asset.AssetId,
-                ParentId = asset.ParentId,
-                TenantId = asset.TenantId,
-                AssociationId = asset.AssociationId,
-                Name = asset.Name,
-                Description = asset.Description,
-                AssetType = asset.AssetType,
-                MetadataJson = asset.MetadataJson,
-                IsActive = asset.IsActive,
-                Children = filteredChildren
-            };
-            
-            // Auto-expand if children match
-            if (filteredChildren.Any() && !string.IsNullOrWhiteSpace(term))
-            {
-                ExpandedIds.Add(asset.AssetId);
-            }
-            
-            return clone;
-        }
-
-        return null;
-    }
 }

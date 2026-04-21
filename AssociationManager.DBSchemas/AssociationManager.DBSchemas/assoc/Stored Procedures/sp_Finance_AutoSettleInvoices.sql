@@ -1,4 +1,4 @@
-﻿-- 2. Correct Auto-Settlement Procedure
+-- 2. Correct Auto-Settlement Procedure
 -- Ensures that the available credit is correctly reduced as invoices are paid.
 CREATE   PROCEDURE assoc.sp_Finance_AutoSettleInvoices
     @AssetId INT,
@@ -33,7 +33,7 @@ BEGIN
     WHERE AssetId = @AssetId 
     AND TenantId = @TenantId 
     AND AssociationId = @AssociationId
-    AND Status IN ('Unpaid', 'Partial')
+    AND Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft')
     ORDER BY DueDate ASC;
 
     OPEN InvoiceCursor;

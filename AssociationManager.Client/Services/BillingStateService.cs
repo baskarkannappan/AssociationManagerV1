@@ -41,15 +41,32 @@ namespace AssociationManager.Client.Services
             ParseQueryParameters();
         }
 
-        private async void HandleBatchCompleted(int associationId, string period)
+        private async void HandleBatchCompleted(int associationId, string period, string? jobId = null, string? status = "BATCH_READY")
         {
             if (associationId == _tenantContext.AssociationId)
             {
-                GeneratingBatchReference = null;
-                NotifyStateChanged(); // Update UI immediately to hide "Processing" card
+                if (status == "PREVIEW_READY" && !string.IsNullOrEmpty(jobId))
+                {
+                    await FetchPreviewResultAsync(jobId);
+                }
+                else if (status == "COMMIT_READY")
+                {
+                    _toastService.Notify(new(ToastType.Success, "Batch successfully posted to ledger and invoices activated!"));
+                    await InitializeAsync();
+                }
+                else if (status == "COMMIT_FAILED")
+                {
+                    _toastService.Notify(new(ToastType.Danger, "Ledger commitment failed due to a system deadlock. The system is retrying, or you can try again later.", "Database Conflict"));
+                    await InitializeAsync();
+                }
+                else
+                {
+                    GeneratingBatchReference = null;
+                    _toastService.Notify(new(ToastType.Success, $"Batch generation for {period} completed in the background."));
+                    await InitializeAsync();
+                }
                 
-                _toastService.Notify(new(ToastType.Success, $"Batch generation for {period} completed in the background."));
-                await InitializeAsync();
+                NotifyStateChanged();
             }
         }
 
@@ -211,13 +228,99 @@ namespace AssociationManager.Client.Services
         public async Task<int> GetAssociationIdAsync() => _tenantContext.AssociationId;
 
         // Batch Actions
+        public async Task DeleteBatchAsync(BillingBatch draft)
+        {
+            try
+            {
+                var success = await _api.DeleteAsync($"api/finance/batches/{draft.BillingBatchId}");
+                if (success)
+                {
+                    _toastService.Notify(new(ToastType.Warning, $"Draft batch for {System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(draft.Month)} {draft.Year} has been deleted."));
+                    await InitializeAsync();
+                }
+                else
+                {
+                    _toastService.Notify(new(ToastType.Danger, "Failed to delete batch."));
+                }
+            }
+            catch (Exception ex)
+            {
+                _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+            }
+        }
+
         public async Task PreviewBatchAsync()
         {
             IsProcessingBatch = true;
+            BatchResult = null;
             NotifyStateChanged();
             try
             {
-                BatchResult = await _api.PostAsync<InvoiceBatchRequest, InvoiceBatchResult>("api/finance/batches/preview", BatchRequest);
+                var response = await _api.PostAsync<InvoiceBatchRequest, string>("api/finance/batches/preview", BatchRequest);
+                if (!string.IsNullOrEmpty(response))
+                {
+                    _toastService.Notify(new(ToastType.Info, "Preview calculation started in the background...", "Scaling Optimization"));
+                    
+                    // Poll for the result every 5 seconds (up to 3 minutes)
+                    _ = PollForPreviewAsync(response);
+                }
+                else
+                {
+                    IsProcessingBatch = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _toastService.Notify(new(ToastType.Danger, $"Preview Failed: {ex.Message}"));
+                IsProcessingBatch = false;
+            }
+            finally
+            {
+                NotifyStateChanged();
+            }
+        }
+
+        private async Task PollForPreviewAsync(string trackingId)
+        {
+            const int maxAttempts = 36; // 36 x 5s = 3 minutes max
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                await Task.Delay(5000); // Wait 5 seconds between polls
+                
+                try
+                {
+                    var result = await _api.GetAsync<InvoiceBatchResult>($"api/finance/batches/preview/{trackingId}");
+                    if (result != null)
+                    {
+                        BatchResult = result;
+                        IsProcessingBatch = false;
+                        _toastService.Notify(new(ToastType.Success, "Batch preview is ready for review."));
+                        NotifyStateChanged();
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Preview not ready yet, continue polling
+                }
+            }
+            
+            // Timeout
+            IsProcessingBatch = false;
+            _toastService.Notify(new(ToastType.Warning, "Preview generation timed out. Please try again."));
+            NotifyStateChanged();
+        }
+
+        public async Task FetchPreviewResultAsync(string trackingId)
+        {
+            try
+            {
+                var result = await _api.GetAsync<InvoiceBatchResult>($"api/finance/batches/preview/{trackingId}");
+                if (result != null)
+                {
+                    BatchResult = result;
+                    _toastService.Notify(new(ToastType.Success, "Batch preview is ready for review."));
+                }
             }
             finally
             {
@@ -239,6 +342,9 @@ namespace AssociationManager.Client.Services
                     BatchResult = null;
                     GeneratingBatchReference = (BatchRequest.Month, BatchRequest.Year);
                     NotifyStateChanged();
+                    
+                    // Poll for batch completion since SignalR may not deliver
+                    _ = PollForDraftBatchAsync(GeneratingBatchReference.Value.Month, GeneratingBatchReference.Value.Year);
                 }
             }
             finally
@@ -248,14 +354,47 @@ namespace AssociationManager.Client.Services
             }
         }
 
+        private async Task PollForDraftBatchAsync(int month, int year)
+        {
+            const int maxAttempts = 60; // 60 x 5s = 5 minutes max
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                await Task.Delay(5000);
+                
+                try
+                {
+                    await InitializeAsync();
+                    
+                    // InitializeAsync already has a defensive check that clears GeneratingBatchReference
+                    // when the batch appears in ExistingBatches with Status == "Draft"
+                    if (GeneratingBatchReference == null)
+                    {
+                        _toastService.Notify(new(ToastType.Success, $"Draft batch for {System.Globalization.DateTimeFormatInfo.CurrentInfo.GetMonthName(month)} {year} created successfully!"));
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Continue polling on error
+                }
+            }
+            
+            // Timeout
+            GeneratingBatchReference = null;
+            _toastService.Notify(new(ToastType.Warning, "Batch generation timed out. Please refresh the page."));
+            NotifyStateChanged();
+        }
+
         public async Task FinalizeBatchAsync(BillingBatch draft)
         {
+            _toastService.Notify(new(ToastType.Info, "Posting batch to ledger... this may take a moment for large volumes.", "Processing Ledger"));
+            
             var success = await _api.PostAsync($"api/finance/batches/{draft.BillingBatchId}/finalize", new { });
-            if (success)
+            if (!success)
             {
-                _toastService.Notify(new(ToastType.Success, "Batch posted to ledger and invoices activated."));
-                await InitializeAsync();
+                _toastService.Notify(new(ToastType.Danger, "Failed to initiate batch commitment. Please check your connection."));
             }
+            // Note: If success, we wait for the SignalR notification (HandleBatchCompleted) to show the final success message
         }
 
         // Invoice Actions

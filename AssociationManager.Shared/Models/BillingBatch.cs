@@ -13,4 +13,5 @@ public class BillingBatch
     public decimal TotalAmount { get; set; }
     public int InvoicesGenerated { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public bool HasDraftInvoices { get; set; }
 }

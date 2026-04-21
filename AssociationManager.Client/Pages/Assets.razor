@@ -146,12 +146,13 @@
         }
 
         if (authState.User.Identity?.IsAuthenticated == true) 
-        {
-            await AssetState.LoadHierarchyAsync();
-            RealtimeService.OnHierarchyChanged += OnHierarchyChanged;
-            _lastAssociationId = TenantContext.AssociationId;
-            await RealtimeService.JoinAssociationGroupAsync(_lastAssociationId);
-        }
+    {
+        await AssetState.LoadHierarchyAsync();
+        RealtimeService.OnHierarchyChanged += OnHierarchyChanged;
+        RealtimeService.OnReconnected += OnHierarchyChanged;
+        _lastAssociationId = TenantContext.AssociationId;
+        await RealtimeService.JoinAssociationGroupAsync(_lastAssociationId);
+    }
     }
 
     private async void OnHierarchyChanged()
@@ -165,6 +166,7 @@
     public override void Dispose()
     {
         RealtimeService.OnHierarchyChanged -= OnHierarchyChanged;
+        RealtimeService.OnReconnected -= OnHierarchyChanged;
         base.Dispose();
     }
 

@@ -1,4 +1,4 @@
-﻿CREATE   PROCEDURE assoc.sp_Finance_ValidateIntegrity
+CREATE   PROCEDURE assoc.sp_Finance_ValidateIntegrity
     @AssociationId INT,
     @TenantId INT,
     @IntegrityStatus_OUT NVARCHAR(50) = NULL OUTPUT
@@ -38,7 +38,7 @@ BEGIN
     -- Expected Outstanding (Sum of Unpaid Invoices)
     -- This relies on the core Invoice table status.
     SELECT @ExpectedOutstanding = ISNULL(SUM(Amount), 0)
-    FROM assoc.Invoices
+    FROM assoc.Invoices WITH (NOLOCK)
     WHERE TenantId = @TenantId AND AssociationId = @AssociationId
     AND Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft');
 
@@ -48,7 +48,7 @@ BEGIN
             AssetId,
             SUM(CASE WHEN Type = 'Credit' AND (Category = 'Payment' OR Category = 'Advance Payment') AND (InvoiceId IS NULL OR InvoiceId = 0) THEN Amount ELSE 0 END) -
             SUM(CASE WHEN Type = 'Debit' AND (Category = 'Credit Settlement' OR Category = 'Internal Credit Transfer') THEN Amount ELSE 0 END) as Balance
-        FROM assoc.Transactions
+        FROM assoc.Transactions WITH (NOLOCK)
         WHERE TenantId = @TenantId AND AssociationId = @AssociationId
         GROUP BY AssetId
     )
@@ -58,7 +58,7 @@ BEGIN
     -- This matches the user's manual (22 + 30 = 52) logic exactly.
     DECLARE @Raw30DCash DECIMAL(18,2) = 0;
     SELECT @Raw30DCash = ISNULL(SUM(Amount), 0) 
-    FROM assoc.Payments 
+    FROM assoc.Payments WITH (NOLOCK)
     WHERE TenantId = @TenantId 
     AND AssociationId = @AssociationId 
     AND Status IN ('Paid', 'Completed', 'Captured')

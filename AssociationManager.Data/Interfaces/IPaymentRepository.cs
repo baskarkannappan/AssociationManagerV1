@@ -8,6 +8,7 @@ public interface IPaymentRepository
 {
     Task<Payment?> GetByIdAsync(int id, int tenantId, int? associationId);
     Task<IEnumerable<Payment>> GetByTenantIdAsync(int tenantId, int? associationId);
+    Task<IEnumerable<Payment>> GetRecentByAssociationIdAsync(int tenantId, int associationId, int count, IEnumerable<int>? assetIds = null);
     Task<int> CreateAsync(Payment payment);
     Task<bool> UpdateStatusAsync(int id, string status, string? gatewayReference, int tenantId, int? associationId);
     Task<bool> AutoSettleAsync(int assetId, int tenantId, int associationId, int userId);
