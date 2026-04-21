@@ -21,7 +21,12 @@ BEGIN
             i.InvoiceId, i.DueDate, i.CreatedDate, i.Amount, i.[Status], i.AssetId,
             ISNULL(items.TotalLineItems, 0) as TotalLineItems,
             ISNULL(items.PenaltyLineItems, 0) as PenaltyLineItems,
-            ISNULL(payments.TotalPaid, 0) as TotalPaid
+            ISNULL(payments.TotalPaid, 0) as TotalPaid,
+            -- Prioritize Invoice-level fine rules (Rule Snapshot)
+            COALESCE(i.FineStrategy, @StrategyType) as EffectiveStrategy,
+            COALESCE(i.FineValue, @FineValue) as EffectiveValue,
+            COALESCE(i.FineGracePeriod, @GracePeriodDays) as EffectiveGrace,
+            COALESCE(i.FineIsCompounding, @IsCompounding) as EffectiveCompounding
         FROM assoc.Invoices i WITH (NOLOCK)
         OUTER APPLY (
             SELECT 
@@ -46,18 +51,18 @@ BEGIN
             CASE WHEN d.Amount > d.TotalLineItems THEN d.Amount ELSE d.TotalLineItems END as GrossBilled,
             CASE 
                 WHEN d.DueDate >= GETUTCDATE() THEN 0
-                WHEN @StrategyType IS NULL OR @StrategyType = 'None' THEN 0
+                WHEN d.EffectiveStrategy IS NULL OR d.EffectiveStrategy = 'None' THEN 0
                 WHEN @ActivationDate IS NULL OR d.CreatedDate < @ActivationDate THEN 0
-                WHEN DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= @GracePeriodDays THEN 0
+                WHEN DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= d.EffectiveGrace THEN 0
                 WHEN d.PenaltyLineItems > 0 THEN 0 
                 ELSE 
                     (SELECT 
                         CASE 
-                            WHEN @StrategyType = 'FlatAmount' THEN @FineValue * monthsLate
-                            WHEN @StrategyType = 'OneTimeFlat' THEN @FineValue
-                            WHEN @StrategyType = 'OneTimePercentage' THEN ROUND(d.Amount * (@FineValue / 100.0), 2)
-                            WHEN @StrategyType = 'Percentage' AND @IsCompounding = 0 THEN ROUND(d.Amount * (@FineValue / 100.0) * monthsLate, 2)
-                            WHEN @StrategyType = 'Percentage' AND @IsCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (@FineValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2)
+                            WHEN d.EffectiveStrategy = 'FlatAmount' THEN d.EffectiveValue * monthsLate
+                            WHEN d.EffectiveStrategy = 'OneTimeFlat' THEN d.EffectiveValue
+                            WHEN d.EffectiveStrategy = 'OneTimePercentage' THEN ROUND(d.Amount * (d.EffectiveValue / 100.0), 2)
+                            WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 0 THEN ROUND(d.Amount * (d.EffectiveValue / 100.0) * monthsLate, 2)
+                            WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (d.EffectiveValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2)
                             ELSE 0
                         END
                      FROM (SELECT CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate) m

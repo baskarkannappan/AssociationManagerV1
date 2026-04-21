@@ -11,7 +11,28 @@ CREATE PROCEDURE assoc.sp_Invoices_Create
     @CreatedDate DATETIME 
 AS 
 BEGIN 
-    INSERT INTO assoc.Invoices (TenantId, AssociationId, AssetId, BillingBatchId, Title, Description, Amount, DueDate, Status, CreatedDate) 
-    VALUES (@TenantId, @AssociationId, @AssetId, @BillingBatchId, @Title, @Description, @Amount, @DueDate, @Status, @CreatedDate); 
+    SET NOCOUNT ON;
+    
+    DECLARE @FineStrategy NVARCHAR(50), @FineValue DECIMAL(18,2), @FineGracePeriod INT, @FineIsCompounding BIT;
+    
+    -- Fetch active association rules
+    SELECT 
+        @FineStrategy = StrategyType,
+        @FineValue = FineValue,
+        @FineGracePeriod = GracePeriodDays,
+        @FineIsCompounding = IsCompounding
+    FROM assoc.FineSettings 
+    WHERE AssociationId = @AssociationId AND TenantId = @TenantId;
+
+    INSERT INTO assoc.Invoices (
+        TenantId, AssociationId, AssetId, BillingBatchId, Title, Description, Amount, DueDate, Status, CreatedDate,
+        FineStrategy, FineValue, FineGracePeriod, FineIsCompounding
+    ) 
+    VALUES (
+        @TenantId, @AssociationId, @AssetId, @BillingBatchId, @Title, @Description, @Amount, @DueDate, @Status, @CreatedDate,
+        @FineStrategy, @FineValue, @FineGracePeriod, @FineIsCompounding
+    ); 
+
     SELECT SCOPE_IDENTITY(); 
 END
+GO
