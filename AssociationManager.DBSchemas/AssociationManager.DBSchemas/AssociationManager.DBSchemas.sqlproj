@@ -343,7 +343,7 @@
     <Build Include="assoc\Stored Procedures\sp_ElectionResults_Get.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetTotalMembers.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetCommitteeCount.sql" />
     <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_UpdateStatus.sql" />
@@ -445,7 +445,7 @@
     <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBalances_Sync_1.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
   </ItemGroup>
   <ItemGroup>

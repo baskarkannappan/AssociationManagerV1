@@ -1,4 +1,4 @@
-﻿-- sp_Dashboard_GetNetOutstanding
+﻿-- 2. Fix Net Outstanding Dashboard Proc
 CREATE   PROCEDURE assoc.sp_Dashboard_GetNetOutstanding
     @TenantId INT, @AssociationId INT
 AS
@@ -14,7 +14,7 @@ BEGIN
         WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId AND i.[Status] NOT IN ('Paid', 'Cancelled', 'Void', 'Draft')
     ),
     CalculatedFines AS (
-        SELECT d.*, CASE WHEN d.Amount > d.TotalLineItems THEN d.Amount ELSE d.TotalLineItems END as GrossBilled,
+        SELECT d.*, CAST(d.Amount + d.PenaltyLineItems AS DECIMAL(18,2)) as GrossBilled,
             CASE WHEN d.DueDate >= GETUTCDATE() THEN 0 WHEN d.EffectiveStrategy IS NULL OR d.EffectiveStrategy = 'None' THEN 0 WHEN @ActivationDate IS NULL OR d.CreatedDate < @ActivationDate THEN 0 WHEN DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= d.EffectiveGrace THEN 0 WHEN d.PenaltyLineItems > 0 THEN 0 ELSE 
                 (SELECT CASE WHEN d.EffectiveStrategy = 'FlatAmount' THEN d.EffectiveValue * monthsLate WHEN d.EffectiveStrategy = 'OneTimeFlat' THEN d.EffectiveValue WHEN d.EffectiveStrategy = 'OneTimePercentage' THEN ROUND(d.Amount * (d.EffectiveValue / 100.0), 2) WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 0 THEN ROUND(d.Amount * (d.EffectiveValue / 100.0) * monthsLate, 2) WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (d.EffectiveValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2) ELSE 0 END FROM (SELECT CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate) m)
             END as DynamicFine FROM InvoiceData d

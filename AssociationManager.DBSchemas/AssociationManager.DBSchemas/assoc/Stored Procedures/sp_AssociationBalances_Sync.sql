@@ -68,7 +68,7 @@ BEGIN
         SELECT 
             d.*,
             -- Robust Base Amount: MAX of the recorded Amount or sum of all line items
-            CASE WHEN d.Amount > d.TotalLineItems THEN d.Amount ELSE d.TotalLineItems END as GrossBilled,
+            CAST(d.Amount + d.PenaltyLineItems AS DECIMAL(18,2)) as GrossBilled,
             CASE 
                 WHEN d.DueDate >= GETUTCDATE() THEN 0
                 WHEN d.EffectiveStrategy IS NULL OR d.EffectiveStrategy = 'None' THEN 0
