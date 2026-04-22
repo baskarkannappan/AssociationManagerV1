@@ -29,6 +29,8 @@
 
 
 
+
+
 GO
 CREATE NONCLUSTERED INDEX [IX_Invoices_AssociationId]
     ON [assoc].[Invoices]([AssociationId] ASC);

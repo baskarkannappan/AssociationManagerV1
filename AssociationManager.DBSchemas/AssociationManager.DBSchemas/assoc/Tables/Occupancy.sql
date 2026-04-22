@@ -18,6 +18,8 @@
 
 
 
+
+
 GO
 CREATE NONCLUSTERED INDEX [IX_Occupancy_AssociationId]
     ON [assoc].[Occupancy]([AssociationId] ASC);

@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE [assoc].[sp_AuditLogs_CreateBulk]
+﻿CREATE   PROCEDURE [assoc].[sp_AuditLogs_CreateBulk]
     @TenantId INT,
     @AssociationId INT,
     @UserId INT,
@@ -11,4 +11,3 @@ BEGIN
     SELECT @TenantId, @AssociationId, @UserId, AssetId, Action, Entity, EntityId, Timestamp
     FROM @Logs;
 END
-GO

@@ -1,4 +1,6 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Payments_GetRecent
+﻿
+-- 3.2 sp_Payments_GetRecent
+CREATE   PROCEDURE assoc.sp_Payments_GetRecent
     @TenantId INT,
     @AssociationId INT,
     @Count INT,
@@ -13,4 +15,3 @@ BEGIN
     AND (@AssetIds IS NULL OR AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
     ORDER BY CreatedDate DESC
 END
-GO

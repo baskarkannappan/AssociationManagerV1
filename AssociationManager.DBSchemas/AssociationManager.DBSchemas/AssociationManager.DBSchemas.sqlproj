@@ -70,6 +70,10 @@
     <Folder Include="archive\Tables\" />
     <Folder Include="Security\Functions\" />
     <Folder Include="assoc\User Defined Types\" />
+    <Folder Include="assoc\Triggers\" />
+    <Folder Include="assoc\Types\" />
+    <Folder Include="corp\Triggers\" />
+    <Folder Include="Security\Policies\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="archive\Tables\AuditLogs.sql" />
@@ -84,7 +88,6 @@
     <Build Include="assoc\Stored Procedures\sp_Assets_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetAllFlat.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetAssignedTariffs.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetByParentId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
@@ -93,18 +96,15 @@
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetActiveByTenantId.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetByAssetId.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_Upsert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssociationBalances_Sync.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Get.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_Associations_GetByUserId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AuditLogs_CreateBulk.sql" />
     <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
     <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_GetByName.sql" />
     <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_BillingBatches_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetByAssociation.sql" />
     <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetDraft.sql" />
@@ -152,9 +152,7 @@
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_DeleteByInvoiceId.sql" />
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_GetByInvoiceId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_BulkCommit.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_CreateBulk.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetAll.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetByAssetId.sql" />
@@ -184,7 +182,6 @@
     <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvancesPaged.sql" />
     <Build Include="assoc\Stored Procedures\sp_Payments_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_Payments_GetByTenantId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_GetRecent.sql" />
     <Build Include="assoc\Stored Procedures\sp_Payments_UpdateStatus.sql" />
     <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_CheckExists.sql" />
     <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_Create.sql" />
@@ -285,13 +282,6 @@
     <Build Include="assoc\Tables\Vehicles.sql" />
     <Build Include="assoc\Tables\Votes.sql" />
     <Build Include="assoc\Tables\WorkOrders.sql" />
-    <Build Include="assoc\Triggers\tr_CommitteeMembers_SyncDashboard.sql" />
-    <Build Include="assoc\Triggers\tr_Invoices_SyncDashboard.sql" />
-    <Build Include="assoc\Triggers\tr_Occupancy_SyncDashboard.sql" />
-    <Build Include="assoc\Triggers\tr_Payments_SyncDashboard.sql" />
-    <Build Include="assoc\Triggers\tr_Transactions_SyncDashboard.sql" />
-    <Build Include="assoc\Triggers\tr_WorkOrders_SyncDashboard.sql" />
-    <Build Include="assoc\Types\UserDefinedTableTypes.sql" />
     <Build Include="assoc\User Defined Types\AssetTableType.sql" />
     <Build Include="assoc\User Defined Types\typ_AuditLogBatch.sql" />
     <Build Include="assoc\User Defined Types\typ_InvoiceBatch.sql" />
@@ -366,7 +356,6 @@
     <Build Include="corp\Tables\Tenants.sql" />
     <Build Include="corp\Tables\UserAssociations.sql" />
     <Build Include="corp\Tables\Users.sql" />
-    <Build Include="corp\Triggers\tr_Associations_SyncDashboard.sql" />
     <Build Include="dbo\Stored Procedures\sp_Broadcasts_Delete.sql" />
     <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetAll.sql" />
     <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetById.sql" />
@@ -394,6 +383,18 @@
     <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
     <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
     <Build Include="Security\Functions\fn_TenantAccessPredicate.sql" />
-    <Build Include="Security\Policies\TenantSecurityPolicies.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetRecent.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_CreateBulk.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_BulkCommit.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Delete.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_AuditLogs_CreateBulk.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationBalances_Sync.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetAssignedTariffs.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
   </ItemGroup>
 </Project>

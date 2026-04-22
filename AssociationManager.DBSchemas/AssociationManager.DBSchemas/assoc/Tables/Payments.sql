@@ -1,4 +1,4 @@
-CREATE TABLE [assoc].[Payments] (
+﻿CREATE TABLE [assoc].[Payments] (
     [PaymentId]        INT             IDENTITY (1, 1) NOT NULL,
     [TenantId]         INT             NOT NULL,
     [UserId]           INT             NOT NULL,
@@ -17,6 +17,8 @@ CREATE TABLE [assoc].[Payments] (
     CONSTRAINT [FK_Payments_Invoices] FOREIGN KEY ([InvoiceId]) REFERENCES [assoc].[Invoices] ([InvoiceId]),
     CONSTRAINT [FK_Payments_Tenants] FOREIGN KEY ([TenantId]) REFERENCES [corp].[Tenants] ([TenantId])
 );
+
+
 
 
 

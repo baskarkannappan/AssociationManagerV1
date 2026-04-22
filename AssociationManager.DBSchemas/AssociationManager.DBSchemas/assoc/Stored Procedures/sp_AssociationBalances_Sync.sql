@@ -1,4 +1,5 @@
-CREATE OR ALTER PROCEDURE assoc.sp_AssociationBalances_Sync 
+﻿-- 1. Fix Association Balances Sync
+CREATE   PROCEDURE assoc.sp_AssociationBalances_Sync 
     @TenantId INT = NULL, 
     @AssociationId INT 
 AS 
@@ -67,7 +68,7 @@ BEGIN
     CalculatedFines AS (
         SELECT 
             d.*,
-            -- Robust Base Amount: MAX of the recorded Amount or sum of all line items
+            -- Robust Base Amount: Principal + Recorded Extras (avoiding flawed MAX logic)
             CAST(d.Amount + d.PenaltyLineItems AS DECIMAL(18,2)) as GrossBilled,
             CASE 
                 WHEN d.DueDate >= GETUTCDATE() THEN 0

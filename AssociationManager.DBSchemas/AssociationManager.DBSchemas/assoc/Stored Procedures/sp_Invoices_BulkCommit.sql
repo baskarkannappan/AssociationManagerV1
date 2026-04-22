@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Invoices_BulkCommit
+﻿CREATE   PROCEDURE assoc.sp_Invoices_BulkCommit
     @BatchId INT,
     @TenantId INT,
     @AssociationId INT
@@ -55,4 +55,3 @@ BEGIN
     -- 4. Sync Association Balances (Snapshot)
     EXEC assoc.sp_AssociationBalances_Sync @TenantId = @TenantId, @AssociationId = @AssociationId;
 END
-GO

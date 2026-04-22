@@ -1,4 +1,6 @@
-CREATE PROCEDURE assoc.sp_WorkOrders_GetPendingCount
+﻿
+-- 3.1 sp_WorkOrders_GetPendingCount
+CREATE   PROCEDURE assoc.sp_WorkOrders_GetPendingCount
     @TenantId INT,
     @AssociationId INT
 AS

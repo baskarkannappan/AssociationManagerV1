@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Assets_GetAssignedTariffs
+﻿CREATE   PROCEDURE assoc.sp_Assets_GetAssignedTariffs
     @AssetId INT,
     @TenantId INT,
     @AssociationId INT
@@ -20,4 +20,3 @@ BEGIN
     AND t.TenantId = @TenantId 
     AND t.AssociationId = @AssociationId;
 END
-GO

@@ -20,6 +20,8 @@
 
 
 
+
+
 GO
 CREATE NONCLUSTERED INDEX [IX_WorkOrders_AssociationId]
     ON [assoc].[WorkOrders]([AssociationId] ASC);
