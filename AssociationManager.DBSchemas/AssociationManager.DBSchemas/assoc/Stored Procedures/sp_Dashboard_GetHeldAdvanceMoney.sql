@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Dashboard_GetHeldAdvanceMoney
+﻿CREATE   PROCEDURE assoc.sp_Dashboard_GetHeldAdvanceMoney
     @TenantId INT,
     @AssociationId INT,
     @TotalAdvanceCredits_OUT DECIMAL(18,2) = NULL OUTPUT,
@@ -10,7 +10,6 @@ BEGIN
     DECLARE @TotalAdvanceCredits DECIMAL(18,2) = 0;
     DECLARE @UnitsWithCredit INT = 0;
 
-    -- Optimized: Pre-indexed Wallet Search
     WITH WalletBalances AS (
         SELECT 
             AssetId,
@@ -22,7 +21,7 @@ BEGIN
     )
     SELECT 
         @TotalAdvanceCredits = CAST(ISNULL(SUM(Balance), 0) AS DECIMAL(18,2)),
-        @UnitsWithCredit = CAST(COUNT(*) AS INT) -- GROUP BY already makes AssetId records unique
+        @UnitsWithCredit = CAST(COUNT(*) AS INT) 
     FROM WalletBalances
     WHERE Balance > 0;
 
@@ -34,4 +33,3 @@ BEGIN
         SELECT @TotalAdvanceCredits as TotalAdvanceCredits, @UnitsWithCredit as UnitsWithCredit;
     END
 END
-GO

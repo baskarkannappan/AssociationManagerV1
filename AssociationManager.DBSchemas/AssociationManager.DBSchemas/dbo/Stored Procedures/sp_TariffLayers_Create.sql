@@ -1,4 +1,4 @@
--- Update sp_TariffLayers_Create
+﻿-- 11. sp_TariffLayers_Create
 CREATE   PROCEDURE sp_TariffLayers_Create
     @TariffGroupId INT,
     @TenantId INT,

@@ -69,6 +69,7 @@
     <Folder Include="archive\" />
     <Folder Include="archive\Tables\" />
     <Folder Include="Security\Functions\" />
+    <Folder Include="assoc\User Defined Types\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\SchemaVersions.sql" />
@@ -119,7 +120,7 @@
     <Build Include="corp\Stored Procedures\sp_Users_GetByAssociationId_Complex.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_DeleteGlobal.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_Create.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="corp\Stored Procedures\sp_UserAssociations_Upsert.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
@@ -141,7 +142,7 @@
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="corp\Stored Procedures\sp_Tenants_Create.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Upsert.sql" />
     <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetByTenantId.sql" />
@@ -318,7 +319,6 @@
     <Build Include="assoc\Stored Procedures\sp_Invoices_UpdateStatus.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_Update.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetUnpaidOverdue.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetByBatchId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_GetByAssetId.sql" />
@@ -333,13 +333,7 @@
     <Build Include="assoc\Stored Procedures\sp_Finance_ValidateIntegrity.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
     <Build Include="assoc\Stored Procedures\sp_Finance_GetPersonalWalletBalance.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql" />
@@ -351,8 +345,6 @@
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney.sql" />
     <Build Include="assoc\Stored Procedures\sp_Dashboard_GetCommitteeCount.sql" />
     <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_UpdateStatus.sql" />
     <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetPending.sql" />
@@ -375,12 +367,15 @@
     <Build Include="assoc\Stored Procedures\sp_Broadcasts_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_Broadcasts_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetByAssociation.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetById.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetByAssociation.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
     <Build Include="assoc\Stored Procedures\sp_BillingBatches_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_GetByName.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Associations_GetByUserId.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Get.sql" />
@@ -393,14 +388,13 @@
     <Build Include="assoc\Stored Procedures\sp_Assets_Update.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetByParentId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_GetById.sql" />
     <Build Include="assoc\Stored Procedures\sp_Assets_Delete.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Assets_Create.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
+      <QuotedIdentifier>On</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Assets_Count.sql" />
     <Build Include="assoc\Stored Procedures\sp_Analyze_ResidentMapping.sql" />
@@ -409,6 +403,50 @@
     <Build Include="assoc\Stored Procedures\sp_Analyze_AssetTariffs.sql" />
     <Build Include="assoc\Stored Procedures\sp_Analyze_AssetInvoiceTree.sql" />
     <Build Include="assoc\Stored Procedures\sp_Analyze_AssetFinancials.sql" />
+    <Build Include="assoc\Tables\AuditLogs_1.sql" />
+    <Build Include="assoc\Tables\AssociationBalances_1.sql" />
+    <Build Include="corp\Stored Procedures\sp_AuditLogs_GetRecent_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetPendingCount_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetRecent_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetInvoicedAssetsByPeriod.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Invoices_CreateBulk_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_BulkCommit_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetAdminSnapshot_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateTotals.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Update.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetDraft.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Delete_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_AuditLogs_CreateBulk_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetAssignedTariffs_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetAllFlat.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_BulkCreate.sql" />
+    <Build Include="assoc\User Defined Types\typ_InvoiceLineItemBatch.sql" />
+    <Build Include="assoc\User Defined Types\typ_InvoiceBatch.sql" />
+    <Build Include="assoc\User Defined Types\typ_AuditLogBatch.sql" />
+    <Build Include="assoc\User Defined Types\AssetTableType.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary_Snapshot_1.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationBalances_Sync_1.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

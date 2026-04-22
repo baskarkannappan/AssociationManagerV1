@@ -1,3 +1,4 @@
+﻿-- 5. assoc.sp_BillingBatches_Create
 CREATE   PROCEDURE assoc.sp_BillingBatches_Create 
     @TenantId INT, 
     @AssociationId INT, 

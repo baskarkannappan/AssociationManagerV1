@@ -1,0 +1,1 @@
+﻿CREATE   PROCEDURE [assoc].[sp_Assets_GetAllFlat] @TenantId INT, @AssociationId INT AS BEGIN SET NOCOUNT ON; SELECT * FROM assoc.Assets WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND IsActive = 1 ORDER BY AssetType, Name; END

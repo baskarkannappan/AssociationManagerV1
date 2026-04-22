@@ -1,4 +1,9 @@
-CREATE   PROCEDURE corp.sp_Tenants_Create @Name NVARCHAR(255), @CreatedDate DATETIME, @IsActive BIT AS 
+﻿-- 2. corp.sp_Tenants_Create
+CREATE   PROCEDURE corp.sp_Tenants_Create 
+    @Name NVARCHAR(255), 
+    @CreatedDate DATETIME, 
+    @IsActive BIT 
+AS 
 BEGIN 
     INSERT INTO corp.Tenants (Name, CreatedDate, IsActive) 
     VALUES (@Name, @CreatedDate, @IsActive); 

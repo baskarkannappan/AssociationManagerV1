@@ -1,5 +1,4 @@
--- 4. Update sp_Associations_Create
-CREATE   PROCEDURE corp.sp_Associations_Create 
+﻿CREATE   PROCEDURE corp.sp_Associations_Create 
     @TenantId INT, 
     @Name NVARCHAR(255), 
     @Description NVARCHAR(MAX), 

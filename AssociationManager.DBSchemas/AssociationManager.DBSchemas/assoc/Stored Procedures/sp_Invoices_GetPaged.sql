@@ -1,4 +1,8 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Invoices_GetPaged
+﻿-- Migration Script 0125: Standardize Invoice Amount Logic & Visibility
+-- 1. Restore IsAdvancePaid visibility to sp_Invoices_GetPaged
+-- 2. Standardize 'Amount' column to return Base Principal, matching UI expectations and avoiding double-counting with line items.
+
+CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -12,7 +16,7 @@ CREATE OR ALTER PROCEDURE assoc.sp_Invoices_GetPaged
     @SortColumn NVARCHAR(50) = 'CreatedDate',
     @SortDirection NVARCHAR(10) = 'DESC',
     @IncludeDraft BIT = 0,
-    @ReferenceId INT = NULL -- Keyset Pagination Support
+    @ReferenceId INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -25,9 +29,6 @@ BEGIN
     IF @SortDirection NOT IN ('ASC', 'DESC')
         SET @SortDirection = 'DESC';
 
-    -- Note: For 10M+ scaling, Keyset pagination is invoked if @ReferenceId is provided.
-    -- If @ReferenceId is null, we fall back to OFFSET/FETCH (legacy support).
-
     ;WITH FilteredInvoices AS (
         SELECT 
             i.InvoiceId, i.TenantId, i.AssociationId, i.AssetId, i.BillingBatchId, i.Title, i.Description, 
@@ -38,11 +39,6 @@ BEGIN
             CAST(SUM(CASE WHEN i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft') THEN i.Amount ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
         FROM assoc.Invoices i WITH (NOLOCK)
         LEFT JOIN assoc.Assets a WITH (NOLOCK) ON i.AssetId = a.AssetId
-        OUTER APPLY (
-            SELECT SUM(Amount) as TotalAmount 
-            FROM assoc.InvoiceLineItems li WITH (NOLOCK)
-            WHERE li.InvoiceId = i.InvoiceId
-        ) li
         WHERE i.TenantId = @TenantId
         AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId)
         AND (@AssetId IS NULL OR i.AssetId = @AssetId)
@@ -62,7 +58,6 @@ BEGIN
         * 
     FROM FilteredInvoices
     ORDER BY 
-        -- ORDER BY logic preserved for sorting compatibility
         CASE WHEN @SortDirection = 'ASC' THEN
             CASE 
                 WHEN @SortColumn = 'Title' THEN Title
@@ -95,4 +90,3 @@ BEGIN
     FETCH NEXT @PageSize ROWS ONLY
     OPTION (RECOMPILE); 
 END
-GO

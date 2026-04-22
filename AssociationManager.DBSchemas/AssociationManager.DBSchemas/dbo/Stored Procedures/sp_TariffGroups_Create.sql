@@ -1,4 +1,4 @@
--- Update sp_TariffGroups_Create
+﻿-- 12. sp_TariffGroups_Create
 CREATE   PROCEDURE sp_TariffGroups_Create
     @TenantId INT,
     @AssociationId INT = NULL,

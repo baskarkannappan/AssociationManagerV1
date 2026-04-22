@@ -1,4 +1,5 @@
-CREATE PROCEDURE assoc.sp_Assets_Create 
+﻿-- 4. assoc.sp_Assets_Create
+CREATE   PROCEDURE assoc.sp_Assets_Create 
     @ParentId INT = NULL, 
     @TenantId INT, 
     @AssociationId INT, 
