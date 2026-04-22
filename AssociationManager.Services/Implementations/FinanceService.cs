@@ -491,6 +491,10 @@ public class FinanceService : IFinanceService
             }
 
             await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
+            
+            // Trigger Real-time Dashboard Sync to update Net Outstanding metrics immediately
+            _ = Task.Run(() => SyncAssociationBalancesAsync(invoice.AssociationId, CurrentTenantId));
+            
             return true;
         }
 

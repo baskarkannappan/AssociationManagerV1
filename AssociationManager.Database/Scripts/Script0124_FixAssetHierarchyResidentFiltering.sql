@@ -1,3 +1,6 @@
+-- Migration Script 0124: Fix Asset Hierarchy Resident Filtering logic and table names
+-- Corrects typo in table name (Occupancy) and updates join logic to correctly link UserId to Assets.
+
 CREATE OR ALTER PROCEDURE assoc.sp_Assets_GetHierarchy 
     @TenantId INT, 
     @AssociationId INT,
@@ -8,11 +11,10 @@ BEGIN
     SET NOCOUNT ON;
 
     -- If a UserId is provided, we filter by the user's accessibility (Recursive)
-    -- This logic was present in the original procedure and I must preserve it.
     IF @UserId IS NOT NULL
     BEGIN
         WITH ResidentAssets AS (
-            -- Link UserId -> Email -> Persons -> Occupancy -> AssetId
+            -- Link UserId -> assoc.Users (Email) -> assoc.Persons (PersonId) -> assoc.Occupancy (AssetId)
             SELECT o.AssetId 
             FROM assoc.Occupancy o
             JOIN assoc.Persons p ON o.PersonId = p.PersonId
@@ -41,8 +43,7 @@ BEGIN
     END
     ELSE IF @ParentId IS NULL
     BEGIN
-        -- ROOT Load: TOP 10000 safety for massive associations
-        -- Return ONLY essential columns for the explorer tree to minimize payload size
+        -- ROOT Load
         SELECT TOP 10000 AssetId, ParentId, TenantId, AssociationId, Name, AssetType, IsActive
         FROM assoc.Assets 
         WHERE TenantId = @TenantId 
@@ -53,7 +54,7 @@ BEGIN
     END
     ELSE
     BEGIN
-        -- CHILD Load: Return children for a specific parent
+        -- CHILD Load
         SELECT AssetId, ParentId, TenantId, AssociationId, Name, AssetType, IsActive
         FROM assoc.Assets 
         WHERE TenantId = @TenantId 

@@ -21,19 +21,22 @@ public class AssetsController : ControllerBase
     private readonly AssociationManager.Shared.Interfaces.ITenantContext _tenantContext;
     private readonly IRuleEngineService _ruleEngine;
     private readonly IBackgroundJobClient _backgroundJobClient;
+    private readonly ILogger<AssetsController> _logger;
 
     public AssetsController(
         IAssetService assetService, 
         IAuditService auditService, 
         AssociationManager.Shared.Interfaces.ITenantContext tenantContext, 
         IRuleEngineService ruleEngine,
-        IBackgroundJobClient backgroundJobClient)
+        IBackgroundJobClient backgroundJobClient,
+        ILogger<AssetsController> logger)
     {
         _assetService = assetService;
         _auditService = auditService;
         _tenantContext = tenantContext;
         _ruleEngine = ruleEngine;
         _backgroundJobClient = backgroundJobClient;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -59,8 +62,13 @@ public class AssetsController : ControllerBase
         bool isResidentOnly = securityContext.UserLevel <= AppRole.LevelResident;
         int? filterUserId = isResidentOnly ? _tenantContext.UserId : null;
         
+        _logger.LogInformation("[Assets] Hierarchy request - User: {UserId}, RoleLevel: {UserLevel}, Association: {AssociationId}, ResidentOnly: {IsResidentOnly}, FilterUser: {FilterUser}", 
+            _tenantContext.UserId, securityContext.UserLevel, securityContext.AssociationId, isResidentOnly, filterUserId);
+
         var hierarchy = await _assetService.GetHierarchyAsync(filterUserId, parentId);
         sw.Stop();
+
+        _logger.LogInformation("[Assets] Hierarchy returned {Count} assets in {Elapsed}ms", hierarchy.Count(), sw.ElapsedMilliseconds);
 
         if (sw.ElapsedMilliseconds > 500)
         {

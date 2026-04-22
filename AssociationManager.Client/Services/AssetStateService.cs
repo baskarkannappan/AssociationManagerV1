@@ -40,6 +40,7 @@ namespace AssociationManager.Client.Services
 
         // State
         public List<Asset>? Hierarchy { get; private set; }
+        public string? LoadError { get; private set; }
         
         private Asset? _selectedAsset;
         public Asset? SelectedAsset 
@@ -108,16 +109,33 @@ namespace AssociationManager.Client.Services
 
         public async Task LoadHierarchyAsync()
         {
-            // Initial load only fetches root assets (parentId = null)
-            Hierarchy = await _api.GetAsync<List<Asset>>("api/assets/hierarchy");
-            
-            if (SelectedAsset != null && !IsNew)
+            try
             {
-                SelectedAsset = FindInHierarchy(Hierarchy, SelectedAsset.AssetId);
+                LoadError = null;
+                // Initial load only fetches root assets (parentId = null)
+                Hierarchy = await _api.GetAsync<List<Asset>>("api/assets/hierarchy");
+                
+                if (Hierarchy == null)
+                {
+                    Hierarchy = new List<Asset>();
+                    LoadError = "Failed to load root assets. Please check your connection or permissions.";
+                }
+                
+                if (SelectedAsset != null && !IsNew)
+                {
+                    SelectedAsset = FindInHierarchy(Hierarchy, SelectedAsset.AssetId);
+                }
             }
-            
-            RefreshVisibleNodes();
-            NotifyStateChanged();
+            catch (Exception ex)
+            {
+                Hierarchy = new List<Asset>();
+                LoadError = $"Error: {ex.Message}";
+            }
+            finally
+            {
+                RefreshVisibleNodes();
+                NotifyStateChanged();
+            }
         }
 
         public async Task SelectAssetAsync(Asset asset)
