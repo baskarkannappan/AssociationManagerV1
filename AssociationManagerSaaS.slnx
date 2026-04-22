@@ -12,4 +12,5 @@
   <Project Path="AssociationManager.Shared/AssociationManager.Shared.csproj" />
   <Project Path="AssociationManager.Worker/AssociationManager.Worker.csproj" />
   <Project Path="AssociationManager.Mobile/AssociationManager.Mobile.csproj" />
+  <Project Path="AssociationManager.DBSchemas/AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj" />
 </Solution>
