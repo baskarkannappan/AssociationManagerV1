@@ -72,443 +72,328 @@
     <Folder Include="assoc\User Defined Types\" />
   </ItemGroup>
   <ItemGroup>
-    <Build Include="dbo\Tables\SchemaVersions.sql" />
-    <Build Include="corp\Tables\AssociationSubscriptions.sql" />
-    <Build Include="corp\Tables\SubscriptionPlans.sql" />
-    <Build Include="corp\Tables\UserAssociations.sql" />
-    <Build Include="corp\Tables\AuditLogs.sql" />
-    <Build Include="corp\Tables\Associations.sql" />
-    <Build Include="corp\Tables\RefreshTokens.sql" />
-    <Build Include="corp\Tables\Users.sql" />
-    <Build Include="corp\Tables\Tenants.sql" />
-    <Build Include="assoc\Tables\Broadcasts.sql" />
-    <Build Include="assoc\Tables\WorkOrders.sql" />
-    <Build Include="assoc\Tables\Invoices.sql" />
-    <Build Include="assoc\Tables\Pets.sql" />
-    <Build Include="assoc\Tables\Vehicles.sql" />
-    <Build Include="assoc\Tables\Occupancy.sql" />
-    <Build Include="assoc\Tables\Persons.sql" />
+    <Build Include="archive\Tables\AuditLogs.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetFinancials.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetInvoiceTree.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetTariffs.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_BatchHistory.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_OrphanedData.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Analyze_ResidentMapping.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_BulkCreate.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_Count.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetAllFlat.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetAssignedTariffs.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetByParentId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Assets_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetActiveByTenantId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationBalances_Sync.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Associations_GetByUserId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuditLogs_CreateBulk.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_GetByName.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetByAssociation.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetDraft.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateStatus.sql" />
+    <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateTotals.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Broadcasts_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Broadcasts_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetAll.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Candidates_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommitteeRoles_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetByAssociation.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetPending.sql" />
+    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_UpdateStatus.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetAdminSnapshot.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetCommitteeCount.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetTotalMembers.sql" />
+    <Build Include="assoc\Stored Procedures\sp_ElectionResults_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Elections_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Elections_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_AutoSettleInvoices.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary_Snapshot.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetPersonalWalletBalance.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_ValidateIntegrity.sql" />
+    <Build Include="assoc\Stored Procedures\sp_FineSettings_Get.sql" />
+    <Build Include="assoc\Stored Procedures\sp_FineSettings_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_DeleteByInvoiceId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_GetByInvoiceId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_BulkCommit.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_CreateBulk.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetAll.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetByBatchId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetInvoicedAssetsByPeriod.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_GetUnpaidOverdue.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Invoices_UpdateStatus.sql" />
+    <Build Include="assoc\Stored Procedures\sp_MeetingMinutes_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_MeetingMinutes_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Meetings_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Meetings_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetByUserId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Occupancy_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_GetByInvoiceId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_GetByOrderId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_UpdateStatus.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvances.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvancesPaged.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetByTenantId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_GetRecent.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Payments_UpdateStatus.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_CheckExists.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_GetByInvoiceId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_PaymentWebhookLogs_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Persons_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Persons_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Persons_GetAll.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Persons_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Persons_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Pets_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Pets_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Pets_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Pets_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Pets_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_GetByToken.sql" />
+    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics_v2.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffGroups_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffGroups_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffGroups_GetByTenantId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffGroups_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffLayers_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffLayers_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffLayers_GetByGroupId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_TariffLayers_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Transactions_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Transactions_GetBalanceByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Transactions_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Transactions_GetByTenantId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_CheckExists.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_GetRole.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_IsAuthorised.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_UserAssociations_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_DeleteGlobal.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetAll.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetByAssociationId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetByById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetByEmail.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetByGoogleId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_GetPaged.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_List.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Users_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Vehicles_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Vehicles_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Vehicles_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Vehicles_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Vehicles_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Votes_Check.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Votes_Insert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_Create.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_Delete.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetAll.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetByAssetId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetById.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetPendingCount.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_Update.sql" />
+    <Build Include="assoc\Stored Procedures\sp_WorkOrders_UpdateStatus.sql" />
     <Build Include="assoc\Tables\Assets.sql" />
+    <Build Include="assoc\Tables\AssetTariffs.sql" />
+    <Build Include="assoc\Tables\AssociationBalances.sql" />
+    <Build Include="assoc\Tables\AssociationBankDetails.sql" />
+    <Build Include="assoc\Tables\AssociationProfile.sql" />
+    <Build Include="assoc\Tables\AuditLogs.sql" />
+    <Build Include="assoc\Tables\AuthWorkflows.sql" />
+    <Build Include="assoc\Tables\BillingBatches.sql" />
+    <Build Include="assoc\Tables\Broadcasts.sql" />
+    <Build Include="assoc\Tables\ByeLaws.sql" />
+    <Build Include="assoc\Tables\Candidates.sql" />
+    <Build Include="assoc\Tables\CommitteeMembers.sql" />
+    <Build Include="assoc\Tables\CommitteeRoles.sql" />
+    <Build Include="assoc\Tables\CommunicationLogs.sql" />
+    <Build Include="assoc\Tables\Elections.sql" />
+    <Build Include="assoc\Tables\FineSettings.sql" />
+    <Build Include="assoc\Tables\InvoiceLineItems.sql" />
+    <Build Include="assoc\Tables\Invoices.sql" />
+    <Build Include="assoc\Tables\MeetingMinutes.sql" />
+    <Build Include="assoc\Tables\Meetings.sql" />
+    <Build Include="assoc\Tables\Occupancy.sql" />
+    <Build Include="assoc\Tables\PaymentOrders.sql" />
     <Build Include="assoc\Tables\Payments.sql" />
+    <Build Include="assoc\Tables\PaymentTransactions.sql" />
+    <Build Include="assoc\Tables\PaymentWebhookLogs.sql" />
+    <Build Include="assoc\Tables\Persons.sql" />
+    <Build Include="assoc\Tables\Pets.sql" />
     <Build Include="assoc\Tables\RefreshTokens.sql" />
+    <Build Include="assoc\Tables\TariffGroups.sql" />
+    <Build Include="assoc\Tables\TariffLayers.sql" />
+    <Build Include="assoc\Tables\Transactions.sql" />
     <Build Include="assoc\Tables\UserAssociations.sql" />
     <Build Include="assoc\Tables\Users.sql" />
-    <Build Include="assoc\Tables\Transactions.sql" />
-    <Build Include="assoc\Tables\AssetTariffs.sql" />
-    <Build Include="assoc\Tables\TariffLayers.sql" />
-    <Build Include="assoc\Tables\TariffGroups.sql" />
+    <Build Include="assoc\Tables\Vehicles.sql" />
+    <Build Include="assoc\Tables\Votes.sql" />
+    <Build Include="assoc\Tables\WorkOrders.sql" />
+    <Build Include="assoc\Triggers\tr_CommitteeMembers_SyncDashboard.sql" />
+    <Build Include="assoc\Triggers\tr_Invoices_SyncDashboard.sql" />
+    <Build Include="assoc\Triggers\tr_Occupancy_SyncDashboard.sql" />
+    <Build Include="assoc\Triggers\tr_Payments_SyncDashboard.sql" />
+    <Build Include="assoc\Triggers\tr_Transactions_SyncDashboard.sql" />
+    <Build Include="assoc\Triggers\tr_WorkOrders_SyncDashboard.sql" />
+    <Build Include="assoc\Types\UserDefinedTableTypes.sql" />
+    <Build Include="assoc\User Defined Types\AssetTableType.sql" />
+    <Build Include="assoc\User Defined Types\typ_AuditLogBatch.sql" />
+    <Build Include="assoc\User Defined Types\typ_InvoiceBatch.sql" />
+    <Build Include="assoc\User Defined Types\typ_InvoiceLineItemBatch.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_Delete.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_GetAllByTenantId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_GetById.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_GetByUserId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_GetWalletBalance.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_List.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_Update.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_UpdateStatus.sql" />
+    <Build Include="corp\Stored Procedures\sp_Associations_UpdateWalletBalance.sql" />
+    <Build Include="corp\Stored Procedures\sp_Association_BulkDelete.sql" />
+    <Build Include="corp\Stored Procedures\sp_AuditLogs_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_AuditLogs_GetByTenantId.sql" />
+    <Build Include="corp\Stored Procedures\sp_AuditLogs_GetRecent.sql" />
+    <Build Include="corp\Stored Procedures\sp_Maintenance_ArchiveAuditLogs.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Delete.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_GetById.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_List.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Update.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAdvancePayments_GetPaged.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformAdvancePayments_Insert.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_GetAll.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_GetByAssociationId.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_Insert.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_UpdateStatus.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformPayments_GetRevenue.sql" />
+    <Build Include="corp\Stored Procedures\sp_PlatformPayments_Insert.sql" />
+    <Build Include="corp\Stored Procedures\sp_RefreshTokens_Delete.sql" />
+    <Build Include="corp\Stored Procedures\sp_RefreshTokens_GetByToken.sql" />
+    <Build Include="corp\Stored Procedures\sp_RefreshTokens_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_SubscriptionPlans_GetAll.sql" />
+    <Build Include="corp\Stored Procedures\sp_SubscriptionPlans_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_Subscriptions_GetByAssociationId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Subscriptions_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Delete.sql" />
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetAll.sql" />
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetByTenantId.sql" />
+    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_Tenants_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_Tenants_GetAll.sql" />
+    <Build Include="corp\Stored Procedures\sp_Tenants_GetById.sql" />
+    <Build Include="corp\Stored Procedures\sp_Tenants_Update.sql" />
+    <Build Include="corp\Stored Procedures\sp_UserAssociations_CheckExists.sql" />
+    <Build Include="corp\Stored Procedures\sp_UserAssociations_Delete.sql" />
+    <Build Include="corp\Stored Procedures\sp_UserAssociations_GetRole.sql" />
+    <Build Include="corp\Stored Procedures\sp_UserAssociations_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_DeleteGlobal.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_GetByAssociationId_Complex.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_GetByEmail.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_GetByGoogleId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_GetById.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_GetByTenantId.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_IsAuthorisedForAssociation.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_List.sql" />
+    <Build Include="corp\Stored Procedures\sp_Users_Update.sql" />
+    <Build Include="corp\Tables\Associations.sql" />
+    <Build Include="corp\Tables\AssociationSubscriptions.sql" />
+    <Build Include="corp\Tables\AuditLogs.sql" />
+    <Build Include="corp\Tables\PlatformAccounts.sql" />
+    <Build Include="corp\Tables\PlatformAdvancePayments.sql" />
+    <Build Include="corp\Tables\PlatformInvoices.sql" />
+    <Build Include="corp\Tables\PlatformPayments.sql" />
+    <Build Include="corp\Tables\RefreshTokens.sql" />
+    <Build Include="corp\Tables\SubscriptionPlans.sql" />
+    <Build Include="corp\Tables\TenantPaymentConfig.sql" />
+    <Build Include="corp\Tables\Tenants.sql" />
+    <Build Include="corp\Tables\UserAssociations.sql" />
+    <Build Include="corp\Tables\Users.sql" />
+    <Build Include="corp\Triggers\tr_Associations_SyncDashboard.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Broadcasts_Delete.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetAll.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetById.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Invoices_Delete.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Invoices_GetAll.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Invoices_GetById.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Invoices_UpdateStatus.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Payments_GetByTenantId.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Persons_Delete.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Persons_GetAll.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Persons_GetById.sql" />
+    <Build Include="dbo\Stored Procedures\sp_TariffGroups_Create.sql" />
+    <Build Include="dbo\Stored Procedures\sp_TariffGroups_GetByTenantId.sql" />
+    <Build Include="dbo\Stored Procedures\sp_TariffLayers_Create.sql" />
+    <Build Include="dbo\Stored Procedures\sp_Users_GetByAssociationId.sql" />
+    <Build Include="dbo\Tables\SchemaVersions.sql" />
     <Build Include="Security\appuser.sql" />
+    <Build Include="Security\archive.sql" />
+    <Build Include="Security\assoc.sql" />
+    <Build Include="Security\corp.sql" />
     <Build Include="Security\Logins.sql" />
     <Build Include="Security\RoleMemberships.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_Update.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Users_List.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_IsAuthorisedForAssociation.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_GetByTenantId.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Users_GetById.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Users_GetByGoogleId.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Users_GetByEmail.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Users_GetByAssociationId_Complex.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_DeleteGlobal.sql" />
-    <Build Include="corp\Stored Procedures\sp_Users_Create.sql">
-      <QuotedIdentifier>On</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_UserAssociations_Upsert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_UserAssociations_GetRole.sql" />
-    <Build Include="corp\Stored Procedures\sp_UserAssociations_Delete.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_UserAssociations_CheckExists.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Tenants_Update.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Tenants_GetById.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Tenants_GetAll.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Tenants_Create.sql">
-      <QuotedIdentifier>On</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Upsert.sql" />
-    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetByTenantId.sql" />
-    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_GetAll.sql" />
-    <Build Include="corp\Stored Procedures\sp_TenantPaymentConfig_Delete.sql" />
-    <Build Include="corp\Stored Procedures\sp_Subscriptions_Upsert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_Subscriptions_GetByAssociationId.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_SubscriptionPlans_Upsert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_SubscriptionPlans_GetAll.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_RefreshTokens_Upsert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_RefreshTokens_GetByToken.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_RefreshTokens_Delete.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_PlatformPayments_Insert.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformPayments_GetRevenue.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_UpdateStatus.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_Insert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_GetByAssociationId.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformInvoices_GetAll.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAdvancePayments_Insert.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAdvancePayments_GetPaged.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Update.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_List.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_GetById.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Delete.sql" />
-    <Build Include="corp\Stored Procedures\sp_PlatformAccounts_Create.sql" />
-    <Build Include="corp\Stored Procedures\sp_Maintenance_ArchiveAuditLogs.sql" />
-    <Build Include="corp\Stored Procedures\sp_AuditLogs_GetByTenantId.sql" />
-    <Build Include="corp\Stored Procedures\sp_AuditLogs_Create.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_UpdateWalletBalance.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_UpdateStatus.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_Update.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_List.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_GetWalletBalance.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_GetByUserId.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_GetById.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_GetAllByTenantId.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_Delete.sql" />
-    <Build Include="corp\Stored Procedures\sp_Associations_Create.sql" />
-    <Build Include="corp\Stored Procedures\sp_Association_BulkDelete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetAll.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Votes_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Votes_Check.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Vehicles_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Vehicles_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Vehicles_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Vehicles_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Vehicles_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Users_Update.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Users_GetPaged.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Users_GetById.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_GetByGoogleId.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_GetByEmail.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_GetByById.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_GetByAssociationId.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_GetAll.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Users_DeleteGlobal.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Users_Create.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_Upsert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_IsAuthorised.sql" />
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_GetRole.sql" />
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_Delete.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_UserAssociations_CheckExists.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Transactions_GetByTenantId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Transactions_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Transactions_GetBalanceByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Transactions_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffLayers_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffLayers_GetByGroupId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffLayers_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffLayers_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffGroups_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffGroups_GetByTenantId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffGroups_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_TariffGroups_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics_v2.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Upsert.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_GetByToken.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Delete.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Pets_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Pets_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Pets_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Pets_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Pets_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Persons_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Persons_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Persons_GetAll.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Persons_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Persons_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentWebhookLogs_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_GetByInvoiceId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentTransactions_CheckExists.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_GetByTenantId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvancesPaged.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Payments_GetAdvances.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_Create.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_GetByOrderId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_GetByInvoiceId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_PaymentOrders_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Occupancy_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetByUserId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Occupancy_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Occupancy_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Occupancy_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Meetings_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Meetings_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_MeetingMinutes_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_MeetingMinutes_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetUnpaidOverdue.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetByBatchId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetAll.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_GetByInvoiceId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_DeleteByInvoiceId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_FineSettings_Upsert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_FineSettings_Get.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_ValidateIntegrity.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetPersonalWalletBalance.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssetBalance.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_AutoSettleInvoices.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Elections_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Elections_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_ElectionResults_Get.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetTotalMembers.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetRevenue30D.sql">
-      <QuotedIdentifier>On</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetCommitteeCount.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetPending.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_GetByAssociation.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommunicationLogs_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommitteeRoles_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_CommitteeMembers_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Candidates_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Update.sql" />
-    <Build Include="assoc\Stored Procedures\sp_ByeLaws_List.sql" />
-    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Insert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_ByeLaws_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_ByeLaws_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Broadcasts_GetAll.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Broadcasts_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Broadcasts_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateStatus.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetById.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetByAssociation.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Create.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_Upsert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AuthWorkflows_GetByName.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Associations_GetByUserId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Upsert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Get.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_Upsert.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetActiveByTenantId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_Delete.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_Update.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetByParentId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetById.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_Delete.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Assets_Create.sql">
-      <QuotedIdentifier>On</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Assets_Count.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Analyze_ResidentMapping.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Analyze_OrphanedData.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Analyze_BatchHistory.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetTariffs.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetInvoiceTree.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Analyze_AssetFinancials.sql" />
-    <Build Include="assoc\Tables\AuditLogs_1.sql" />
-    <Build Include="assoc\Tables\AssociationBalances_1.sql" />
-    <Build Include="corp\Stored Procedures\sp_AuditLogs_GetRecent_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetPendingCount_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Payments_GetRecent_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetInvoicedAssetsByPeriod.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Invoices_CreateBulk_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_BulkCommit_1.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetAdminSnapshot_1.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_UpdateTotals.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Update.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_GetDraft.sql" />
-    <Build Include="assoc\Stored Procedures\sp_BillingBatches_Delete_1.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_AuditLogs_CreateBulk_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetAssignedTariffs_1.sql">
-      <QuotedIdentifier>Off</QuotedIdentifier>
-    </Build>
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetAllFlat.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_BulkCreate.sql" />
-    <Build Include="assoc\User Defined Types\typ_InvoiceLineItemBatch.sql" />
-    <Build Include="assoc\User Defined Types\typ_InvoiceBatch.sql" />
-    <Build Include="assoc\User Defined Types\typ_AuditLogBatch.sql" />
-    <Build Include="assoc\User Defined Types\AssetTableType.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Invoices_GetPaged.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary_Snapshot_1.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetNetOutstanding.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Dashboard_GetHeldAdvanceMoney.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AuditLogs_GetByAssetId.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Assets_GetHierarchy.sql" />
-    <Build Include="assoc\Stored Procedures\sp_AssociationBalances_Sync_1.sql">
-      <QuotedIdentifier>On</QuotedIdentifier>
-    </Build>
-  </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
-    <Build Include="dbo\Stored Procedures\sp_Users_GetByAssociationId.sql" />
-    <Build Include="dbo\Stored Procedures\sp_TariffLayers_Create.sql" />
-    <Build Include="dbo\Stored Procedures\sp_TariffGroups_GetByTenantId.sql" />
-    <Build Include="dbo\Stored Procedures\sp_TariffGroups_Create.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Persons_GetById.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Persons_GetAll.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Persons_Delete.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Payments_GetByTenantId.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Invoices_UpdateStatus.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Invoices_GetById.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Invoices_GetAll.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Invoices_Delete.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetById.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetAll.sql" />
-    <Build Include="dbo\Stored Procedures\sp_Broadcasts_Delete.sql" />
-    <Build Include="Security\corp.sql" />
-    <Build Include="Security\assoc.sql" />
-    <Build Include="assoc\Tables\Votes.sql" />
-    <Build Include="assoc\Tables\Meetings.sql" />
-    <Build Include="assoc\Tables\MeetingMinutes.sql" />
-    <Build Include="assoc\Tables\Elections.sql" />
-    <Build Include="assoc\Tables\CommitteeRoles.sql" />
-    <Build Include="assoc\Tables\CommitteeMembers.sql" />
-    <Build Include="assoc\Tables\Candidates.sql" />
-    <Build Include="assoc\Tables\ByeLaws.sql" />
-    <Build Include="assoc\Tables\AssociationProfile.sql" />
-    <Build Include="assoc\Tables\InvoiceLineItems.sql" />
-    <Build Include="assoc\Tables\BillingBatches.sql" />
-    <Build Include="assoc\Tables\AuthWorkflows.sql" />
-    <Build Include="corp\Tables\PlatformPayments.sql" />
-    <Build Include="corp\Tables\PlatformInvoices.sql" />
-    <Build Include="corp\Tables\TenantPaymentConfig.sql" />
-    <Build Include="assoc\Tables\PaymentWebhookLogs.sql" />
-    <Build Include="assoc\Tables\PaymentTransactions.sql" />
-    <Build Include="assoc\Tables\PaymentOrders.sql" />
-    <Build Include="assoc\Tables\AssociationBankDetails.sql" />
-    <Build Include="assoc\Tables\FineSettings.sql" />
-    <Build Include="corp\Tables\PlatformAdvancePayments.sql" />
-    <Build Include="HangFire\Tables\AggregatedCounter.sql" />
-    <Build Include="HangFire\Tables\Hash.sql" />
-    <Build Include="HangFire\Tables\Counter.sql" />
-    <Build Include="HangFire\Tables\Set.sql" />
-    <Build Include="HangFire\Tables\List.sql" />
-    <Build Include="HangFire\Tables\Server.sql" />
-    <Build Include="HangFire\Tables\JobQueue.sql" />
-    <Build Include="HangFire\Tables\JobParameter.sql" />
-    <Build Include="HangFire\Tables\State.sql" />
-    <Build Include="HangFire\Tables\Job.sql" />
-    <Build Include="HangFire\Tables\Schema.sql" />
-    <Build Include="archive\Tables\AuditLogs_1.sql" />
-    <Build Include="Security\HangFire.sql" />
-    <Build Include="Security\archive_1.sql" />
-    <Build Include="Security\Functions\fn_TenantAccessPredicate_1.sql" />
     <Build Include="Security\Security.sql" />
-    <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
-    <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
     <Build Include="Security\TenantSecurityPolicy_AuditLogs.sql" />
-    <Build Include="corp\Tables\PlatformAccounts_1.sql" />
-    <Build Include="assoc\Tables\CommunicationLogs.sql" />
+    <Build Include="Security\TenantSecurityPolicy_Invoices.sql" />
+    <Build Include="Security\TenantSecurityPolicy_Transactions.sql" />
+    <Build Include="Security\Functions\fn_TenantAccessPredicate.sql" />
+    <Build Include="Security\Policies\TenantSecurityPolicies.sql" />
   </ItemGroup>
 </Project>
