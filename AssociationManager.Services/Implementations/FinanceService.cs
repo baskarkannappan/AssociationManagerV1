@@ -148,23 +148,44 @@ public class FinanceService : IFinanceService
 
     public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null, int? userId = null)
     {
+        var effectiveAssociationId = associationId ?? CurrentAssociationId;
+
+        // SMART RESOLUTION: If userId is provided but no specific assets are specified, 
+        // resolve all assets belonging to this user in the current association.
+        if (userId.HasValue && !assetId.HasValue && (assetIds == null || !assetIds.Any()))
+        {
+            var userAssets = await _occupancyRepository.GetByUserIdAsync(userId.Value, CurrentTenantId, effectiveAssociationId);
+            assetIds = userAssets.Select(o => o.AssetId).ToList();
+
+            // If the user has no assets in this association, return early with zeroed summary (except possibly their wallet)
+            if (!assetIds.Any())
+            {
+                return new FinanceSummary 
+                { 
+                    TotalUnpaid = 0, 
+                    Collected30Days = 0,
+                    TotalAdvanceCredits = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, effectiveAssociationId, userId.Value)
+                };
+            }
+        }
+
         // 1. Calculate REAL unpaid balance and 30-day collection stats
         // UNIFIED FETCH: Use optimized repository stats which include penalty calculations in SQL
-        var (totalUnpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
+        var (totalUnpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, effectiveAssociationId, assetId, assetIds);
         
         // 2. Resolve Wallet Balance (Credits)
         decimal totalWallet = 0;
         if (userId.HasValue)
         {
-            totalWallet = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, associationId ?? CurrentAssociationId, userId.Value);
+            totalWallet = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, effectiveAssociationId, userId.Value);
         }
         else
         {
             var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
-            if (!ids.Any() && (associationId.HasValue || CurrentAssociationId != 0))
+            if (!ids.Any() && (associationId.HasValue || effectiveAssociationId != 0))
             {
                 // ASSOCIATION-WIDE FETCH: Uses optimized sp_Finance_GetAssociationSummary
-                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(associationId ?? CurrentAssociationId, CurrentTenantId);
+                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(effectiveAssociationId, CurrentTenantId);
                 totalWallet = baseStats.TotalCredits;
             }
             else
