@@ -65,6 +65,7 @@ builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
+builder.Services.AddScoped<IContentRepository, ContentRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();

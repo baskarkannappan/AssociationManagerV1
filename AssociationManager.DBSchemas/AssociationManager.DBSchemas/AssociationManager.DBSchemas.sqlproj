@@ -342,6 +342,10 @@
     <Build Include="corp\Stored Procedures\sp_Users_GetByTenantId.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_IsAuthorisedForAssociation.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_List.sql" />
+    <Build Include="corp\Stored Procedures\sp_StaticContent_GetByKey.sql" />
+    <Build Include="corp\Stored Procedures\sp_StaticContent_Upsert.sql" />
+    <Build Include="corp\Stored Procedures\sp_SupportQueries_Create.sql" />
+    <Build Include="corp\Stored Procedures\sp_SupportQueries_GetAll.sql" />
     <Build Include="corp\Stored Procedures\sp_Users_Update.sql" />
     <Build Include="corp\Tables\Associations.sql" />
     <Build Include="corp\Tables\AssociationSubscriptions.sql" />
@@ -355,6 +359,8 @@
     <Build Include="corp\Tables\TenantPaymentConfig.sql" />
     <Build Include="corp\Tables\Tenants.sql" />
     <Build Include="corp\Tables\UserAssociations.sql" />
+    <Build Include="corp\Tables\StaticContent.sql" />
+    <Build Include="corp\Tables\SupportQueries.sql" />
     <Build Include="corp\Tables\Users.sql" />
     <Build Include="dbo\Stored Procedures\sp_Broadcasts_Delete.sql" />
     <Build Include="dbo\Stored Procedures\sp_Broadcasts_GetAll.sql" />

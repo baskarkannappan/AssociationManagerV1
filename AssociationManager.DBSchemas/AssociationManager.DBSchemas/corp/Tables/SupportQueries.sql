@@ -1,0 +1,12 @@
+CREATE TABLE [corp].[SupportQueries]
+(
+    [QueryId] INT IDENTITY(1,1) PRIMARY KEY,
+    [UserId] INT NULL,
+    [Name] NVARCHAR(100) NOT NULL,
+    [Email] NVARCHAR(100) NOT NULL,
+    [Subject] NVARCHAR(200) NOT NULL,
+    [MessageBody] NVARCHAR(MAX) NOT NULL,
+    [Status] NVARCHAR(50) NOT NULL DEFAULT 'New',
+    [CreatedDate] DATETIME NOT NULL DEFAULT GETUTCDATE()
+)
+GO

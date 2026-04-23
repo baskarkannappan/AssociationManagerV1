@@ -68,6 +68,7 @@ builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
+builder.Services.AddScoped<IContentRepository, ContentRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
