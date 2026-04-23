@@ -1,13 +1,25 @@
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Azure.Identity;
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Key Vault Integration (Optional for Gateway)
+var keyVaultName = builder.Configuration["KeyVaultName"];
+if (!string.IsNullOrEmpty(keyVaultName))
+{
+    var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
+    Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
+}
+
+var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',') ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultPolicy", policy =>
     {
-        policy.WithOrigins("https://localhost:7001", "https://localhost:7011")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

@@ -15,10 +15,21 @@ using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using Azure.Identity;
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Key Vault Integration
+var keyVaultName = builder.Configuration["KeyVaultName"];
+if (!string.IsNullOrEmpty(keyVaultName))
+{
+    var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
+    Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
+}
 
 // Serilog
 Log.Logger = new LoggerConfiguration()
@@ -123,11 +134,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddSignalR();
 
 // CORS
+var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',') ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
     {
-        policy.WithOrigins("https://localhost:7001", "https://localhost:7011")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
