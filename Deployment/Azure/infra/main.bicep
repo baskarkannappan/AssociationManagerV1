@@ -12,6 +12,13 @@ param environmentName string = 'qa'
 @description('The base name for the application.')
 param baseName string = 'assocmgr'
 
+@description('The administrator login for the SQL Server.')
+param administratorLogin string
+
+@description('The administrator login password for the SQL Server.')
+@secure()
+param administratorLoginPassword string
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var envBaseName = '${baseName}-${environmentName}'
 
@@ -59,8 +66,8 @@ resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
   name: '${envBaseName}-sql-srv-${uniqueSuffix}'
   location: location
   properties: {
-    administratorLogin: 'sqladmin'
-    administratorLoginPassword: 'ChangeMeThisIsAPlaceholder123!' // Should be secret in real run
+    administratorLogin: administratorLogin
+    administratorLoginPassword: administratorLoginPassword
   }
 }
 
@@ -84,7 +91,7 @@ resource sqlDB 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
 
 // 5. Azure Key Vault (For Secrets Management)
 resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
-  name: '${envBaseName}-kv-${uniqueSuffix}'
+  name: 'kv-${uniqueSuffix}'
   location: location
   properties: {
     sku: {

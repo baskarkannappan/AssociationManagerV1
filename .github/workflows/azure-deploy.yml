@@ -8,14 +8,38 @@ on:
     paths-ignore:
       - 'Docs/**'
       - 'README.md'
-      - 'Deployment/Azure/infra/**'
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
+  deploy-database:
+    runs-on: windows-latest # Windows needed for .sqlproj / MSBuild
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Database Project
+        run: msbuild AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj /p:Configuration=Release
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy SQL Schema
+        uses: azure/sql-action@v2
+        with:
+          connection-string: ${{ secrets.SQL_CONNECTION_STRING }}
+          path: 'AssociationManager.DBSchemas/bin/Release/AssociationManager.DBSchemas.dacpac'
+          action: 'Publish'
+
   build-and-deploy:
+    needs: deploy-database
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -51,7 +75,7 @@ jobs:
         uses: azure/container-apps-deploy-action@v1
         with:
           imageToDeploy: ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
-          containerAppName: assocmgr-qa-${{ matrix.service }}
+          containerAppName: assocmgr-dev-${{ matrix.service }}
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
 
   deploy-clients:
