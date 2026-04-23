@@ -24,7 +24,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build Database Project
-        run: msbuild AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj /p:Configuration=Release
+        run: msbuild AssociationManager.DBSchemas/AssociationManager.DBSchemas/AssociationManager.DBSchemas.sqlproj /p:Configuration=Release
 
       - name: Azure Login
         uses: azure/login@v2
@@ -35,7 +35,7 @@ jobs:
         uses: azure/sql-action@v2
         with:
           connection-string: ${{ secrets.SQL_CONNECTION_STRING }}
-          path: 'AssociationManager.DBSchemas/bin/Release/AssociationManager.DBSchemas.dacpac'
+          path: 'AssociationManager.DBSchemas/AssociationManager.DBSchemas/bin/Release/AssociationManager.DBSchemas.dacpac'
           action: 'Publish'
 
   build-and-deploy:
