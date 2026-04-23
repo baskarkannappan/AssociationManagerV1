@@ -29,5 +29,5 @@ jobs:
         with:
           resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: Deployment/Azure/infra/main.bicep
-          parameters: environmentName=qa
+          parameters: environmentName=dev administratorLogin=appadmin administratorLoginPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
           failOnStdErr: false
