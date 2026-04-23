@@ -82,7 +82,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        client: [Client, Corporate.Client]
+        include:
+          - client: Client
+            secret_suffix: CLIENT
+          - client: Corporate.Client
+            secret_suffix: CORPORATE_CLIENT
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -90,7 +94,7 @@ jobs:
       - name: Build and Deploy Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets[format('SWA_TOKEN_{0}', matrix.client)] }}
+          azure_static_web_apps_api_token: ${{ secrets[format('SWA_TOKEN_{0}', matrix.secret_suffix)] }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           app_location: "/AssociationManager.${{ matrix.client }}"
