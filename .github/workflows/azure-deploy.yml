@@ -88,7 +88,7 @@ jobs:
             --registry-username "$ACR_USER" \
             --registry-password "$ACR_PASS" \
             --ingress external \
-            --target-port 80
+            --target-port 8080
 
   deploy-clients:
     runs-on: ubuntu-latest
