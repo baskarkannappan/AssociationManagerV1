@@ -91,7 +91,7 @@ public class FinanceController : ControllerBase
             var result = JsonSerializer.Deserialize<InvoiceBatchResult>(json, options);
             if (result == null) return NotFound(ApiResponse.FailureResponse("Could not parse preview data."));
             Console.WriteLine($"[Diagnostic] Preview loaded: {result?.Previews?.Count ?? 0} items, Total: {result?.TotalAmount}");
-            return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
+            return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result!));
         }
         
         return NotFound(ApiResponse.FailureResponse("Preview not ready or expired."));
