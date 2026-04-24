@@ -79,6 +79,8 @@ jobs:
           resourceGroup: rg-assocmgr-dev
           acrName: ${{ vars.ACR_NAME || secrets.ACR_NAME }}
           containerAppEnvironment: assocmgr-dev-env-enhlyslcz7cne
+          acrUsername: ${{ secrets.ACR_USERNAME }}
+          acrPassword: ${{ secrets.ACR_PASSWORD }}
 
   deploy-clients:
     runs-on: ubuntu-latest
