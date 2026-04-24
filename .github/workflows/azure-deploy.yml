@@ -78,7 +78,7 @@ jobs:
           containerAppName: assocmgr-dev-${{ matrix.service }}
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP || secrets.AZURE_RESOURCE_GROUP }}
           acrName: ${{ vars.ACR_NAME || secrets.ACR_NAME }}
-          containerAppEnvironment: ${{ vars.AZURE_ENV_NAME || secrets.AZURE_ENV_NAME }}
+          managedEnvironmentName: ${{ vars.AZURE_ENV_NAME || secrets.AZURE_ENV_NAME }}
 
   deploy-clients:
     runs-on: ubuntu-latest
