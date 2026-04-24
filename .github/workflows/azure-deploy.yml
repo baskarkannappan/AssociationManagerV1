@@ -72,15 +72,17 @@ jobs:
           docker push ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
 
       - name: Deploy to Container App
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          imageToDeploy: ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
-          containerAppName: assocmgr-dev-${{ matrix.service }}
-          resourceGroup: rg-assocmgr-dev
-          acrName: ${{ vars.ACR_NAME || secrets.ACR_NAME }}
-          containerAppEnvironment: assocmgr-dev-env-enhlyslcz7cne
-          acrUsername: ${{ secrets.ACR_USERNAME }}
-          acrPassword: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          az containerapp up \
+            --name assocmgr-dev-${{ matrix.service }} \
+            --resource-group rg-assocmgr-dev \
+            --environment assocmgr-dev-env-enhlyslcz7cne \
+            --image ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} \
+            --registry-server ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ingress external \
+            --target-port 80
 
   deploy-clients:
     runs-on: ubuntu-latest
