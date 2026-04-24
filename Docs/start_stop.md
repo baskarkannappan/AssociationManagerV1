@@ -26,3 +26,18 @@ foreach ($app in $apps) {
 
 azure sql database details
 Server=assocmgr-dev-sql-srv-enhlyslcz7cne.database.windows.net;Initial Catalog=assocmgr-dev-db;Persist Security Info=False;User ID=appadmin;Password=AssocMgr@2026!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+
+
+
+Type	Name	Value Source
+Secret	SWA_TOKEN_CLIENT	Azure Portal (Static Web App -> Manage deployment token)
+Secret	SWA_TOKEN_CORPORATE_CLIENT	Azure Portal (Static Web App -> Manage deployment token)
+Secret	SQL_CONNECTION_STRING	Use the string you just saved in your Docs/start_stop.md
+Secret	SQL_ADMIN_PASSWORD	AssocMgr@2026! (from your file)
+Variable	ACR_NAME	assocmgrdevacrenhlyslcz7cne
+Variable	AZURE_RESOURCE_GROUP	rg-assocmgr-dev
+
+
+
+---------sql connect
+az sql server firewall-rule create --resource-group rg-assocmgr-dev --server assocmgr-dev-sql-srv-enhlyslcz7cne --name AllowMyLocalIP --start-ip-address 0.0.0.0 --end-ip-address 255.255.255.255

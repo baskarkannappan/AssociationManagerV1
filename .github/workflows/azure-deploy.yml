@@ -77,6 +77,7 @@ jobs:
           imageToDeploy: ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
           containerAppName: assocmgr-dev-${{ matrix.service }}
           resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP || secrets.AZURE_RESOURCE_GROUP }}
+          acrName: ${{ vars.ACR_NAME || secrets.ACR_NAME }}
 
   deploy-clients:
     runs-on: ubuntu-latest
