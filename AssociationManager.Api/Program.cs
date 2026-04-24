@@ -180,7 +180,7 @@ builder.Services.AddSignalR();
 */
 
 // CORS
-var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',') ?? new[] { "https://localhost:7001", "https://localhost:7011" };
+var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
