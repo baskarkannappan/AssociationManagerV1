@@ -22,3 +22,7 @@ powershell
 foreach ($app in $apps) {
     az containerapp up --name $app --resource-group rg-assocmgr-dev --min-replicas 1 --max-replicas 3
 }
+
+
+azure sql database details
+Server=assocmgr-dev-sql-srv-enhlyslcz7cne.database.windows.net;Initial Catalog=assocmgr-dev-db;Persist Security Info=False;User ID=appadmin;Password=AssocMgr@2026!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;

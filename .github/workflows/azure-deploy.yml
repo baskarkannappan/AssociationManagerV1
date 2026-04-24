@@ -64,19 +64,19 @@ jobs:
 
       - name: Login to ACR
         run: |
-          az acr login --name ${{ vars.ACR_NAME }}
+          az acr login --name ${{ vars.ACR_NAME || secrets.ACR_NAME }}
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.folder }}/Dockerfile .
-          docker push ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
+          docker build -t ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.folder }}/Dockerfile .
+          docker push ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
 
       - name: Deploy to Container App
         uses: azure/container-apps-deploy-action@v1
         with:
-          imageToDeploy: ${{ vars.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
+          imageToDeploy: ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
           containerAppName: assocmgr-dev-${{ matrix.service }}
-          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP || secrets.AZURE_RESOURCE_GROUP }}
 
   deploy-clients:
     runs-on: ubuntu-latest
