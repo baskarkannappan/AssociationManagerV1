@@ -263,7 +263,10 @@ app.UseCors("AllowClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHangfireDashboard("/hangfire");
+app.UseHangfireDashboard("/hangfire", new Hangfire.Dashboard.DashboardOptions
+{
+    Authorization = new[] { new AssociationManager.Api.Authorization.HangfireAuthorizationFilter() }
+});
 
 // Multi-tenancy
 
