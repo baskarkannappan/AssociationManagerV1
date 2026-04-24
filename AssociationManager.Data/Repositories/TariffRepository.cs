@@ -61,6 +61,15 @@ public class TariffRepository : ITariffRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<IEnumerable<TariffLayer>> GetLayersByAssociationIdAsync(int associationId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<TariffLayer>(
+            "assoc.sp_TariffLayers_GetByAssociationId", 
+            new { associationId, tenantId },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<int> CreateLayerAsync(TariffLayer layer)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
@@ -124,6 +133,21 @@ public class TariffRepository : ITariffRepository
             commandType: CommandType.StoredProcedure) > 0;
     }
 
+    public async Task<bool> DeactivateTariffsBulkAsync(int layerId, IEnumerable<int> assetIds)
+    {
+        if (assetIds == null || !assetIds.Any()) return true;
+
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var dt = new DataTable();
+        dt.Columns.Add("Id", typeof(int));
+        foreach (var id in assetIds) dt.Rows.Add(id);
+
+        return await connection.ExecuteAsync(
+            "assoc.sp_AssetTariffs_DeactivateBulk", 
+            new { layerId, AssetIds = dt.AsTableValuedParameter("assoc.IntegerList") },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
+
     public async Task<bool> RemoveAssetTariffAsync(int assetId, int layerId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
@@ -146,12 +170,9 @@ public class TariffRepository : ITariffRepository
     {
         // TARGETED FETCH: Avoids pulling entire tenant data
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            SELECT at.*, a.Name as AssetName 
-            FROM assoc.AssetTariffs at
-            INNER JOIN assoc.Assets a ON at.AssetId = a.AssetId
-            WHERE at.TariffLayerId = @layerId AND at.IsActive = 1";
-            
-        return await connection.QueryAsync<AssetTariff>(sql, new { layerId });
+        return await connection.QueryAsync<AssetTariff>(
+            "assoc.sp_AssetTariffs_GetAssignmentsByLayerId", 
+            new { layerId },
+            commandType: CommandType.StoredProcedure);
     }
 }

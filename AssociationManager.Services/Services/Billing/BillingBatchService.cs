@@ -117,14 +117,8 @@ public class BillingBatchService
         
         // 2. Fetch all Tariffs and Assignments
         sw.Restart();
-        var groups = await _tariffRepository.GetGroupsByTenantIdAsync(tenantId, request.AssociationId);
-        var allLayers = new List<TariffLayer>();
-        foreach (var group in groups)
-        {
-            var layers = await _tariffRepository.GetLayersByGroupIdAsync(group.TariffGroupId);
-            allLayers.AddRange(layers);
-        }
-        Console.WriteLine($"[Perf] Step 2a - Fetch Tariff Groups/Layers ({allLayers.Count} layers): {sw.ElapsedMilliseconds}ms");
+        var allLayers = (await _tariffRepository.GetLayersByAssociationIdAsync(request.AssociationId, tenantId)).ToList();
+        Console.WriteLine($"[Perf] Step 2a - Bulk Fetch Tariff Layers ({allLayers.Count} layers): {sw.ElapsedMilliseconds}ms");
         
         sw.Restart();
         var assignments = (await _tariffRepository.GetActiveTariffsByTenantIdAsync(tenantId)).ToList();
@@ -205,6 +199,7 @@ public class BillingBatchService
             var logsToCreate = new List<AuditLog>();
             var assetsProcessedInChunk = 0;
             const int chunkSize = 100; // Updated every 100 assets for performance and feedback
+            var oneTimeChargesToDeactivate = new Dictionary<int, List<int>>(); // LayerId -> List of AssetIds
 
             foreach (var asset in allAssets)
             {
@@ -298,13 +293,16 @@ public class BillingBatchService
                             });
                         }
 
-                        // Handle One-Time Charges (Bulk update for these might be needed if common, but keeping sequential for now unless it's the bottleneck)
+                        // Collect One-Time Charges for Bulk Deactivation
                         foreach (var aa in assetAssignments)
                         {
                             if (!aa.IsRecurring)
                             {
-                                aa.IsActive = false;
-                                await _tariffRepository.UpsertAssetTariffAsync(aa);
+                                if (!oneTimeChargesToDeactivate.ContainsKey(aa.TariffLayerId))
+                                    oneTimeChargesToDeactivate[aa.TariffLayerId] = new List<int>();
+                                
+                                oneTimeChargesToDeactivate[aa.TariffLayerId].Add(asset.AssetId);
+
                                 logsToCreate.Add(new AuditLog
                                 {
                                     Action = $"Deactivated One-Time Charge: {aa.TariffLayerId}",
@@ -356,6 +354,17 @@ public class BillingBatchService
                     await _billingBatchRepository.UpdateTotalsAsync(batchId.Value, result.TotalAmount, result.InvoicesGenerated, tenantId, request.AssociationId);
                 }
                 Console.WriteLine($"[Perf] Flushed final chunk. Total generated: {result.InvoicesGenerated}");
+            }
+
+            // Bulk Deactivate One-Time Charges at the end
+            if (!request.DryRun && oneTimeChargesToDeactivate.Any())
+            {
+                sw.Restart();
+                foreach (var layerKvp in oneTimeChargesToDeactivate)
+                {
+                    await _tariffRepository.DeactivateTariffsBulkAsync(layerKvp.Key, layerKvp.Value);
+                }
+                Console.WriteLine($"[Perf] Step 5 - Bulk Deactivated One-Time Charges ({oneTimeChargesToDeactivate.Values.Sum(v => v.Count)} total): {sw.ElapsedMilliseconds}ms");
             }
         }
         catch (Exception ex)

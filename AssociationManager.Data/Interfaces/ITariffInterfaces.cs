@@ -15,6 +15,7 @@ public interface ITariffRepository
 
     // Layers
     Task<IEnumerable<TariffLayer>> GetLayersByGroupIdAsync(int groupId);
+    Task<IEnumerable<TariffLayer>> GetLayersByAssociationIdAsync(int associationId, int tenantId);
     Task<int> CreateLayerAsync(TariffLayer layer);
     Task<bool> UpdateLayerAsync(TariffLayer layer);
     Task<bool> DeleteLayerAsync(int layerId);
@@ -22,6 +23,7 @@ public interface ITariffRepository
     // Asset Attachments
     Task<IEnumerable<AssetTariff>> GetTariffsByAssetIdAsync(int assetId);
     Task<bool> UpsertAssetTariffAsync(AssetTariff assetTariff);
+    Task<bool> DeactivateTariffsBulkAsync(int layerId, IEnumerable<int> assetIds);
     Task<bool> RemoveAssetTariffAsync(int assetId, int layerId);
     Task<IEnumerable<AssetTariff>> GetActiveTariffsByTenantIdAsync(int tenantId);
     Task<IEnumerable<AssetTariff>> GetAssignmentsByLayerIdAsync(int layerId);
