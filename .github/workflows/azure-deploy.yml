@@ -79,8 +79,8 @@ jobs:
             --environment assocmgr-dev-env-enhlyslcz7cne \
             --image ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} \
             --registry-server ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io \
-            --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --registry-username ${{ vars.ACR_USERNAME || secrets.ACR_USERNAME }} \
+            --registry-password ${{ vars.ACR_PASSWORD || secrets.ACR_PASSWORD }} \
             --ingress external \
             --target-port 80
 
