@@ -132,3 +132,4 @@ output envName string = containerAppEnv.name
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDbName string = sqlDB.name
 output kvName string = keyVault.name
+// Trigger CI
