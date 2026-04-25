@@ -24,7 +24,11 @@ if (!string.IsNullOrEmpty(keyVaultName))
 
 // Data Access
 builder.Services.AddMemoryCache();
-builder.Services.AddDistributedMemoryCache();
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379";
+    options.InstanceName = "AssocMgr_";
+});
 builder.Services.AddSignalR();
 builder.Services.AddScoped<DbConnectionFactory>();
 builder.Services.AddHttpClient();

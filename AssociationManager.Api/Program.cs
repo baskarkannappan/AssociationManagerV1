@@ -132,7 +132,11 @@ builder.Services.AddHangfire(configuration => configuration
 // The Worker project will act as the Hangfire Server.
 
 // Caching
-builder.Services.AddDistributedMemoryCache();
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379";
+    options.InstanceName = "AssocMgr_";
+});
 builder.Services.AddMemoryCache();
 
 // Authentication
