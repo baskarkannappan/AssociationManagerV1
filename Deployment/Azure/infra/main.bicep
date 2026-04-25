@@ -136,3 +136,4 @@ output kvName string = keyVault.name
 // Trigger Infrastructure Fix
 // Fix SQL Username
 // Trigger with Secrets
+// Add RBAC for KeyVault
