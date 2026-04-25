@@ -6,6 +6,6 @@
     ".dll": "application/octet-stream"
   },
   "globalHeaders": {
-    "Cross-Origin-Opener-Policy": "same-origin-allow-popups"
+    "Cross-Origin-Opener-Policy": "unsafe-none"
   }
 }
