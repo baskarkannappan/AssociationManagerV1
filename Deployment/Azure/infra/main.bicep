@@ -93,7 +93,7 @@ resource sqlDB 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
 
 // 5. Azure Key Vault (For Secrets Management)
 resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
-  name: 'kv-${uniqueSuffix}'
+  name: 'kv-assocmgr-dev-unique'
   location: location
   properties: {
     sku: {
