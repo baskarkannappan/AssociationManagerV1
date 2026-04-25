@@ -90,10 +90,10 @@ builder.Services.AddHangfire(configuration => configuration
 
 builder.Services.AddHangfireServer();
 
-var host = builder.Build();
+var app = builder.Build();
 
 // Setup Recurring Jobs
-using (var scope = host.Services.CreateScope())
+using (var scope = app.Services.CreateScope())
 {
     var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
     // Daily Fine Accrual at 1:00 AM
@@ -121,8 +121,6 @@ using (var scope = host.Services.CreateScope())
         job => job.ProcessAllAssociationsAsync(),
         Cron.Hourly());
 }
-
-var app = builder.Build();
 
 app.MapGet("/", () => "Worker is running and healthy!");
 
