@@ -50,12 +50,14 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> GoogleLoginAsync(string idToken)
     {
+        _logger.LogInformation("[AUTH_DIAG] Attempting Google login. ClientId in Config: {ClientId}", _googleSettings.ClientId);
         try
         {
             var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
             {
                 Audience = new[] { _googleSettings.ClientId }
             });
+            _logger.LogInformation("[AUTH_DIAG] Token validated successfully for {Email}", payload.Email);
 
             var user = await _userRepository.GetByGoogleIdAsync(payload.Subject);
             if (user == null)
@@ -154,6 +156,7 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "[AUTH_DIAG] Google validation failed. Message: {Message}", ex.Message);
             return new AuthResponse { Success = false, Message = $"Authentication failed: {ex.Message}" };
         }
     }
