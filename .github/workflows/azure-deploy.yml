@@ -69,21 +69,14 @@ jobs:
           docker build -t ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.folder }}/Dockerfile .
           docker push ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}
 
-      - name: Deploy to Container App
+      - name: Update Container App Image
         env:
           RG: "rg-assocmgr-dev"
-          ENV: "assocmgr-dev-env-enhlyslcz7cne"
         run: |
-          az containerapp up \
+          az containerapp update \
             --name "assocmgr-dev-${{ matrix.service }}" \
             --resource-group "$RG" \
-            --environment "$ENV" \
-            --image "ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}" \
-            --registry-server "ghcr.io" \
-            --registry-username "${{ github.actor }}" \
-            --registry-password "${{ secrets.GITHUB_TOKEN }}" \
-            --ingress external \
-            --target-port 8080
+            --image "ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}"
 
   deploy-clients:
     runs-on: ubuntu-latest
