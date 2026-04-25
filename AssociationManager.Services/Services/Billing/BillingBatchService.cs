@@ -67,6 +67,7 @@ public class BillingBatchService
     /// </summary>
     public async Task ExecuteBatchJobAsync(InvoiceBatchRequest request, int tenantId, string jobId)
     {
+        Console.WriteLine($"[!!!] STARTING BATCH JOB: {jobId} for Association: {request.AssociationId} (DryRun: {request.DryRun})");
         // Set context if we are in a background execution environment
         if (_tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
         {
