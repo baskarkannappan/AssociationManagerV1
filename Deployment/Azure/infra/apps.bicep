@@ -25,6 +25,16 @@ var defaultTemplate = {
         cpu: json('0.25')
         memory: '0.5Gi'
       }
+      env: [
+        {
+          name: 'AllowedOrigins'
+          value: 'https://happy-tree-0a717950f.7.azurestaticapps.net,https://lemon-coast-03635380f.7.azurestaticapps.net'
+        }
+        {
+          name: 'KeyVaultName'
+          value: 'kv-assocmgr-dev-unique'
+        }
+      ]
     }
   ]
   scale: {
