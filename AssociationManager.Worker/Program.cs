@@ -11,7 +11,11 @@ using Microsoft.Extensions.Hosting;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
-var builder = Host.CreateApplicationBuilder(args);
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
 
 // Key Vault Integration
 var keyVaultName = builder.Configuration["KeyVaultName"];
@@ -118,4 +122,8 @@ using (var scope = host.Services.CreateScope())
         Cron.Hourly());
 }
 
-host.Run();
+var app = builder.Build();
+
+app.MapGet("/", () => "Worker is running and healthy!");
+
+app.Run();
