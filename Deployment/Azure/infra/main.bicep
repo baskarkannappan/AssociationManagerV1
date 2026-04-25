@@ -135,3 +135,4 @@ output kvName string = keyVault.name
 // Trigger CI
 // Trigger Infrastructure Fix
 // Fix SQL Username
+// Trigger with Secrets
