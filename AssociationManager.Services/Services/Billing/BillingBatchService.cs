@@ -81,11 +81,14 @@ public class BillingBatchService
         {
             try {
                 var json = JsonSerializer.Serialize(result);
-                var tempPath = Path.Combine(Path.GetTempPath(), $"batch_preview_{jobId}.json");
-                await File.WriteAllTextAsync(tempPath, json);
-                Console.WriteLine($"[Diagnostic] Preview saved to Shared File Cache: {tempPath}");
+                var cacheKey = $"batch_preview_{jobId}";
+                await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions 
+                { 
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30) 
+                });
+                Console.WriteLine($"[Diagnostic] Preview saved to Shared Redis Cache: {cacheKey}");
             } catch (Exception ex) {
-                Console.WriteLine($"[Diagnostic] Failed to save shared cache file: {ex.Message}");
+                Console.WriteLine($"[Diagnostic] Failed to save to shared cache: {ex.Message}");
             }
         }
 

@@ -31,6 +31,7 @@ public class FinanceController : ControllerBase
     private readonly IFineService _fineService;
     private readonly IInvoicePdfService _pdfService;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IDistributedCache _cache;
 
     public FinanceController(
         IFinanceService financeService, 
@@ -41,7 +42,8 @@ public class FinanceController : ControllerBase
         IRuleEngineService ruleEngine,
         IFineService fineService, 
         IInvoicePdfService pdfService,
-        IHubContext<NotificationHub> hubContext)
+        IHubContext<NotificationHub> hubContext,
+        IDistributedCache cache)
     {
         _financeService = financeService;
         _auditService = auditService;
@@ -52,6 +54,7 @@ public class FinanceController : ControllerBase
         _fineService = fineService;
         _pdfService = pdfService;
         _hubContext = hubContext;
+        _cache = cache;
     }
 
     [HttpPost("batch-generate")]
@@ -82,15 +85,15 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> GetPreviewResult(string trackingId)
     {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"batch_preview_{trackingId}.json");
-        Console.WriteLine($"[Diagnostic] Looking for preview file: {tempPath}, Exists: {System.IO.File.Exists(tempPath)}");
-        if (System.IO.File.Exists(tempPath))
+        var cacheKey = $"batch_preview_{trackingId}";
+        var json = await _cache.GetStringAsync(cacheKey);
+
+        if (!string.IsNullOrEmpty(json))
         {
-            var json = await System.IO.File.ReadAllTextAsync(tempPath);
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var result = JsonSerializer.Deserialize<InvoiceBatchResult>(json, options);
             if (result == null) return NotFound(ApiResponse.FailureResponse("Could not parse preview data."));
-            Console.WriteLine($"[Diagnostic] Preview loaded: {result?.Previews?.Count ?? 0} items, Total: {result?.TotalAmount}");
+            
             return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result!));
         }
         
