@@ -47,6 +47,9 @@ var defaultTemplate = {
 resource gateway 'Microsoft.App/containerApps@2023-05-01' = {
   name: '${envBaseName}-gateway'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: resourceId('Microsoft.App/managedEnvironments', containerAppEnvName)
     configuration: {
@@ -73,6 +76,10 @@ resource gateway 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'ReverseProxy__Clusters__corporate-api-cluster__Destinations__destination1__Address'
               value: corporateApiUrl
             }
+            {
+              name: 'KeyVaultName'
+              value: 'kv-assocmgr-dev-unique'
+            }
           ]
         }
       ]
@@ -88,6 +95,9 @@ resource gateway 'Microsoft.App/containerApps@2023-05-01' = {
 resource assocApi 'Microsoft.App/containerApps@2023-05-01' = {
   name: '${envBaseName}-api'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: resourceId('Microsoft.App/managedEnvironments', containerAppEnvName)
     configuration: {
@@ -104,6 +114,9 @@ resource assocApi 'Microsoft.App/containerApps@2023-05-01' = {
 resource corpApi 'Microsoft.App/containerApps@2023-05-01' = {
   name: '${envBaseName}-corp-api'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: resourceId('Microsoft.App/managedEnvironments', containerAppEnvName)
     configuration: {
@@ -113,6 +126,41 @@ resource corpApi 'Microsoft.App/containerApps@2023-05-01' = {
       }
     }
     template: defaultTemplate
+  }
+}
+
+// Role Assignments for Key Vault
+resource kv 'Microsoft.KeyVault/vaults@2023-02-01' existing = {
+  name: 'kv-assocmgr-dev-unique'
+}
+
+resource kvRoleGateway 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(gateway.id, kv.id, 'KeyVaultSecretsUser')
+  scope: kv
+  properties: {
+    principalId: gateway.identity.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '46334583-0161-460d-9669-7c413b5a153f') // Key Vault Secrets User
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource kvRoleAssocApi 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(assocApi.id, kv.id, 'KeyVaultSecretsUser')
+  scope: kv
+  properties: {
+    principalId: assocApi.identity.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '46334583-0161-460d-9669-7c413b5a153f')
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource kvRoleCorpApi 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(corpApi.id, kv.id, 'KeyVaultSecretsUser')
+  scope: kv
+  properties: {
+    principalId: corpApi.identity.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '46334583-0161-460d-9669-7c413b5a153f')
+    principalType: 'ServicePrincipal'
   }
 }
 
