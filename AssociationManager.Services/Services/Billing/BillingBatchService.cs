@@ -94,7 +94,7 @@ public class BillingBatchService
         }
 
         // Notify client via SignalR that job is complete
-        await NotifyCompletionAsync(request, tenantId, jobId, request.DryRun ? "PREVIEW_READY" : "BATCH_READY");
+        await NotifyCompletionAsync(request, tenantId, jobId, request.DryRun ? "PREVIEW_READY" : "BATCH_READY", request.DryRun ? result : null);
     }
 
     public async Task<InvoiceBatchResult> ProcessBatchAsync(InvoiceBatchRequest request, int tenantId, string jobId = "N/A")
@@ -389,7 +389,7 @@ public class BillingBatchService
         return result;
     }
 
-    private async Task NotifyCompletionAsync(InvoiceBatchRequest request, int tenantId, string jobId, string status)
+    private async Task NotifyCompletionAsync(InvoiceBatchRequest request, int tenantId, string jobId, string status, InvoiceBatchResult? result = null)
     {
         try
         {
@@ -401,7 +401,15 @@ public class BillingBatchService
             var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={request.AssociationId}&period={period}&jobId={jobId}&status={status}";
             
             Console.WriteLine($"[Diagnostic] Notifying UI/Gateway: {url}");
-            var response = await client.PostAsync(url, null);
+            
+            HttpContent content = null;
+            if (result != null)
+            {
+                var json = JsonSerializer.Serialize(result);
+                content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            }
+            
+            var response = await client.PostAsync(url, content);
             Console.WriteLine($"[Diagnostic] Notification Result: {response.StatusCode}");
         }
         catch (Exception ex)

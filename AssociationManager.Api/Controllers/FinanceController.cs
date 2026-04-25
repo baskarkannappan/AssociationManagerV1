@@ -133,8 +133,19 @@ public class FinanceController : ControllerBase
         [FromQuery] int associationId, 
         [FromQuery] string period, 
         [FromQuery] string? jobId = null, 
-        [FromQuery] string? status = "BATCH_READY")
+        [FromQuery] string? status = "BATCH_READY",
+        [FromBody] InvoiceBatchResult? previewResult = null)
     {
+        if (previewResult != null && !string.IsNullOrEmpty(jobId))
+        {
+            var cacheKey = $"batch_preview_{jobId}";
+            var json = JsonSerializer.Serialize(previewResult);
+            await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+        }
+        
         // Notification payload: STATUS|AssociationId|Period|JobId
         var payload = $"{status}|{associationId}|{period}|{jobId}";
         await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", payload);
