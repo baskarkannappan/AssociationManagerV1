@@ -54,7 +54,7 @@ var app = builder.Build();
 
 app.Use(async (context, next) =>
 {
-    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    // Simplified for compatibility with Google Auth popups
     await next();
 });
 
