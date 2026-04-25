@@ -29,5 +29,5 @@ jobs:
         with:
           resourceGroupName: 'rg-assocmgr-dev'
           template: Deployment/Azure/infra/main.bicep
-          parameters: environmentName=dev administratorLogin=appadmin administratorLoginPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+          parameters: environmentName=dev administratorLogin=sqladmin administratorLoginPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
           failOnStdErr: false
