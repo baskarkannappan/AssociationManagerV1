@@ -76,7 +76,10 @@ jobs:
           az containerapp update \
             --name "assocmgr-dev-${{ matrix.service }}" \
             --resource-group "$RG" \
-            --image "ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}"
+            --image "ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}" \
+            --registry-server "ghcr.io" \
+            --registry-username "${{ github.actor }}" \
+            --registry-password "${{ secrets.GITHUB_TOKEN }}"
 
   deploy-clients:
     runs-on: ubuntu-latest
