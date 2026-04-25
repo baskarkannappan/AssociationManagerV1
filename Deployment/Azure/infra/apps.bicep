@@ -7,14 +7,8 @@ param location string = resourceGroup().location
 param environmentName string = 'qa'
 param baseName string = 'assocmgr'
 param containerAppEnvName string
-param acrName string
-
-@description('The version/tag of the images to deploy.')
-param imageTag string = 'latest'
-
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var envBaseName = '${baseName}-${environmentName}'
-var acrLoginServer = '${acrName}.azurecr.io'
 
 // Service-to-Service URLs (Internal)
 var gatewayUrl = 'https://${envBaseName}-gateway.${uniqueSuffix}.internal'
@@ -35,7 +29,7 @@ var defaultTemplate = {
   ]
   scale: {
     minReplicas: 0
-    maxReplicas: 3
+    maxReplicas: 1
   }
 }
 
@@ -50,19 +44,6 @@ resource gateway 'Microsoft.App/containerApps@2023-05-01' = {
         external: true
         targetPort: 8080
       }
-      registries: [
-        {
-          server: acrLoginServer
-          username: acrName
-          passwordSecretRef: 'acr-password'
-        }
-      ]
-      secrets: [
-        {
-          name: 'acr-password'
-          value: 'REPLACE_ME_IN_CI_CD'
-        }
-      ]
     }
     template: {
       containers: [
@@ -87,7 +68,7 @@ resource gateway 'Microsoft.App/containerApps@2023-05-01' = {
       ]
       scale: {
         minReplicas: 0
-        maxReplicas: 3
+        maxReplicas: 1
       }
     }
   }
@@ -125,15 +106,3 @@ resource corpApi 'Microsoft.App/containerApps@2023-05-01' = {
   }
 }
 
-// 4. Background Worker
-resource worker 'Microsoft.App/containerApps@2023-05-01' = {
-  name: '${envBaseName}-worker'
-  location: location
-  properties: {
-    managedEnvironmentId: resourceId('Microsoft.App/managedEnvironments', containerAppEnvName)
-    configuration: {
-      ingress: null // Workers don't need ingress
-    }
-    template: defaultTemplate
-  }
-}

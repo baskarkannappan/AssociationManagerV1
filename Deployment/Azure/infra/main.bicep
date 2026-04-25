@@ -31,20 +31,12 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
+    workspaceCapping: {
+      dailyQuotaGb: json('0.1')
+    }
   }
 }
 
-// 2. Azure Container Registry (To store your Docker images)
-resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
-  name: replace('${envBaseName}acr${uniqueSuffix}', '-', '')
-  location: location
-  sku: {
-    name: 'Basic'
-  }
-  properties: {
-    adminUserEnabled: true
-  }
-}
 
 // 3. Azure Container Apps Environment
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
@@ -86,12 +78,16 @@ resource sqlDB 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   name: '${envBaseName}-db'
   location: location
   sku: {
-    name: 'Basic'
-    tier: 'Basic'
+    name: 'GP_S_Gen5_1'
+    tier: 'GeneralPurpose'
+    family: 'Gen5'
+    capacity: 1
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 2147483648 // 2GB
+    autoPauseDelay: 15 // 15 minutes minimum allowed
+    minCapacity: any('0.5')
   }
 }
 
@@ -131,8 +127,7 @@ resource corpClient 'Microsoft.Web/staticSites@2022-09-01' = {
   properties: {}
 }
 
-output acrLoginServer string = acr.properties.loginServer
-output acrName string = acr.name
+
 output envName string = containerAppEnv.name
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDbName string = sqlDB.name

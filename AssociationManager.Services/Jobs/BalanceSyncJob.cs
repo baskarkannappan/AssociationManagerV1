@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace AssociationManager.Worker.Jobs;
+namespace AssociationManager.Services.Jobs;
 
 public class BalanceSyncJob
 {

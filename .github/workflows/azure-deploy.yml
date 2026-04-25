@@ -50,8 +50,6 @@ jobs:
             folder: Api
           - service: corp-api
             folder: Corporate.Api
-          - service: worker
-            folder: Worker
     
     steps:
       - name: Checkout Code
@@ -62,20 +60,16 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to ACR
-        run: |
-          az acr login --name ${{ vars.ACR_NAME || secrets.ACR_NAME }}
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.folder }}/Dockerfile .
-          docker push ${{ vars.ACR_NAME || secrets.ACR_NAME }}.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}
+          docker build -t ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }} -f AssociationManager.${{ matrix.folder }}/Dockerfile .
+          docker push ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}
 
       - name: Deploy to Container App
         env:
-          ACR_NAME: ${{ vars.ACR_NAME || secrets.ACR_NAME }}
-          ACR_USER: ${{ vars.ACR_USERNAME || secrets.ACR_USERNAME }}
-          ACR_PASS: ${{ vars.ACR_PASSWORD || secrets.ACR_PASSWORD }}
           RG: "rg-assocmgr-dev"
           ENV: "assocmgr-dev-env-enhlyslcz7cne"
         run: |
@@ -83,10 +77,10 @@ jobs:
             --name "assocmgr-dev-${{ matrix.service }}" \
             --resource-group "$RG" \
             --environment "$ENV" \
-            --image "$ACR_NAME.azurecr.io/assoc-${{ matrix.service }}:${{ github.sha }}" \
-            --registry-server "$ACR_NAME.azurecr.io" \
-            --registry-username "$ACR_USER" \
-            --registry-password "$ACR_PASS" \
+            --image "ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}" \
+            --registry-server "ghcr.io" \
+            --registry-username "${{ github.actor }}" \
+            --registry-password "${{ secrets.GITHUB_TOKEN }}" \
             --ingress external \
             --target-port 8080
 

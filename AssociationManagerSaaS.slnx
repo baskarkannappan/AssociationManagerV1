@@ -16,5 +16,4 @@
   <Project Path="AssociationManager.Realtime/AssociationManager.Realtime.csproj" />
   <Project Path="AssociationManager.Services/AssociationManager.Services.csproj" />
   <Project Path="AssociationManager.Shared/AssociationManager.Shared.csproj" />
-  <Project Path="AssociationManager.Worker/AssociationManager.Worker.csproj" />
 </Solution>

@@ -109,7 +109,8 @@ builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClie
 builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
 builder.Services.AddScoped<AssociationManager.Services.Jobs.EmailDispatchJob>();
 builder.Services.AddScoped<RulesEngineSeeder>();
-
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<AssociationManager.Services.Jobs.BalanceSyncJob>();
 // Billing Strategies & Batch Service
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.AreaBasedBillingStrategy>();
@@ -123,13 +124,12 @@ builder.Services.AddHangfire(configuration => configuration
     {
         CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
         SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
+        QueuePollInterval = TimeSpan.FromMinutes(1),
         UseRecommendedIsolationLevel = true,
         DisableGlobalLocks = true
     }));
 
-// Note: AddHangfireServer is NOT called here to avoid loading the API with batch jobs.
-// The Worker project will act as the Hangfire Server.
+builder.Services.AddHangfireServer();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
@@ -278,6 +278,33 @@ using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
     await seeder.SeedAsync();
+
+    // Setup Recurring Jobs
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
+    // Daily Fine Accrual at 1:00 AM
+    recurringJobManager.AddOrUpdate<IFinanceService>(
+        "daily-fine-accrual",
+        service => service.PostOverdueFinesAsync(),
+        Cron.Daily(1));
+
+    // Daily Database Archiving at 3:00 AM
+    recurringJobManager.AddOrUpdate<IMaintenanceService>(
+        "database-archiving",
+        service => service.ArchiveAuditLogsAsync(180),
+        Cron.Daily(3));
+
+    // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
+    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
+        "automated-email-dispatch",
+        job => job.ProcessPendingEmailsAsync(),
+        "30 0,10,12,18 * * *");
+
+    // Hourly Enterprise Balance Synchronization
+    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.BalanceSyncJob>(
+        "enterprise-balance-sync",
+        job => job.ProcessAllAssociationsAsync(),
+        Cron.Hourly());
 }
 
 app.Run();
