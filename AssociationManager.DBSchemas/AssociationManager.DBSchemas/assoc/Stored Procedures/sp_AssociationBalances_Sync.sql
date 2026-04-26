@@ -1,4 +1,4 @@
-﻿-- 1. Fix Association Balances Sync
+-- 1. Fix Association Balances Sync
 CREATE   PROCEDURE assoc.sp_AssociationBalances_Sync 
     @TenantId INT = NULL, 
     @AssociationId INT 
@@ -75,18 +75,25 @@ BEGIN
                 WHEN d.EffectiveStrategy IS NULL OR d.EffectiveStrategy = 'None' THEN 0
                 WHEN @ActivationDate IS NULL OR d.CreatedDate < @ActivationDate THEN 0
                 WHEN DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= d.EffectiveGrace THEN 0
-                WHEN d.PenaltyLineItems > 0 THEN 0 -- Skip dynamic calculation if penalty is already posted
                 ELSE 
+                    -- Calculate Total Accumulated Fine and subtract Recorded Fines
                     (SELECT 
                         CASE 
-                            WHEN d.EffectiveStrategy = 'FlatAmount' THEN d.EffectiveValue * monthsLate
-                            WHEN d.EffectiveStrategy = 'OneTimeFlat' THEN d.EffectiveValue
-                            WHEN d.EffectiveStrategy = 'OneTimePercentage' THEN ROUND(d.Amount * (d.EffectiveValue / 100.0), 2)
-                            WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 0 THEN ROUND(d.Amount * (d.EffectiveValue / 100.0) * monthsLate, 2)
-                            WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (d.EffectiveValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2)
+                            WHEN totalFine - d.PenaltyLineItems > 0 THEN totalFine - d.PenaltyLineItems
                             ELSE 0
                         END
-                     FROM (SELECT CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate) m
+                     FROM (
+                        SELECT 
+                            CASE 
+                                WHEN d.EffectiveStrategy = 'FlatAmount' THEN d.EffectiveValue * monthsLate
+                                WHEN d.EffectiveStrategy = 'OneTimeFlat' THEN d.EffectiveValue
+                                WHEN d.EffectiveStrategy = 'OneTimePercentage' THEN ROUND(d.Amount * (d.EffectiveValue / 100.0), 2)
+                                WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 0 THEN ROUND(d.Amount * (d.EffectiveValue / 100.0) * monthsLate, 2)
+                                WHEN d.EffectiveStrategy = 'Percentage' AND d.EffectiveCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (d.EffectiveValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2)
+                                ELSE 0
+                            END as totalFine
+                        FROM (SELECT CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate) m
+                     ) f
                     )
             END as DynamicFine
         FROM InvoiceData d
@@ -113,7 +120,7 @@ BEGIN
     SELECT @LiveMembers = COUNT(DISTINCT PersonId) 
     FROM assoc.Occupancy WITH (NOLOCK) 
     WHERE TenantId = @RealTenantId AND AssociationId = @AssociationId; 
-
+116: 
     SELECT @LiveCommittee = COUNT(*) 
     FROM assoc.CommitteeMembers WITH (NOLOCK) 
     WHERE AssociationId = @AssociationId AND IsActive = 1; 

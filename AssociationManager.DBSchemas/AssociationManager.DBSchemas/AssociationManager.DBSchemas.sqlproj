@@ -201,7 +201,6 @@
     <Build Include="assoc\Stored Procedures\sp_RefreshTokens_GetByToken.sql" />
     <Build Include="assoc\Stored Procedures\sp_RefreshTokens_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics.sql" />
-    <Build Include="assoc\Stored Procedures\sp_Reports_GetFinancialMetrics_v2.sql" />
     <Build Include="assoc\Stored Procedures\sp_TariffGroups_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_TariffGroups_Delete.sql" />
     <Build Include="assoc\Stored Procedures\sp_TariffGroups_GetByTenantId.sql" />
