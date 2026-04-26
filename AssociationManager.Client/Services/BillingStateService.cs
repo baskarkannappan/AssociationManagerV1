@@ -394,6 +394,15 @@ namespace AssociationManager.Client.Services
             {
                 _toastService.Notify(new(ToastType.Danger, "Failed to initiate batch commitment. Please check your connection."));
             }
+            else
+            {
+                // Safety Fallback: Even if SignalR fails, refresh the UI after 15 seconds 
+                // to ensure the user sees the updated state.
+                _ = Task.Run(async () => {
+                    await Task.Delay(15000);
+                    await InitializeAsync();
+                });
+            }
             // Note: If success, we wait for the SignalR notification (HandleBatchCompleted) to show the final success message
         }
 

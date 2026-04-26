@@ -11,6 +11,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http;
+using Microsoft.AspNetCore.SignalR;
+using AssociationManager.Realtime.Hubs;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -32,6 +34,7 @@ public class FinanceService : IFinanceService
     private readonly DbConnectionFactory _dbConnectionFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -49,7 +52,8 @@ public class FinanceService : IFinanceService
         IPersonRepository personRepository,
         DbConnectionFactory dbConnectionFactory,
         IHttpClientFactory httpClientFactory,
-        IConfiguration config)
+        IConfiguration config,
+        IHubContext<NotificationHub> hubContext)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -67,6 +71,7 @@ public class FinanceService : IFinanceService
         _dbConnectionFactory = dbConnectionFactory;
         _httpClientFactory = httpClientFactory;
         _config = config;
+        _hubContext = hubContext;
     }
 
     private int CurrentTenantId => _tenantContext.TenantId;
@@ -771,14 +776,21 @@ public class FinanceService : IFinanceService
     {
         try
         {
-            var baseUrl = _config["ApiSettings:GatewayUrl"];
-            if (string.IsNullOrEmpty(baseUrl)) return;
-
-            var client = _httpClientFactory.CreateClient();
-            var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={associationId}&period=batch-{batchId}&jobId=commit-{batchId}&status={status}";
+            // 1. Direct SignalR Broadcast (Highest Reliability)
+            var payload = $"{status}|{associationId}|batch-{batchId}|commit-{batchId}";
+            await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", payload);
+            await _hubContext.Clients.Group($"Association_{associationId}").SendAsync("ReceiveNotification", payload);
             
-            Console.WriteLine($"[Diagnostic] Notifying UI of Commit Status: {url}");
-            await client.PostAsync(url, null);
+            // 2. Fallback to Gateway Notification (Existing logic)
+            var baseUrl = _config["ApiSettings:GatewayUrl"];
+            if (!string.IsNullOrEmpty(baseUrl))
+            {
+                var client = _httpClientFactory.CreateClient();
+                var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={associationId}&period=batch-{batchId}&jobId=commit-{batchId}&status={status}";
+                
+                Console.WriteLine($"[Diagnostic] Notifying UI of Commit Status (Direct + Gateway): {url}");
+                await client.PostAsync(url, null);
+            }
         }
         catch (Exception ex)
         {

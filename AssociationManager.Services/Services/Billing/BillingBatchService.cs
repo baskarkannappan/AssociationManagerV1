@@ -12,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Net.Http;
 using Hangfire;
+using Microsoft.AspNetCore.SignalR;
+using AssociationManager.Realtime.Hubs;
 
 namespace AssociationManager.Services.Billing;
 
@@ -30,6 +32,7 @@ public class BillingBatchService
     private readonly IDistributedCache _cache;
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public BillingBatchService(
         IAssetRepository assetRepository,
@@ -44,7 +47,8 @@ public class BillingBatchService
         IHttpClientFactory httpClientFactory,
         IDistributedCache cache,
         IInvoiceRepository invoiceRepository,
-        IAuditLogRepository auditLogRepository)
+        IAuditLogRepository auditLogRepository,
+        IHubContext<NotificationHub> hubContext)
     {
         _assetRepository = assetRepository;
         _tariffRepository = tariffRepository;
@@ -59,6 +63,7 @@ public class BillingBatchService
         _cache = cache;
         _invoiceRepository = invoiceRepository;
         _auditLogRepository = auditLogRepository;
+        _hubContext = hubContext;
     }
 
     /// <summary>
@@ -91,7 +96,7 @@ public class BillingBatchService
         }
 
         // Notify client via SignalR that job is complete
-        await NotifyCompletionAsync(request, tenantId, jobId, request.DryRun ? "PREVIEW_READY" : "BATCH_READY", request.DryRun ? result : null);
+        await NotifyCompletionAsync(tenantId, request.AssociationId, $"{request.Month}-{request.Year}", jobId, request.DryRun ? "PREVIEW_READY" : "BATCH_READY", request.DryRun ? result : null);
     }
 
     public async Task<InvoiceBatchResult> ProcessBatchAsync(InvoiceBatchRequest request, int tenantId, string jobId = "N/A")
@@ -379,41 +384,42 @@ public class BillingBatchService
             Console.WriteLine($"[Perf] Step 4 - Process {allAssets.Count} Assets Loop: {sw.ElapsedMilliseconds}ms (Generated {result.InvoicesGenerated} invoices, {result.Previews.Count} previews)");
             if (!request.DryRun)
             {
-                await NotifyCompletionAsync(request, tenantId, jobId, "BATCH_READY");
+                await NotifyCompletionAsync(tenantId, request.AssociationId, $"{request.Month}-{request.Year}", jobId, "BATCH_READY");
             }
         }
 
         return result;
     }
 
-    private async Task NotifyCompletionAsync(InvoiceBatchRequest request, int tenantId, string jobId, string status, InvoiceBatchResult? result = null)
+    private async Task NotifyCompletionAsync(int tenantId, int associationId, string period, string jobId, string status, InvoiceBatchResult? previewResult = null)
     {
         try
         {
-            var baseUrl = _config["ApiSettings:GatewayUrl"];
-            if (string.IsNullOrEmpty(baseUrl)) return;
+             // 1. Direct SignalR Broadcast (Highest Reliability)
+            var payload = $"{status}|{associationId}|{period}|{jobId}";
+            await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", payload);
+            await _hubContext.Clients.Group($"Association_{associationId}").SendAsync("ReceiveNotification", payload);
 
-            var client = _httpClientFactory.CreateClient();
-            var period = $"{request.Month}-{request.Year}";
-            var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={request.AssociationId}&period={period}&jobId={jobId}&status={status}";
-            
-            Console.WriteLine($"[Diagnostic] Notifying UI/Gateway: {url}");
-            
-            HttpContent content = null;
-            if (result != null)
+            // 2. Fallback to Gateway Notification
+            var baseUrl = _config["ApiSettings:GatewayUrl"];
+            if (!string.IsNullOrEmpty(baseUrl))
             {
-                var json = JsonSerializer.Serialize(result);
-                content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                var client = _httpClientFactory.CreateClient();
+                var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={associationId}&period={period}&jobId={jobId}&status={status}";
+                
+                StringContent? content = null;
+                if (previewResult != null)
+                {
+                    var json = JsonSerializer.Serialize(previewResult);
+                    content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                }
+
+                await client.PostAsync(url, content);
             }
-            
-            var response = await client.PostAsync(url, content);
-            Console.WriteLine($"[Diagnostic] Notification Result: {response.StatusCode}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Diagnostic] Notification Exception: {ex.Message}");
-            // Log notify failure but don't fail the entire batch job
-            await _auditService.LogAsync($"Failed to notify UI of batch completion: {ex.Message}", "System", 0);
+            await _auditService.LogAsync($"Failed to notify completion: {ex.Message}", "System", 0, associationId: associationId, tenantId: tenantId);
         }
     }
 
