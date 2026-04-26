@@ -73,13 +73,6 @@ jobs:
         env:
           RG: "rg-assocmgr-dev"
         run: |
-          az containerapp registry set \
-            --name "assocmgr-dev-${{ matrix.service }}" \
-            --resource-group "$RG" \
-            --server "ghcr.io" \
-            --username "${{ github.actor }}" \
-            --password "${{ secrets.GH_PACKAGE_TOKEN }}"
-
           az containerapp update \
             --name "assocmgr-dev-${{ matrix.service }}" \
             --resource-group "$RG" \
