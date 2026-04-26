@@ -282,6 +282,7 @@ using (var scope = app.Services.CreateScope())
     // Setup Recurring Jobs
     var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
     
+/*
     // Daily Fine Accrual at 1:00 AM
     recurringJobManager.AddOrUpdate<IFinanceService>(
         "daily-fine-accrual",
@@ -293,6 +294,7 @@ using (var scope = app.Services.CreateScope())
         "database-archiving",
         service => service.ArchiveAuditLogsAsync(180),
         Cron.Daily(3));
+*/
 
     // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
     recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
