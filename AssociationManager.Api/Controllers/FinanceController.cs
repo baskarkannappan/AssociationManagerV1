@@ -148,7 +148,11 @@ public class FinanceController : ControllerBase
         
         // Notification payload: STATUS|AssociationId|Period|JobId
         var payload = $"{status}|{associationId}|{period}|{jobId}";
+        
+        // Notify both levels to ensure the UI catches it regardless of current context
         await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", payload);
+        await _hubContext.Clients.Group($"Association_{associationId}").SendAsync("ReceiveNotification", payload);
+        
         return Ok();
     }
 
