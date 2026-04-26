@@ -53,7 +53,8 @@ public class FinanceService : IFinanceService
         DbConnectionFactory dbConnectionFactory,
         IHttpClientFactory httpClientFactory,
         IConfiguration config,
-        IHubContext<NotificationHub> hubContext)
+        IHubContext<NotificationHub> hubContext,
+        IEmailService emailService)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -72,7 +73,10 @@ public class FinanceService : IFinanceService
         _httpClientFactory = httpClientFactory;
         _config = config;
         _hubContext = hubContext;
+        _emailService = emailService;
     }
+    
+    private readonly IEmailService _emailService;
 
     private int CurrentTenantId => _tenantContext.TenantId;
     private int CurrentAssociationId => _tenantContext.AssociationId;
@@ -838,19 +842,34 @@ public class FinanceService : IFinanceService
             if (person != null && !string.IsNullOrEmpty(person.Email))
             {
                 var htmlBody = await _emailTemplateService.GenerateInvoiceHtmlAsync(inv.InvoiceId);
+                var subject = $"Invoice Generated: {inv.Title} (Ref #{inv.InvoiceId})";
                 
-                await _communicationRepository.CreateAsync(new CommunicationLog
+                // 1. Log to Comms for Audit Trail
+                var logId = await _communicationRepository.CreateAsync(new CommunicationLog
                 {
                     TenantId = CurrentTenantId,
                     AssociationId = CurrentAssociationId,
                     RecipientEmail = person.Email,
                     RecipientName = $"{person.FirstName} {person.LastName}",
-                    Subject = $"Invoice Generated: {inv.Title} (Ref #{inv.InvoiceId})",
+                    Subject = subject,
                     HtmlBody = htmlBody,
                     ReferenceType = "Invoice",
                     ReferenceId = inv.InvoiceId,
                     Status = AssociationManager.Shared.Enums.CommunicationStatus.Posted
                 });
+
+                // 2. Send Immediately (since we are already in a background job)
+                var success = await _emailService.SendEmailAsync(person.Email, $"{person.FirstName} {person.LastName}", subject, htmlBody);
+                
+                // 3. Update Status
+                if (success)
+                {
+                    await _communicationRepository.UpdateStatusAsync(logId, CurrentTenantId, (int)AssociationManager.Shared.Enums.CommunicationStatus.Success);
+                }
+                else
+                {
+                    await _communicationRepository.UpdateStatusAsync(logId, CurrentTenantId, (int)AssociationManager.Shared.Enums.CommunicationStatus.Failure, "Email sending failed.");
+                }
             }
         }
     }
