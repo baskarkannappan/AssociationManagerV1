@@ -1,4 +1,4 @@
-﻿CREATE   PROCEDURE assoc.sp_Reports_GetFinancialMetrics_v2
+CREATE   PROCEDURE assoc.sp_Reports_GetFinancialMetrics_v2
     @TenantId INT,
     @AssociationId INT
 AS
@@ -17,29 +17,34 @@ BEGIN
     FROM assoc.FineSettings
     WHERE AssociationId = @AssociationId AND TenantId = @TenantId;
 
-    -- 1. Pre-calculate metrics into a Temp Table to share across Multiple Result Sets
-    WITH InvoiceData AS (
+    -- 1. Pre-calculate metrics in Bulk (Much faster than OUTER APPLY)
+    WITH FineAgg AS (
+        SELECT li.InvoiceId, SUM(li.Amount) as TotalFines
+        FROM assoc.InvoiceLineItems li
+        JOIN assoc.Invoices i ON li.InvoiceId = i.InvoiceId
+        WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
+        AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%')
+        GROUP BY li.InvoiceId
+    ),
+    PaymentAgg AS (
+        SELECT p.InvoiceId, SUM(p.Amount) as TotalPaid
+        FROM assoc.Payments p
+        WHERE p.TenantId = @TenantId AND p.AssociationId = @AssociationId
+        AND p.Status IN ('Paid', 'Completed', 'Captured')
+        GROUP BY p.InvoiceId
+    ),
+    InvoiceData AS (
         SELECT 
             i.InvoiceId,
             i.DueDate,
             i.CreatedDate,
             i.Amount,
             i.[Status],
-            ISNULL(fines.TotalFines, 0) as RecordedFines,
-            ISNULL(payments.TotalPaid, 0) as TotalPaid
+            ISNULL(f.TotalFines, 0) as RecordedFines,
+            ISNULL(p.TotalPaid, 0) as TotalPaid
         FROM assoc.Invoices i
-        OUTER APPLY (
-            SELECT SUM(li.Amount) as TotalFines 
-            FROM assoc.InvoiceLineItems li 
-            WHERE li.InvoiceId = i.InvoiceId 
-            AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%')
-        ) fines
-        OUTER APPLY (
-            SELECT SUM(p.Amount) as TotalPaid
-            FROM assoc.Payments p
-            WHERE p.InvoiceId = i.InvoiceId
-            AND p.Status IN ('Paid', 'Completed', 'Captured')
-        ) payments
+        LEFT JOIN FineAgg f ON i.InvoiceId = f.InvoiceId
+        LEFT JOIN PaymentAgg p ON i.InvoiceId = p.InvoiceId
         WHERE i.TenantId = @TenantId AND i.AssociationId = @AssociationId
         AND i.[Status] NOT IN ('Cancelled', 'Void', 'Draft')
     ),
