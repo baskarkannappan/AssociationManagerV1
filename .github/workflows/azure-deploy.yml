@@ -106,3 +106,4 @@ jobs:
           action: "upload"
           app_location: "/AssociationManager.${{ matrix.client }}"
           output_location: "wwwroot"
+# Triggering build with GH_PACKAGE_TOKEN
