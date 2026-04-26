@@ -124,7 +124,7 @@ builder.Services.AddHangfire(configuration => configuration
     {
         CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
         SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.FromMinutes(1),
+        QueuePollInterval = TimeSpan.FromMinutes(5),
         UseRecommendedIsolationLevel = true,
         DisableGlobalLocks = true
     }));
@@ -304,7 +304,7 @@ using (var scope = app.Services.CreateScope())
     recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.BalanceSyncJob>(
         "enterprise-balance-sync",
         job => job.ProcessAllAssociationsAsync(),
-        Cron.Hourly());
+        Cron.Daily());
 }
 
 app.Run();

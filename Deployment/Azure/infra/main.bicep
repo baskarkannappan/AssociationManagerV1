@@ -78,16 +78,14 @@ resource sqlDB 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   name: '${envBaseName}-db'
   location: location
   sku: {
-    name: 'GP_S_Gen5_1'
-    tier: 'GeneralPurpose'
-    family: 'Gen5'
-    capacity: 1
+    name: 'Standard'
+    tier: 'Standard'
+    capacity: 10
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 2147483648 // 2GB
-    autoPauseDelay: 15 // 15 minutes minimum allowed
-    minCapacity: any('0.5')
+    requestedBackupStorageRedundancy: 'Local'
   }
 }
 
