@@ -69,10 +69,7 @@ public class BillingBatchService
     {
         Console.WriteLine($"[!!!] STARTING BATCH JOB: {jobId} for Association: {request.AssociationId} (DryRun: {request.DryRun})");
         // Set context if we are in a background execution environment
-        if (_tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
-        {
-            bgContext.SetContext(tenantId, request.AssociationId);
-        }
+        _tenantContext.SetContext(tenantId, request.AssociationId);
 
         var result = await ProcessBatchAsync(request, tenantId, jobId);
         

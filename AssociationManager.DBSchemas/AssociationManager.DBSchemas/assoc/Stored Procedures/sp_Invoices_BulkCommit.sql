@@ -1,4 +1,4 @@
-﻿CREATE   PROCEDURE assoc.sp_Invoices_BulkCommit
+CREATE   PROCEDURE assoc.sp_Invoices_BulkCommit
     @BatchId INT,
     @TenantId INT,
     @AssociationId INT
@@ -7,6 +7,10 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     SET DEADLOCK_PRIORITY NORMAL;
+
+    -- Safety: Set Session Context for RLS isolation in case the connection factory hasn't set it yet.
+    EXEC sp_set_session_context @key = N'TenantId', @value = @TenantId;
+    EXEC sp_set_session_context @key = N'AssociationId', @value = @AssociationId;
 
     BEGIN TRANSACTION;
 

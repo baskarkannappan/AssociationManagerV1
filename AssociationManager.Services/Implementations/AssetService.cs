@@ -117,11 +117,8 @@ public class AssetService : IAssetService
         bool isWorker = false;
         // Background job runs on a thread without HTTP context. 
         // We must manually initialize the context to ensure the subsequent service calls use the correct IDs.
-        if (_tenantContext is BackgroundTenantContext bgContext)
-        {
-            bgContext.SetContext(tenantId, associationId, userId);
-            isWorker = true;
-        }
+        _tenantContext.SetContext(tenantId, associationId, userId);
+        isWorker = true;
 
         // Background job uses the request data already populated with Tenant/Association context
         await BulkCreateAsync(request);

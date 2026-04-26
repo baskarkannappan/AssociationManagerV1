@@ -727,9 +727,9 @@ public class FinanceService : IFinanceService
 
     public async Task<bool> CommitBatchAsync(int batchId, int tenantId = 0, int associationId = 0)
     {
-        if (tenantId > 0 && _tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
+        if (tenantId > 0)
         {
-            bgContext.SetContext(tenantId, associationId);
+            _tenantContext.SetContext(tenantId, associationId);
         }
 
         try
@@ -789,9 +789,9 @@ public class FinanceService : IFinanceService
 
     public async Task EnqueueBatchNotificationsAsync(int batchId, int tenantId, int associationId)
     {
-         if (tenantId > 0 && _tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
+         if (tenantId > 0)
         {
-            bgContext.SetContext(tenantId, associationId);
+            _tenantContext.SetContext(tenantId, associationId);
         }
 
         var invoices = await _invoiceRepository.GetByBatchIdAsync(batchId, CurrentTenantId);
@@ -809,9 +809,9 @@ public class FinanceService : IFinanceService
     // New helper for Hangfire to send a single resident notification
     public async Task SendInvoiceNotificationAsync(int invoiceId, int tenantId, int associationId)
     {
-         if (tenantId > 0 && _tenantContext is AssociationManager.Services.Implementations.BackgroundTenantContext bgContext)
+         if (tenantId > 0)
         {
-            bgContext.SetContext(tenantId, associationId);
+            _tenantContext.SetContext(tenantId, associationId);
         }
 
         var inv = await _invoiceRepository.GetByIdAsync(invoiceId, CurrentTenantId, CurrentAssociationId);
