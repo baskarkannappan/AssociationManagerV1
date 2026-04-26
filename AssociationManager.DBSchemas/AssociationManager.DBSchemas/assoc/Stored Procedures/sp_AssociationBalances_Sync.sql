@@ -120,7 +120,6 @@ BEGIN
     SELECT @LiveMembers = COUNT(DISTINCT PersonId) 
     FROM assoc.Occupancy WITH (NOLOCK) 
     WHERE TenantId = @RealTenantId AND AssociationId = @AssociationId; 
-116: 
     SELECT @LiveCommittee = COUNT(*) 
     FROM assoc.CommitteeMembers WITH (NOLOCK) 
     WHERE AssociationId = @AssociationId AND IsActive = 1; 
