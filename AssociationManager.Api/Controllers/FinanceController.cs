@@ -253,6 +253,55 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(defaultResult));
     }
 
+    [HttpGet("invoices/export-excel")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> ExportInvoicesExcel(
+        [FromQuery] int? associationId = null, 
+        [FromQuery] int? assetId = null,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] string sortColumn = "CreatedDate",
+        [FromQuery] string sortDirection = "DESC",
+        [FromQuery] bool includeDrafts = false)
+    {
+        var userLevel = AppRole.GetMaxLevel(User.Claims);
+        bool isStaff = userLevel >= AppRole.LevelFinanceManager;
+        List<int>? allowedAssetIds = null;
+
+        if (!isStaff)
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                allowedAssetIds = await GetUserAssetIdsAsync(userId);
+                if (assetId.HasValue)
+                {
+                    if (!allowedAssetIds.Contains(assetId.Value)) return Forbid();
+                }
+            }
+        }
+
+        var criteria = new InvoiceSearchCriteria
+        {
+            AssociationId = associationId,
+            AssetId = assetId,
+            AssetIds = allowedAssetIds,
+            SearchTerm = searchTerm,
+            Status = status,
+            StartDate = startDate,
+            EndDate = endDate,
+            SortColumn = sortColumn,
+            SortDirection = sortDirection,
+            IncludeDrafts = includeDrafts
+        };
+
+        var bytes = await _financeService.ExportInvoicesToExcelAsync(criteria);
+        var fileName = $"FinancialHistory_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
     [HttpGet("summary")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetSummary([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)

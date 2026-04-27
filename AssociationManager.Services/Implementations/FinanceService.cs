@@ -13,6 +13,8 @@ using Microsoft.Extensions.Configuration;
 using System.Net.Http;
 using Microsoft.AspNetCore.SignalR;
 using AssociationManager.Realtime.Hubs;
+using ClosedXML.Excel;
+using System.IO;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -132,6 +134,70 @@ public class FinanceService : IFinanceService
             await AddFinePreviewAsync(inv, settings);
         }
         return paged;
+    }
+
+    public async Task<byte[]> ExportInvoicesToExcelAsync(InvoiceSearchCriteria criteria)
+    {
+        // 1. Fetch data matching criteria but without paging (fetch all)
+        criteria.PageNumber = 1;
+        criteria.PageSize = 100000; // Large enough for any single export
+        
+        var result = await GetPagedInvoicesAsync(criteria);
+        var invoices = result.Items;
+
+        // 2. Generate Excel Workbook
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Financial History");
+
+        // Header Styling
+        var headerRow = worksheet.Row(1);
+        headerRow.Style.Font.Bold = true;
+        headerRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#F3F4F6"); // Light Gray VS Code style
+
+        // Headers
+        worksheet.Cell(1, 1).Value = "Title";
+        worksheet.Cell(1, 2).Value = "Unit / Asset";
+        worksheet.Cell(1, 3).Value = "Total Amount (₹)";
+        worksheet.Cell(1, 4).Value = "Due Date";
+        worksheet.Cell(1, 5).Value = "Status";
+        worksheet.Cell(1, 6).Value = "Created Date";
+        worksheet.Cell(1, 7).Value = "Description";
+
+        // Data Rows
+        int currentRow = 2;
+        foreach (var inv in invoices)
+        {
+            var totalAmount = inv.Amount + inv.LineItems
+                .Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine"))
+                .Sum(li => li.Amount);
+
+            worksheet.Cell(currentRow, 1).Value = inv.Title;
+            worksheet.Cell(currentRow, 2).Value = inv.AssetName;
+            worksheet.Cell(currentRow, 3).Value = totalAmount;
+            worksheet.Cell(currentRow, 4).Value = inv.DueDate.ToShortDateString();
+            worksheet.Cell(currentRow, 5).Value = inv.Status;
+            worksheet.Cell(currentRow, 6).Value = inv.CreatedDate.ToShortDateString();
+            worksheet.Cell(currentRow, 7).Value = inv.Description;
+
+            // Conditional formatting for Status
+            if (inv.Status == "Paid")
+                worksheet.Cell(currentRow, 5).Style.Font.FontColor = XLColor.Green;
+            else if (inv.Status == "Unpaid")
+                worksheet.Cell(currentRow, 5).Style.Font.FontColor = XLColor.Red;
+            else if (inv.Status == "Partial")
+                worksheet.Cell(currentRow, 5).Style.Font.FontColor = XLColor.Orange;
+
+            currentRow++;
+        }
+
+        // Column Formatting
+        worksheet.Column(3).Style.NumberFormat.Format = "₹ #,##0.00";
+        worksheet.Columns().AdjustToContents();
+
+        // 3. Return as byte array
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     private async Task AddFinePreviewAsync(Invoice invoice, FineSettings? settings = null)

@@ -22,6 +22,10 @@
                 <option value="Partial">Partial</option>
                 <option value="Draft">Draft</option>
             </select>
+            <button class="btn btn-sm btn-outline-success px-2 d-flex align-items-center" title="Export current view to Excel" @onclick="() => BillingService.DownloadInvoicesExcelAsync(AssetId)">
+                <i class="bi bi-file-earmark-excel me-1"></i>
+                <span class="d-none d-md-inline" style="font-size: 11px;">Excel</span>
+            </button>
         </div>
     </div>
 

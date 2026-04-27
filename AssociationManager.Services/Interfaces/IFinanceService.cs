@@ -22,6 +22,7 @@ public interface IFinanceService
     Task<IEnumerable<PaymentHistoryItem>> GetInvoicePaymentHistoryAsync(int invoiceId);
     Task EnqueueBatchNotificationsAsync(int batchId, int tenantId, int associationId);
     Task SendInvoiceNotificationAsync(int invoiceId, int tenantId, int associationId);
+    Task<byte[]> ExportInvoicesToExcelAsync(InvoiceSearchCriteria criteria);
 
     // Payment Operations
     Task<IEnumerable<Payment>> GetPaymentsAsync(int? associationId = null, IEnumerable<int>? assetIds = null);

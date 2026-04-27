@@ -465,6 +465,29 @@ namespace AssociationManager.Client.Services
             await _api.DownloadFileAsync($"api/finance/invoices/{id}/pdf", fileName, _js);
         }
 
+        public async Task DownloadInvoicesExcelAsync(int? assetId = null)
+        {
+            var filters = new List<string>();
+            if (assetId.HasValue) filters.Add($"assetId={assetId.Value}");
+            
+            if (Scope == "association")
+            {
+                var aid = GetAssociationId();
+                if (aid != 0) filters.Add($"associationId={aid}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(SearchTerm)) filters.Add($"searchTerm={Uri.EscapeDataString(SearchTerm)}");
+            if (!string.IsNullOrWhiteSpace(StatusFilter)) filters.Add($"status={StatusFilter}");
+            
+            // Admins usually want to see drafts in exports too
+            filters.Add("includeDrafts=true");
+
+            string url = $"api/finance/invoices/export-excel?{string.Join("&", filters)}";
+            var fileName = $"FinancialHistory_{DateTime.UtcNow:yyyyMMdd}.xlsx";
+            
+            await _api.DownloadFileAsync(url, fileName, _js);
+        }
+
         public async Task<bool> SettleInvoiceWithAdvanceAsync(int id)
         {
             try
