@@ -21,7 +21,7 @@
                 @if (_showAssetsMenu)
                 {
                     <AuthorizeView Policy="ShowMenu_Assets" Context="assetMenuContext">
-                        <NavLink href="assets" class="vscode-tree-item text-decoration-none">
+                        <NavLink href="/assets" class="vscode-tree-item text-decoration-none">
                             <i class="bi bi-layers text-secondary"></i>
                             <span>Assets</span>
                         </NavLink>
@@ -29,7 +29,7 @@
                 }
                 
                 <AuthorizeView Policy="ShowMenu_Users" Context="userMenuContext">
-                    <NavLink href="users?scope=association" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/users?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-gear text-info"></i>
                         <span>User & Roles</span>
                     </NavLink>
@@ -38,7 +38,7 @@
                 @if (_showTariffMenu)
                 {
                     <AuthorizeView Policy="ShowMenu_Tariffs" Context="tariffMenuContext">
-                        <NavLink href="tariffs?scope=association" class="vscode-tree-item text-decoration-none">
+                        <NavLink href="/tariffs?scope=association" class="vscode-tree-item text-decoration-none">
                             <i class="bi bi-tag text-success"></i>
                             <span>Tariff Management</span>
                         </NavLink>
@@ -48,14 +48,14 @@
                 @if (_showFinanceMenu)
                 {
                     <AuthorizeView Policy="ShowMenu_Finance" Context="financeMenuContext">
-                        <NavLink href="billing?scope=association" class="vscode-tree-item text-decoration-none">
+                        <NavLink href="/billing?scope=association" class="vscode-tree-item text-decoration-none">
                             <i class="bi bi-cash-stack text-success"></i>
                             <span>Finance</span>
                         </NavLink>
                         
                         @if (_showAdvancesSubMenu)
                         {
-                            <NavLink href="finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
+                            <NavLink href="/finance/advances" class="vscode-tree-item ms-3 text-decoration-none">
                                 <i class="bi bi-wallet2 text-success"></i>
                                 <span class="small">Advance Ledgers</span>
                             </NavLink>
@@ -64,7 +64,7 @@
                         @if (_showReportsSubMenu)
                         {
                             <AuthorizeView Policy="RequireFinanceManager">
-                                <NavLink href="finance/reports" class="vscode-tree-item ms-3 text-decoration-none">
+                                <NavLink href="/finance/reports" class="vscode-tree-item ms-3 text-decoration-none">
                                     <i class="bi bi-graph-up-arrow text-success"></i>
                                     <span class="small">Reports</span>
                                 </NavLink>
@@ -78,7 +78,7 @@
                     <AuthorizeView Policy="RequireResident" Context="residentWalletContext">
                          @if (!_isAdmin)
                          {
-                             <NavLink href="my-wallet" class="vscode-tree-item text-decoration-none">
+                             <NavLink href="/my-wallet" class="vscode-tree-item text-decoration-none">
                                 <i class="bi bi-wallet2 text-info"></i>
                                 <span>My Wallet</span>
                             </NavLink>
@@ -89,12 +89,12 @@
                 @* Removed as requested: ShowMenu_Operations *@
 
                 <AuthorizeView Policy="ShowMenu_Broadcasts" Context="broadcastMenuContext">
-                    <NavLink href="broadcasts?scope=association" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/broadcasts?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-chat-left-dots text-warning"></i>
                         <span>Communication</span>
                     </NavLink>
                     <AuthorizeView Policy="RequireAssociationAdmin" Context="commQueueContext">
-                        <NavLink href="communication/queue" class="vscode-tree-item ms-3 text-decoration-none">
+                        <NavLink href="/communication/queue" class="vscode-tree-item ms-3 text-decoration-none">
                             <i class="bi bi-envelope-paper text-warning"></i>
                             <span class="small">Email Queue</span>
                         </NavLink>
@@ -102,14 +102,14 @@
                 </AuthorizeView>
 
                 <AuthorizeView Policy="ShowMenu_Community" Context="communityMenuContext">
-                    <NavLink href="people?scope=association" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/people?scope=association" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-person-lines-fill text-danger"></i>
                         <span>Community</span>
                     </NavLink>
                 </AuthorizeView>
 
                 <AuthorizeView Policy="ShowMenu_Settings" Context="settingsMenuContext">
-                    <NavLink href="settings" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/settings" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-gear text-secondary"></i>
                         <span>Settings</span>
                     </NavLink>
@@ -118,15 +118,15 @@
                 <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
                     Support
                 </div>
-                <NavLink href="p/about-us" class="vscode-tree-item text-decoration-none">
+                <NavLink href="/p/about-us" class="vscode-tree-item text-decoration-none">
                     <i class="bi bi-info-circle text-primary"></i>
                     <span>About Us</span>
                 </NavLink>
-                <NavLink href="contact-us" class="vscode-tree-item text-decoration-none">
+                <NavLink href="/contact-us" class="vscode-tree-item text-decoration-none">
                     <i class="bi bi-envelope text-success"></i>
                     <span>Contact Us</span>
                 </NavLink>
-                <NavLink href="p/rules-regulations" class="vscode-tree-item text-decoration-none">
+                <NavLink href="/p/rules-regulations" class="vscode-tree-item text-decoration-none">
                     <i class="bi bi-shield-check text-warning"></i>
                     <span>Rules & Regulations</span>
                 </NavLink>
@@ -135,27 +135,27 @@
                     <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
                         Governance
                     </div>
-                    <NavLink href="governance/profile" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/governance/profile" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-building text-primary"></i>
                         <span>Association Profile</span>
                     </NavLink>
-                    <NavLink href="governance/bank-details" class="vscode-tree-item ms-3 text-decoration-none">
+                    <NavLink href="/governance/bank-details" class="vscode-tree-item ms-3 text-decoration-none">
                         <i class="bi bi-bank text-success"></i>
                         <span class="small">Bank Details</span>
                     </NavLink>
-                    <NavLink href="governance/committee" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/governance/committee" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-people text-info"></i>
                         <span>Committee</span>
                     </NavLink>
-                    <NavLink href="governance/byelaws" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/governance/byelaws" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-file-earmark-text text-secondary"></i>
                         <span>Bye-laws</span>
                     </NavLink>
-                    <NavLink href="governance/meetings" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/governance/meetings" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-calendar-check text-warning"></i>
                         <span>Meetings</span>
                     </NavLink>
-                    <NavLink href="governance/elections" class="vscode-tree-item text-decoration-none">
+                    <NavLink href="/governance/elections" class="vscode-tree-item text-decoration-none">
                         <i class="bi bi-box-seam text-danger"></i>
                         <span>Elections</span>
                     </NavLink>
@@ -163,7 +163,7 @@
                         System
                     </div>
                     <AuthorizeView Policy="RequireAssociationAdmin" Context="platformBillingContext">
-                        <NavLink href="platform/billing" class="vscode-tree-item text-decoration-none">
+                        <NavLink href="/platform/billing" class="vscode-tree-item text-decoration-none">
                             <i class="bi bi-credit-card text-success"></i>
                             <span>Platform Subscription</span>
                         </NavLink>
