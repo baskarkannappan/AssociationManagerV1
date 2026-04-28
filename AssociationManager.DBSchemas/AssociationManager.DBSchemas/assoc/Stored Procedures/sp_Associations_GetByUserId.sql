@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Associations_GetByUserId
+CREATE PROCEDURE assoc.sp_Associations_GetByUserId
     @UserId INT
 AS
 BEGIN
