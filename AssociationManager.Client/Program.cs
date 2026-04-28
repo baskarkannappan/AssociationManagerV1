@@ -112,6 +112,7 @@ builder.Services.AddHttpClient("GatewayClient", client =>
     .AddStandardResilienceHandler(options => {
         options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
         options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
     });
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("GatewayClient"));
