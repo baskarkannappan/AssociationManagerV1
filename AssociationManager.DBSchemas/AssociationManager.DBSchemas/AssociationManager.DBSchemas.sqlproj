@@ -151,6 +151,7 @@
     <Build Include="assoc\Stored Procedures\sp_FineSettings_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_DeleteByInvoiceId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_GetBulk.sql" />
     <Build Include="assoc\Stored Procedures\sp_InvoiceLineItems_GetByInvoiceId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_Create.sql" />
     <Build Include="assoc\Stored Procedures\sp_Invoices_Delete.sql" />

@@ -213,7 +213,11 @@ public class BillingBatchService
                 if (invoicedAssetIds.Contains(asset.AssetId)) continue;
 
                 // Get assignments for this asset (O(1) lookup)
-                if (!assignmentsByAssetId.TryGetValue(asset.AssetId, out var assetAssignments) || !assetAssignments.Any()) continue;
+                if (!assignmentsByAssetId.TryGetValue(asset.AssetId, out var assetAssignments) || !assetAssignments.Any()) 
+                {
+                    result.SkippedAssets++;
+                    continue;
+                }
 
                 decimal assetTotalAmount = 0;
                 var assetLineItems = new List<InvoiceLineItem>();
@@ -344,8 +348,12 @@ public class BillingBatchService
                         lineItemsToCreate.Clear();
                         logsToCreate.Clear();
                         assetsProcessedInChunk = 0;
-                        Console.WriteLine($"[Perf] Flushed chunk of {chunkSize} assets. Total generated: {result.InvoicesGenerated}");
+                        Console.WriteLine($"[Perf] Flushed chunk of {chunkSize} assets. Total generated: {result.InvoicesGenerated}, Skipped: {result.SkippedAssets}");
                     }
+                }
+                else
+                {
+                    result.SkippedAssets++;
                 }
             }
 
@@ -381,7 +389,12 @@ public class BillingBatchService
         }
         finally
         {
-            Console.WriteLine($"[Perf] Step 4 - Process {allAssets.Count} Assets Loop: {sw.ElapsedMilliseconds}ms (Generated {result.InvoicesGenerated} invoices, {result.Previews.Count} previews)");
+            if (result.SkippedAssets > 0)
+            {
+                result.Message = $"Batch completed. {result.InvoicesGenerated} invoices generated. {result.SkippedAssets} assets skipped (no tariffs or zero balance).";
+            }
+            
+            Console.WriteLine($"[Perf] Step 4 - Process {allAssets.Count} Assets Loop: {sw.ElapsedMilliseconds}ms (Generated {result.InvoicesGenerated} invoices, {result.Previews.Count} previews, Skipped {result.SkippedAssets})");
             if (!request.DryRun)
             {
                 await NotifyCompletionAsync(tenantId, request.AssociationId, $"{request.Month}-{request.Year}", jobId, "BATCH_READY");

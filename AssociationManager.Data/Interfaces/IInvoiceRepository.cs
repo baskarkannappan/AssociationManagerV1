@@ -17,6 +17,7 @@ public interface IInvoiceRepository
     
     // Line Items
     Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId);
+    Task<IEnumerable<InvoiceLineItem>> GetLineItemsBulkAsync(IEnumerable<int> invoiceIds);
     Task<int> CreateLineItemAsync(InvoiceLineItem lineItem);
     Task<bool> CreateBulkAsync(int tenantId, int associationId, IEnumerable<Invoice> invoices, IEnumerable<InvoiceLineItem> lineItems);
 

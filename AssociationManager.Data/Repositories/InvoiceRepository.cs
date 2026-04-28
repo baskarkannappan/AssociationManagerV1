@@ -176,6 +176,17 @@ public class InvoiceRepository : IInvoiceRepository
             new { InvoiceId = invoiceId },
             commandType: CommandType.StoredProcedure);
     }
+    
+    public async Task<IEnumerable<InvoiceLineItem>> GetLineItemsBulkAsync(IEnumerable<int> invoiceIds)
+    {
+        if (invoiceIds == null || !invoiceIds.Any()) return Enumerable.Empty<InvoiceLineItem>();
+        
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<InvoiceLineItem>(
+            "assoc.sp_InvoiceLineItems_GetBulk",
+            new { InvoiceIds = string.Join(",", invoiceIds) },
+            commandType: CommandType.StoredProcedure);
+    }
 
     public async Task<int> CreateLineItemAsync(InvoiceLineItem lineItem)
     {

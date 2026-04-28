@@ -109,7 +109,10 @@ builder.Services.AddHttpClient("GatewayClient", client =>
         client.BaseAddress = new Uri(gatewayUrl);
     })
     .AddHttpMessageHandler<AuthHeaderHandler>()
-    .AddStandardResilienceHandler();
+    .AddStandardResilienceHandler(options => {
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+    });
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("GatewayClient"));
 

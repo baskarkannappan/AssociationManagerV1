@@ -126,12 +126,20 @@ public class FinanceService : IFinanceService
     {
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
         var paged = await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
-        var settings = await _fineService.GetSettingsAsync(criteria.AssociationId.Value);
-
-        foreach (var inv in paged.Items)
+        
+        if (paged.Items != null && paged.Items.Any())
         {
-            inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
-            await AddFinePreviewAsync(inv, settings);
+            var invoiceIds = paged.Items.Select(i => i.InvoiceId).Distinct();
+            var allLineItems = await _invoiceRepository.GetLineItemsBulkAsync(invoiceIds);
+            var lineItemsLookup = allLineItems.ToLookup(li => li.InvoiceId);
+            
+            var settings = await _fineService.GetSettingsAsync(criteria.AssociationId.Value);
+
+            foreach (var inv in paged.Items)
+            {
+                inv.LineItems = lineItemsLookup[inv.InvoiceId].ToList();
+                await AddFinePreviewAsync(inv, settings);
+            }
         }
         return paged;
     }
