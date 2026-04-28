@@ -1,8 +1,10 @@
-﻿CREATE   PROCEDURE assoc.sp_Associations_GetByUserId
+CREATE OR ALTER PROCEDURE assoc.sp_Associations_GetByUserId
     @UserId INT
 AS
 BEGIN
-    IF EXISTS (SELECT 1 FROM assoc.Users WHERE UserId = @UserId AND Role IN ('SystemAdmin', 'PlatformAdmin', 'AssociationAdmin'))
+    -- Only SystemAdmin should see everything. 
+    -- PlatformAdmin and AssociationAdmin should be restricted to their mapped associations in this portal.
+    IF EXISTS (SELECT 1 FROM assoc.Users WHERE UserId = @UserId AND Role = 'SystemAdmin')
     BEGIN
         SELECT * FROM corp.Associations WHERE [Status] = 'Active';
     END
