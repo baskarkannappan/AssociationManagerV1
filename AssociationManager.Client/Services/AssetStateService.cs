@@ -113,12 +113,21 @@ namespace AssociationManager.Client.Services
             {
                 LoadError = null;
                 // Initial load only fetches root assets (parentId = null)
-                Hierarchy = await _api.GetAsync<List<Asset>>("api/assets/hierarchy");
+                var roots = await _api.GetAsync<List<Asset>>("api/assets/hierarchy");
                 
-                if (Hierarchy == null)
+                if (roots == null)
                 {
                     Hierarchy = new List<Asset>();
                     LoadError = "Failed to load root assets. Please check your connection or permissions.";
+                }
+                else
+                {
+                    // If we already have a hierarchy, try to preserve expanded state and children
+                    if (Hierarchy != null && Hierarchy.Any())
+                    {
+                        await SyncChildrenRecursive(roots);
+                    }
+                    Hierarchy = roots;
                 }
                 
                 if (SelectedAsset != null && !IsNew)
@@ -135,6 +144,23 @@ namespace AssociationManager.Client.Services
             {
                 RefreshVisibleNodes();
                 NotifyStateChanged();
+            }
+        }
+
+        private async Task SyncChildrenRecursive(List<Asset> newAssets)
+        {
+            foreach (var asset in newAssets)
+            {
+                if (ExpandedIds.Contains(asset.AssetId))
+                {
+                    // Fetch children for this expanded node
+                    var children = await _api.GetAsync<List<Asset>>($"api/assets/hierarchy?parentId={asset.AssetId}");
+                    if (children != null)
+                    {
+                        asset.Children = children;
+                        await SyncChildrenRecursive(asset.Children);
+                    }
+                }
             }
         }
 

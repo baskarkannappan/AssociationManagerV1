@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
+using Microsoft.AspNetCore.SignalR;
+using AssociationManager.Realtime.Hubs;
 
 namespace AssociationManager.Api.Controllers;
 
@@ -21,6 +23,7 @@ public class AssetsController : ControllerBase
     private readonly AssociationManager.Shared.Interfaces.ITenantContext _tenantContext;
     private readonly IRuleEngineService _ruleEngine;
     private readonly IBackgroundJobClient _backgroundJobClient;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<AssetsController> _logger;
 
     public AssetsController(
@@ -29,6 +32,7 @@ public class AssetsController : ControllerBase
         AssociationManager.Shared.Interfaces.ITenantContext tenantContext, 
         IRuleEngineService ruleEngine,
         IBackgroundJobClient backgroundJobClient,
+        IHubContext<NotificationHub> hubContext,
         ILogger<AssetsController> logger)
     {
         _assetService = assetService;
@@ -36,6 +40,7 @@ public class AssetsController : ControllerBase
         _tenantContext = tenantContext;
         _ruleEngine = ruleEngine;
         _backgroundJobClient = backgroundJobClient;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -92,6 +97,10 @@ public class AssetsController : ControllerBase
     {
         var id = await _assetService.CreateAsync(asset);
         await _auditService.LogAsync("Create Asset", "Asset", id);
+        
+        await _hubContext.Clients.Group($"Association_{_tenantContext.AssociationId}")
+            .SendAsync("HierarchyChanged");
+            
         return CreatedAtAction(nameof(GetById), new { id }, ApiResponse<int>.SuccessResponse(id, "Asset created successfully."));
     }
 
@@ -118,6 +127,10 @@ public class AssetsController : ControllerBase
         var success = await _assetService.UpdateAsync(asset);
         if (!success) return NotFound(ApiResponse.FailureResponse("Asset not found for update."));
         await _auditService.LogAsync("Update Asset", "Asset", id);
+
+        await _hubContext.Clients.Group($"Association_{_tenantContext.AssociationId}")
+            .SendAsync("HierarchyChanged");
+
         return Ok(ApiResponse.SuccessResponse("Asset updated successfully."));
     }
 
@@ -128,6 +141,10 @@ public class AssetsController : ControllerBase
         var success = await _assetService.DeleteAsync(id);
         if (!success) return NotFound(ApiResponse.FailureResponse("Asset not found for deletion."));
         await _auditService.LogAsync("Delete Asset", "Asset", id);
+
+        await _hubContext.Clients.Group($"Association_{_tenantContext.AssociationId}")
+            .SendAsync("HierarchyChanged");
+
         return Ok(ApiResponse.SuccessResponse("Asset deleted successfully."));
     }
 

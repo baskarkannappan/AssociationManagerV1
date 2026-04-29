@@ -226,10 +226,11 @@ namespace AssociationManager.Client.Services
             var aid = _tenantContext.AssociationId;
             if (aid != 0)
             {
-                var assets = await _api.GetAsync<List<Asset>>($"api/assets/hierarchy?associationId={aid}");
+                // Fix: Call flat list API instead of hierarchy roots
+                var assets = await _api.GetAsync<List<Asset>>($"api/assets?associationId={aid}");
                 if (assets != null)
                 {
-                    AllPossibleAssets = Flatten(assets)
+                    AllPossibleAssets = assets
                         .Where(a => a.AssetType == AssetType.Unit || a.AssetType == AssetType.Villa || a.AssetType == AssetType.Property)
                         .ToList();
                 }

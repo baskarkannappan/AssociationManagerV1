@@ -261,6 +261,9 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("AllowClient");
 
+// Fix 5: Enable WebSockets for stable SignalR handshake through gateway
+app.UseWebSockets();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHangfireDashboard("/hangfire", new DashboardOptions

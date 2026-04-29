@@ -46,7 +46,7 @@ public class AssetService : IAssetService
 
     public async Task<IEnumerable<Asset>> GetAllAsync()
     {
-        return await _assetRepository.GetHierarchyAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
+        return await _assetRepository.GetAllFlatAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
     }
 
     public async Task<IEnumerable<Asset>> GetHierarchyAsync(int? userId = null, int? parentId = null)
