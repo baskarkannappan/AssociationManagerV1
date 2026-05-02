@@ -405,5 +405,8 @@
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="assoc\Stored Procedures\sp_Assets_GetAvailableForLayer.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetAssignmentsByLayerId.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_GetUsersBalancesBulk.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_DeactivateBulk.sql" />
   </ItemGroup>
 </Project>
