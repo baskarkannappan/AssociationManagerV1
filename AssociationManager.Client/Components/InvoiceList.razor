@@ -94,8 +94,22 @@
 
                             @if (CreditAvailable >= GetTotalAmount(context))
                             {
-                                <button class="btn btn-sm btn-outline-primary py-0 px-2" @onclick="async () => await OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true" style="font-size: 10px;" title="Pay using your advance credit">
-                                    <i class="bi bi-wallet2 pe-1"></i> Pay with Advance
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2" 
+                                        disabled="@(_processingInvoiceIds.Contains(context.InvoiceId))"
+                                        @onclick="async () => await HandlePayWithAdvance(context)" 
+                                        @onclick:stopPropagation="true" 
+                                        style="font-size: 10px;" 
+                                        title="Pay using your advance credit">
+                                    @if (_processingInvoiceIds.Contains(context.InvoiceId))
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Processing...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-wallet2 pe-1"></i>
+                                        <span>Pay with Advance</span>
+                                    }
                                 </button>
                             }
                         }
@@ -155,8 +169,19 @@
                             </button>
                             @if (CreditAvailable >= total)
                             {
-                                <button class="btn btn-sm btn-success" @onclick="async () => await OnPayWithAdvance.InvokeAsync(invoice)">
-                                    <i class="bi bi-wallet2"></i> Pay (Adv)
+                                <button class="btn btn-sm btn-success" 
+                                        disabled="@(_processingInvoiceIds.Contains(invoice.InvoiceId))"
+                                        @onclick="async () => await HandlePayWithAdvance(invoice)">
+                                    @if (_processingInvoiceIds.Contains(invoice.InvoiceId))
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Wait...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-wallet2"></i>
+                                        <span>Pay (Adv)</span>
+                                    }
                                 </button>
                             }
                         }
@@ -245,6 +270,7 @@
 
     private Grid<Invoice> _grid = default!;
     private Invoice? _selectedInvoice;
+    private HashSet<int> _processingInvoiceIds = new();
 
     protected override void OnInitialized()
     {
@@ -275,6 +301,25 @@
         if (OnPayNow.HasDelegate)
         {
             await OnPayNow.InvokeAsync(invoice);
+        }
+    }
+
+    private async Task HandlePayWithAdvance(Invoice invoice)
+    {
+        if (_processingInvoiceIds.Contains(invoice.InvoiceId)) return;
+
+        try
+        {
+            _processingInvoiceIds.Add(invoice.InvoiceId);
+            if (OnPayWithAdvance.HasDelegate)
+            {
+                await OnPayWithAdvance.InvokeAsync(invoice);
+            }
+        }
+        finally
+        {
+            _processingInvoiceIds.Remove(invoice.InvoiceId);
+            StateHasChanged();
         }
     }
 

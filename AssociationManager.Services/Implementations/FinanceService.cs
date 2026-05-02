@@ -515,94 +515,112 @@ public class FinanceService : IFinanceService
 
     public async Task<bool> SettleInvoiceWithAdvanceAsync(int invoiceId)
     {
-        var invoice = await GetInvoiceByIdAsync(invoiceId);
-        if (invoice == null || !invoice.AssetId.HasValue || invoice.Status == "Paid") return false;
-
-        // Support Cross-Asset Settlement: Find all assets for this resident
-        var userAssets = (await _occupancyRepository.GetByUserIdAsync(_tenantContext.UserId, CurrentTenantId, CurrentAssociationId)).ToList();
+        // Use a session-level application lock to prevent concurrent settlement of the same invoice
+        using var lockConn = _dbConnectionFactory.CreateConnection();
+        var lockName = $"SettleInvoice_{invoiceId}";
         
-        // 1. Calculate Gross Wallet Power across ALL user assets
-        // Gross Wallet = (Sum of Payments/Advances) - (Sum of Credit Settlements)
-        decimal totalWalletPower = 0;
-        foreach (var asset in userAssets)
+        // Mode: Exclusive, Owner: Session, Timeout: 10 seconds
+        var lockResult = await lockConn.QueryFirstOrDefaultAsync<int>(
+            "EXEC sp_getapplock @Resource = @LockName, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 10000",
+            new { LockName = lockName });
+
+        if (lockResult < 0) return false; // Could not acquire lock
+
+        try
         {
-            totalWalletPower += await GetAssetWalletBalanceAsync(asset.AssetId);
-        }
+            var invoice = await GetInvoiceByIdAsync(invoiceId);
+            if (invoice == null || !invoice.AssetId.HasValue || invoice.Status == "Paid") return false;
 
-        if (totalWalletPower <= 0) return false;
-        
-        // UNIFIED TOTAL: Use the shared calculation logic to determine the exact amount due.
-        decimal totalAmountDue = await GetTotalInvoiceAmountAsync(invoice);
-        
-        if (totalWalletPower < totalAmountDue) return false;
-
-        decimal remainingSettleAmount = totalAmountDue;
-        decimal spendableWallet = totalWalletPower;
-
-        foreach (var asset in userAssets)
-        {
-            if (remainingSettleAmount <= 0 || spendableWallet <= 0) break;
-
-            // How much of the wallet power is stored specifically in this asset?
-            var assetWalletPower = await GetAssetWalletBalanceAsync(asset.AssetId);
-
-            if (assetWalletPower > 0)
+            // Support Cross-Asset Settlement: Find all assets for this resident
+            var userAssets = (await _occupancyRepository.GetByUserIdAsync(_tenantContext.UserId, CurrentTenantId, CurrentAssociationId)).ToList();
+            
+            // 1. Calculate Gross Wallet Power across ALL user assets
+            // Gross Wallet = (Sum of Payments/Advances) - (Sum of Credit Settlements)
+            decimal totalWalletPower = 0;
+            foreach (var asset in userAssets)
             {
-                var attribution = Math.Min(Math.Min(assetWalletPower, remainingSettleAmount), spendableWallet);
+                totalWalletPower += await GetAssetWalletBalanceAsync(asset.AssetId);
+            }
 
-                if (attribution > 0)
+            if (totalWalletPower <= 0) return false;
+            
+            // UNIFIED TOTAL: Use the shared calculation logic to determine the exact amount due.
+            decimal totalAmountDue = await GetTotalInvoiceAmountAsync(invoice);
+            
+            if (totalWalletPower < totalAmountDue) return false;
+
+            decimal remainingSettleAmount = totalAmountDue;
+            decimal spendableWallet = totalWalletPower;
+
+            foreach (var asset in userAssets)
+            {
+                if (remainingSettleAmount <= 0 || spendableWallet <= 0) break;
+
+                // How much of the wallet power is stored specifically in this asset?
+                var assetWalletPower = await GetAssetWalletBalanceAsync(asset.AssetId);
+
+                if (assetWalletPower > 0)
                 {
-                    // Record SETTLEMENT (Debit to the Wallet)
-                    await _ledgerService.RecordTransactionAsync(new Transaction
-                    {
-                        AssetId = asset.AssetId,
-                        Type = "Debit",
-                        Amount = attribution,
-                        Category = "Credit Settlement",
-                        Description = $"Advance used to pay Invoice #{invoiceId}"
-                    });
+                    var attribution = Math.Min(Math.Min(assetWalletPower, remainingSettleAmount), spendableWallet);
 
-                    // Record PAYMENT (Credit to the Invoice)
-                    await _ledgerService.RecordTransactionAsync(new Transaction
+                    if (attribution > 0)
                     {
-                        AssetId = invoice.AssetId.Value,
-                        InvoiceId = invoiceId,
-                        Type = "Credit",
-                        Amount = attribution,
-                        Category = "Credit Settlement",
-                        Description = asset.AssetId == invoice.AssetId.Value 
-                            ? "Settled via Advance Credit" 
-                            : $"Settled via Credit Transfer from Unit #{asset.AssetId}"
-                    });
+                        // Record SETTLEMENT (Debit to the Wallet)
+                        await _ledgerService.RecordTransactionAsync(new Transaction
+                        {
+                            AssetId = asset.AssetId,
+                            Type = "Debit",
+                            Amount = attribution,
+                            Category = "Credit Settlement",
+                            Description = $"Advance used to pay Invoice #{invoiceId}"
+                        });
 
-                    remainingSettleAmount -= attribution;
-                    spendableWallet -= attribution;
+                        // Record PAYMENT (Credit to the Invoice)
+                        await _ledgerService.RecordTransactionAsync(new Transaction
+                        {
+                            AssetId = invoice.AssetId.Value,
+                            InvoiceId = invoiceId,
+                            Type = "Credit",
+                            Amount = attribution,
+                            Category = "Credit Settlement",
+                            Description = asset.AssetId == invoice.AssetId.Value 
+                                ? "Settled via Advance Credit" 
+                                : $"Settled via Credit Transfer from Unit #{asset.AssetId}"
+                        });
+
+                        remainingSettleAmount -= attribution;
+                        spendableWallet -= attribution;
+                    }
                 }
             }
-        }
 
-        if (remainingSettleAmount <= 0)
-        {
-            // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
-            // We search for any line item with ID 0 that contains Fine/Penalty keywords
-            var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
-                               (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
-            
-            if (virtualFine != null)
+            if (remainingSettleAmount <= 0)
             {
-                virtualFine.InvoiceId = invoice.InvoiceId;
-                await _invoiceRepository.CreateLineItemAsync(virtualFine);
+                // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
+                // We search for any line item with ID 0 that contains Fine/Penalty keywords
+                var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
+                                   (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
+                
+                if (virtualFine != null)
+                {
+                    virtualFine.InvoiceId = invoice.InvoiceId;
+                    await _invoiceRepository.CreateLineItemAsync(virtualFine);
+                }
+
+                await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
+                
+                // Trigger Real-time Dashboard Sync to update Net Outstanding metrics immediately
+                _ = Task.Run(() => SyncAssociationBalancesAsync(invoice.AssociationId, CurrentTenantId));
+                
+                return true;
             }
 
-            await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
-            
-            // Trigger Real-time Dashboard Sync to update Net Outstanding metrics immediately
-            _ = Task.Run(() => SyncAssociationBalancesAsync(invoice.AssociationId, CurrentTenantId));
-            
-            return true;
+            return remainingSettleAmount < totalAmountDue;
         }
-
-        return remainingSettleAmount < totalAmountDue;
+        finally
+        {
+            await lockConn.ExecuteAsync("EXEC sp_releaseapplock @Resource = @LockName, @LockOwner = 'Session'", new { LockName = lockName });
+        }
     }
 
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
