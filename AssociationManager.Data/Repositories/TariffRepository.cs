@@ -19,10 +19,11 @@ public class TariffRepository : ITariffRepository
     public async Task<IEnumerable<TariffGroup>> GetGroupsByTenantIdAsync(int tenantId, int? associationId = null)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<TariffGroup>(
+        var groups = await connection.QueryAsync<TariffGroup>(
             "assoc.sp_TariffGroups_GetByTenantId", 
             new { tenantId, associationId },
             commandType: CommandType.StoredProcedure);
+        return groups.ToList();
     }
 
     public async Task<int> CreateGroupAsync(TariffGroup group)
@@ -55,19 +56,21 @@ public class TariffRepository : ITariffRepository
     public async Task<IEnumerable<TariffLayer>> GetLayersByGroupIdAsync(int groupId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<TariffLayer>(
+        var layers = await connection.QueryAsync<TariffLayer>(
             "assoc.sp_TariffLayers_GetByGroupId", 
             new { groupId },
             commandType: CommandType.StoredProcedure);
+        return layers.ToList();
     }
 
     public async Task<IEnumerable<TariffLayer>> GetLayersByAssociationIdAsync(int associationId, int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<TariffLayer>(
+        var layers = await connection.QueryAsync<TariffLayer>(
             "assoc.sp_TariffLayers_GetByAssociationId", 
             new { associationId, tenantId },
             commandType: CommandType.StoredProcedure);
+        return layers.ToList();
     }
 
     public async Task<int> CreateLayerAsync(TariffLayer layer)

@@ -66,10 +66,11 @@ public class UserRepository : IUserRepository
         var dynamicParams = new DynamicParameters();
         dynamicParams.Add(paramName, tenantId);
 
-        return await connection.QueryAsync<User>(
+        var users = await connection.QueryAsync<User>(
             spName, 
             dynamicParams,
             commandType: CommandType.StoredProcedure);
+        return users.ToList();
     }
 
     public async Task<int> CreateAsync(User user)
@@ -185,16 +186,18 @@ public class UserRepository : IUserRepository
         
         if (_schema == "assoc")
         {
-            return await connection.QueryAsync<User>(
+            var users = await connection.QueryAsync<User>(
                 "assoc.sp_Users_GetByAssociationId",
                 new { AssociationId = associationId },
                 commandType: CommandType.StoredProcedure);
+            return users.ToList();
         }
 
-        return await connection.QueryAsync<User>(
+        var corpUsers = await connection.QueryAsync<User>(
             "corp.sp_Users_GetByAssociationId_Complex",
             new { AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
+        return corpUsers.ToList();
     }
 
     public async Task<PagedResult<User>> GetPagedAsync(UserSearchCriteria criteria)
@@ -252,9 +255,10 @@ public class UserRepository : IUserRepository
     public async Task<IEnumerable<User>> GetAllAsync()
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<User>(
+        var allUsers = await connection.QueryAsync<User>(
             $"{_schema}.sp_Users_List",
             commandType: CommandType.StoredProcedure);
+        return allUsers.ToList();
     }
 
     public async Task<bool> DeleteUserGlobalAsync(int userId)

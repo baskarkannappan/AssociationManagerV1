@@ -33,19 +33,21 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<IEnumerable<Invoice>> GetAllAsync(int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<Invoice>(
+        var invoices = await connection.QueryAsync<Invoice>(
             "assoc.sp_Invoices_GetAll", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
+        return invoices.ToList();
     }
 
     public async Task<IEnumerable<Invoice>> GetByAssetIdAsync(int assetId, int tenantId, int? associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<Invoice>(
+        var invoices = await connection.QueryAsync<Invoice>(
             "assoc.sp_Invoices_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
+        return invoices.ToList();
     }
 
     public async Task<PagedResult<Invoice>> GetPagedAsync(int tenantId, InvoiceSearchCriteria criteria)
@@ -173,10 +175,11 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<InvoiceLineItem>(
+        var items = await connection.QueryAsync<InvoiceLineItem>(
             "assoc.sp_InvoiceLineItems_GetByInvoiceId",
             new { InvoiceId = invoiceId },
             commandType: CommandType.StoredProcedure);
+        return items.ToList();
     }
     
     public async Task<IEnumerable<InvoiceLineItem>> GetLineItemsBulkAsync(IEnumerable<int> invoiceIds)
@@ -184,10 +187,11 @@ public class InvoiceRepository : IInvoiceRepository
         if (invoiceIds == null || !invoiceIds.Any()) return Enumerable.Empty<InvoiceLineItem>();
         
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<InvoiceLineItem>(
+        var items = await connection.QueryAsync<InvoiceLineItem>(
             "assoc.sp_InvoiceLineItems_GetBulk",
             new { InvoiceIds = string.Join(",", invoiceIds) },
             commandType: CommandType.StoredProcedure);
+        return items.ToList();
     }
 
     public async Task<int> CreateLineItemAsync(InvoiceLineItem lineItem)
@@ -210,18 +214,20 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<IEnumerable<Invoice>> GetUnpaidOverdueInvoicesAsync()
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<Invoice>(
+        var invoices = await connection.QueryAsync<Invoice>(
             "assoc.sp_Invoices_GetUnpaidOverdue",
             commandType: CommandType.StoredProcedure);
+        return invoices.ToList();
     }
 
     public async Task<IEnumerable<Invoice>> GetByBatchIdAsync(int batchId, int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<Invoice>(
+        var invoices = await connection.QueryAsync<Invoice>(
             "assoc.sp_Invoices_GetByBatchId",
             new { BatchId = batchId, TenantId = tenantId },
             commandType: CommandType.StoredProcedure);
+        return invoices.ToList();
     }
 
     public async Task<bool> UpdateAsync(Invoice invoice)
@@ -275,10 +281,11 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<IEnumerable<int>> GetInvoicedAssetIdsByPeriodAsync(int tenantId, int associationId, string periodPattern)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<int>(
+        var ids = await connection.QueryAsync<int>(
             "assoc.sp_Invoices_GetInvoicedAssetsByPeriod",
             new { TenantId = tenantId, AssociationId = associationId, PeriodPattern = periodPattern },
             commandType: CommandType.StoredProcedure);
+        return ids.ToList();
     }
 
     public async Task<bool> CreateBulkAsync(int tenantId, int associationId, IEnumerable<Invoice> invoices, IEnumerable<InvoiceLineItem> lineItems)
@@ -330,9 +337,10 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesBulkAsync(int associationId, string userIdsCsv)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<UserFinanceSummary>(
+        var balances = await connection.QueryAsync<UserFinanceSummary>(
             "assoc.sp_Finance_GetUsersBalancesBulk",
             new { AssociationId = associationId, UserIds = userIdsCsv },
             commandType: CommandType.StoredProcedure);
+        return balances.ToList();
     }
 }
