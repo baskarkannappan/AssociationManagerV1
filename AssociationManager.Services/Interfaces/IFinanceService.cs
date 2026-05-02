@@ -52,4 +52,5 @@ public interface IFinanceService
     Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null);
     Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria);
     Task NotifyCommitStatusAsync(int batchId, int tenantId, int associationId, string status);
+    Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesAsync(int associationId, IEnumerable<int> userIds);
 }

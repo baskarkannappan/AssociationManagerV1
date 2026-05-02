@@ -20,8 +20,10 @@ public interface ITariffService
     // Assignment
     Task<IEnumerable<AssetTariff>> GetAssetTariffsAsync(int assetId);
     Task<IEnumerable<AssetTariff>> GetLayerAssignmentsAsync(int layerId);
-    Task<bool> AssignTariffToAssetAsync(AssetTariff assetTariff);
-    Task<bool> RemoveTariffFromAssetAsync(int assetId, int layerId);
+    Task<bool> AssignTariffToAssetAsync(AssetTariff assignment);
+    Task<bool> BulkAssignTariffsAsync(IEnumerable<AssetTariff> assignments);
+    Task<IEnumerable<Asset>> GetAvailableAssetsForLayerAsync(int associationId, int layerId);
+    Task<bool> UnassignTariffFromAssetAsync(int assetId, int layerId);
 
     // Automation & Billing
     Task GenerateRecurringInvoicesAsync();

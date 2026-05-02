@@ -76,12 +76,22 @@ public class TariffService : ITariffService
         return await _tariffRepository.GetAssignmentsByLayerIdAsync(layerId);
     }
 
-    public async Task<bool> AssignTariffToAssetAsync(AssetTariff assetTariff)
+    public async Task<bool> AssignTariffToAssetAsync(AssetTariff assignment)
     {
-        return await _tariffRepository.UpsertAssetTariffAsync(assetTariff);
+        return await _tariffRepository.UpsertAssetTariffAsync(assignment);
     }
 
-    public async Task<bool> RemoveTariffFromAssetAsync(int assetId, int layerId)
+    public async Task<bool> BulkAssignTariffsAsync(IEnumerable<AssetTariff> assignments)
+    {
+        return await _tariffRepository.UpsertAssetTariffBulkAsync(assignments);
+    }
+
+    public async Task<IEnumerable<Asset>> GetAvailableAssetsForLayerAsync(int associationId, int layerId)
+    {
+        return await _tariffRepository.GetAvailableAssetsForLayerAsync(associationId, layerId);
+    }
+
+    public async Task<bool> UnassignTariffFromAssetAsync(int assetId, int layerId)
     {
         return await _tariffRepository.RemoveAssetTariffAsync(assetId, layerId);
     }

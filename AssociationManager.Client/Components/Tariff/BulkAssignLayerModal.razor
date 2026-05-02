@@ -11,64 +11,66 @@
                 <h6 class="modal-title fw-bold">Bulk Assign Layer</h6>
                 <button type="button" class="btn-close small" @onclick="() => TariffState.ShowBulkAssignModal = false"></button>
             </div>
-            <div class="modal-body p-0">
-                <div class="p-3 bg-white sticky-top border-bottom">
-                     <div class="input-group input-group-sm mb-2">
-                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control border-start-0" placeholder="Filter assets..." @bind="TariffState.AssetFilter" @bind:event="oninput" />
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" checked="@_allSelected" @onchange="ToggleSelectAll" id="selectAllAssets">
-                            <label class="form-check-label small fw-semibold" for="selectAllAssets">Select All Billable Assets</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" @bind="_isRecurring" id="recurringCharge">
-                            <label class="form-check-label small fw-semibold text-primary" for="recurringCharge">Recurring Charge</label>
-                        </div>
-                        <span class="small text-muted">@_selectedAssetIds.Count selected</span>
-                    </div>
+            
+            <div class="p-3 bg-white border-bottom">
+                 <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0" placeholder="Filter assets..." @bind="assetFilter" @bind:event="oninput" />
                 </div>
-                <div class="list-group list-group-flush" style="max-height: 400px; min-height: 200px;">
-                    @if (TariffState.AllPossibleAssets == null || TariffState.AssignedAssets == null)
-                    {
-                        <div class="p-5 text-center opacity-50">
-                            <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
-                            <p class="small">Checking current assignments...</p>
-                        </div>
-                    }
-                    else
-                    {
-                        var filteredAssets = GetFilteredAssets().ToList();
-                        @if (!filteredAssets.Any())
-                        {
-                            <div class="p-5 text-center bg-light">
-                                <i class="bi bi-check2-circle display-6 text-success opacity-50 mb-2 d-block"></i>
-                                <span class="small text-muted">All eligible assets are already assigned to this layer.</span>
-                            </div>
-                        }
-                        else
-                        {
-                            @foreach (var asset in filteredAssets)
-                            {
-                                <label class="list-group-item d-flex align-items-center py-2 hover-bg-slate cursor-pointer">
-                                    <input class="form-check-input me-3" type="checkbox" 
-                                           checked="@_selectedAssetIds.Contains(asset.AssetId)" 
-                                           @onchange='(e) => ToggleAssetSelection(asset.AssetId, (bool)e.Value!)'>
-                                    <div>
-                                        <div class="fw-medium small">@asset.Name</div>
-                                        <div class="text-muted" style="font-size: 10px;">@asset.AssetType | @asset.Description</div>
-                                    </div>
-                                </label>
-                            }
-                        }
-                    }
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" checked="@isAllSelected" @onchange="ToggleSelectAll" id="selectAllAssets">
+                        <label class="form-check-label small fw-semibold" for="selectAllAssets">Select All Visible</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" @bind="isRecurring" id="recurringCharge">
+                        <label class="form-check-label small fw-semibold text-primary" for="recurringCharge">Recurring Charge</label>
+                    </div>
+                    <span class="small text-muted">@selectedAssets.Count selected</span>
                 </div>
             </div>
+
+            <div class="modal-body p-0" style="max-height: 60vh; overflow-y: auto;">
+                @if (isLoading)
+                {
+                    <div class="p-4 text-center">
+                        <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+                        <p class="mt-2 text-muted">Loading available assets...</p>
+                    </div>
+                }
+                else if (!availableAssets.Any())
+                {
+                    <div class="p-5 text-center">
+                        <i class="bi bi-check2-circle display-6 text-success opacity-50 mb-2 d-block"></i>
+                        <p class="mt-2">All assets are already assigned to this layer!</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var asset in FilteredAssets)
+                        {
+                            <label class="list-group-item d-flex align-items-center py-2 hover-bg-slate cursor-pointer">
+                                <input class="form-check-input me-3" type="checkbox" 
+                                       checked="@selectedAssets.Contains(asset)" 
+                                       @onchange='(e) => ToggleAssetSelection(asset, (bool)e.Value!)'>
+                                <div>
+                                    <div class="fw-medium small">@asset.Name</div>
+                                    <div class="text-muted" style="font-size: 10px;">@asset.AssetType | @asset.Description</div>
+                                </div>
+                            </label>
+                        }
+                    </div>
+                }
+            </div>
+            
             <div class="modal-footer border-0 bg-light py-2">
+                <div class="text-muted small me-auto">
+                    @selectedAssets.Count assets selected
+                </div>
                 <button class="btn btn-sm btn-secondary" @onclick="() => TariffState.ShowBulkAssignModal = false">Cancel</button>
-                <button class="btn btn-sm btn-vscode px-4" @onclick="ExecuteBulkAssign" disabled="@(!_selectedAssetIds.Any() || _isProcessing)">
-                    @if (_isProcessing) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <button class="btn btn-sm btn-vscode px-4" @onclick="ExecuteBulkAssign" disabled="@(!selectedAssets.Any() || isSaving)">
+                    @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
                     Confirm Assignment
                 </button>
             </div>
@@ -80,69 +82,83 @@
     [Parameter] public int LayerId { get; set; }
     [Parameter] public EventCallback OnSuccess { get; set; }
 
-    private HashSet<int> _selectedAssetIds = new();
-    private bool _allSelected = false;
-    private bool _isProcessing = false;
-    private bool _isRecurring = true;
+    private List<Asset> availableAssets = new();
+    private HashSet<Asset> selectedAssets = new();
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isRecurring = true;
+    private string assetFilter = "";
+
+    private IEnumerable<Asset> FilteredAssets => string.IsNullOrWhiteSpace(assetFilter) 
+        ? availableAssets 
+        : availableAssets.Where(a => a.Name.Contains(assetFilter, StringComparison.OrdinalIgnoreCase));
+
+    private bool isAllSelected => FilteredAssets.Any() && FilteredAssets.All(a => selectedAssets.Contains(a));
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(
-            TariffState.LoadAllPossibleAssetsAsync(),
-            TariffState.LoadAssignedAssetsAsync(LayerId)
-        );
+        await LoadAvailableAssets();
     }
 
-    private IEnumerable<Asset> GetFilteredAssets()
+    private async Task LoadAvailableAssets()
     {
-        if (TariffState.AllPossibleAssets == null) return Enumerable.Empty<Asset>();
-        
-        // Filter out assets that are already assigned to this layer
-        var assignedIds = TariffState.AssignedAssets?.Select(a => a.AssetId).ToHashSet() ?? new HashSet<int>();
-        var availableAssets = TariffState.AllPossibleAssets.Where(a => !assignedIds.Contains(a.AssetId));
-
-        if (string.IsNullOrWhiteSpace(TariffState.AssetFilter)) return availableAssets;
-        return availableAssets.Where(a => a.Name.Contains(TariffState.AssetFilter, StringComparison.OrdinalIgnoreCase));
+        isLoading = true;
+        availableAssets = await TariffState.GetAvailableAssetsForLayerAsync(LayerId);
+        isLoading = false;
     }
 
-    private void ToggleAssetSelection(int assetId, bool selected)
+    private void ToggleAssetSelection(Asset asset, bool selected)
     {
-        if (selected) _selectedAssetIds.Add(assetId);
-        else _selectedAssetIds.Remove(assetId);
+        if (selected) selectedAssets.Add(asset);
+        else selectedAssets.Remove(asset);
     }
 
     private void ToggleSelectAll(ChangeEventArgs e)
     {
-        _allSelected = (bool)e.Value!;
-        _selectedAssetIds.Clear();
-        if (_allSelected)
+        bool select = (bool)e.Value!;
+        if (select)
         {
-            foreach (var a in GetFilteredAssets()) _selectedAssetIds.Add(a.AssetId);
+            foreach (var a in FilteredAssets) selectedAssets.Add(a);
+        }
+        else
+        {
+            foreach (var a in FilteredAssets) selectedAssets.Remove(a);
         }
     }
 
     private async Task ExecuteBulkAssign()
     {
-        if (!_selectedAssetIds.Any() || LayerId == 0) return;
-        _isProcessing = true;
+        if (!selectedAssets.Any() || LayerId == 0) return;
+        isSaving = true;
         try
         {
-            var assignments = _selectedAssetIds.Select(id => new AssetTariff
+            var assignments = selectedAssets.Select(asset => new AssetTariff
             {
-                AssetId = id,
+                AssetId = asset.AssetId,
                 TariffLayerId = LayerId,
                 IsActive = true,
-                IsRecurring = _isRecurring,
+                IsRecurring = isRecurring,
                 CreatedDate = DateTime.UtcNow
             }).ToList();
 
-            var success = await Api.PostAsync("api/tariff/assets/bulk-assign", assignments);
+            var success = await TariffState.AssignTariffsBulkAsync(assignments);
             if (success)
             {
+                // Clear cached assignments so they refresh in the workbench
+                TariffState.AssignedAssets = null; 
+                
                 _toastService.Notify(new(ToastType.Success, $"Assigned to {assignments.Count} assets."));
-                await OnSuccess.InvokeAsync();
+                
+                if (OnSuccess.HasDelegate)
+                    await OnSuccess.InvokeAsync();
+
+                TariffState.ShowBulkAssignModal = false;
             }
         }
-        finally { _isProcessing = false; }
+        catch (Exception ex)
+        {
+             _toastService.Notify(new(ToastType.Danger, $"Assignment failed: {ex.Message}"));
+        }
+        finally { isSaving = false; }
     }
 }

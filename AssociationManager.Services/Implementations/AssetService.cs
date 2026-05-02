@@ -22,6 +22,7 @@ public class AssetService : IAssetService
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AssetService> _logger;
 
     public AssetService(
         IAssetRepository assetRepository, 
@@ -29,7 +30,8 @@ public class AssetService : IAssetService
         ITenantContext tenantContext,
         IHubContext<NotificationHub> hubContext,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<AssetService> logger)
     {
         _assetRepository = assetRepository;
         _occupancyRepository = occupancyRepository;
@@ -37,6 +39,7 @@ public class AssetService : IAssetService
         _hubContext = hubContext;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<Asset?> GetByIdAsync(int id)
@@ -114,42 +117,70 @@ public class AssetService : IAssetService
 
     public async Task ProcessBulkCreateJobAsync(int tenantId, int associationId, int userId, BulkCreateRequest request)
     {
-        bool isWorker = false;
         // Background job runs on a thread without HTTP context. 
         // We must manually initialize the context to ensure the subsequent service calls use the correct IDs.
         _tenantContext.SetContext(tenantId, associationId, userId);
-        isWorker = true;
 
-        // Background job uses the request data already populated with Tenant/Association context
-        await BulkCreateAsync(request);
-        
-        if (isWorker)
+        _logger.LogInformation("[AssetService] Starting background bulk creation for Association {AssociationId}, User {UserId}", associationId, userId);
+
+        try
         {
-            // If running in Worker, call the API to broadcast SignalR notification
-            // Worker is isolated, so its _hubContext has no clients.
-            try
-            {
-                var apiUrl = _configuration["AssociationApiUrl"] ?? "https://localhost:5001";
-                var client = _httpClientFactory.CreateClient();
-                var response = await client.PostAsync($"{apiUrl}/api/internal/broadcast/hierarchy-changed/{associationId}", null);
-                if (!response.IsSuccessStatusCode)
-                {
-                    System.Console.WriteLine($"[AssetService] Failed to broadcast hierarchy change. Status: {response.StatusCode}");
-                }
-            }
-            catch (System.Exception ex)
-            {
-                System.Console.WriteLine($"[AssetService] Error broadcasting hierarchy change: {ex.Message}");
-            }
+            await BulkCreateAsync(request);
+            _logger.LogInformation("[AssetService] Bulk creation completed for Association {AssociationId}", associationId);
+
+            // 1. Notify via SignalR directly (Works if running in the same process as the API)
+            await NotifyHierarchyChangedDirectAsync(associationId, request);
+
+            // 2. Notify via Internal Broadcast API (Needed for multi-instance or separate worker processes)
+            await NotifyHierarchyChangedViaApiAsync(associationId);
         }
-        else
+        catch (System.Exception ex)
         {
-            // If running in same process (e.g. monolithic), use SignalR directly
+            _logger.LogError(ex, "[AssetService] Error during background bulk creation for Association {AssociationId}", associationId);
+            throw; // Allow Hangfire to retry
+        }
+    }
+
+    private async Task NotifyHierarchyChangedDirectAsync(int associationId, BulkCreateRequest request)
+    {
+        try
+        {
+            int totalAssets = request.Quantity ?? (request.NumberOfFloors * request.UnitsPerFloor) ?? 0;
             await _hubContext.Clients.Group($"Association_{associationId}")
-                .SendAsync("ReceiveNotification", "System", $"Bulk creation of {request.Quantity ?? (request.NumberOfFloors * request.UnitsPerFloor)} assets complete.");
+                .SendAsync("ReceiveNotification", "System", $"Bulk creation of {totalAssets} assets complete.");
                 
             await _hubContext.Clients.Group($"Association_{associationId}")
                 .SendAsync("HierarchyChanged");
+                
+            _logger.LogInformation("[AssetService] SignalR notification sent directly to Association_{AssociationId}", associationId);
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogWarning(ex, "[AssetService] Failed to send direct SignalR notification. This is expected if running in a separate worker process without a SignalR backplane.");
+        }
+    }
+
+    private async Task NotifyHierarchyChangedViaApiAsync(int associationId)
+    {
+        var apiUrl = _configuration["AssociationApiUrl"];
+        if (string.IsNullOrEmpty(apiUrl)) return;
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.PostAsync($"{apiUrl}/api/internal/broadcast/hierarchy-changed/{associationId}", null);
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("[AssetService] Hierarchy change broadcasted successfully via API: {ApiUrl}", apiUrl);
+            }
+            else
+            {
+                _logger.LogWarning("[AssetService] Failed to broadcast hierarchy change via API. Status: {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogError(ex, "[AssetService] Error broadcasting hierarchy change via API");
         }
     }
 

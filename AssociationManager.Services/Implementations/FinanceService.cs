@@ -636,16 +636,24 @@ public class FinanceService : IFinanceService
         return await _paymentRepository.GetAdvancesAsync(tenantId, associationId, userId, assetId);
     }
 
-    public async Task<bool> SyncAssociationBalancesAsync(int associationId, int tenantId)
-    {
-        return await _ledgerService.SyncAssociationBalancesAsync(associationId, tenantId);
-    }
-
     public async Task<PagedResult<AdvancePaymentHistory>> GetPagedAdvancesAsync(AdvanceSearchCriteria criteria)
     {
         if (criteria.TenantId == null) criteria.TenantId = CurrentTenantId;
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
         return await _paymentRepository.GetAdvancesPagedAsync(criteria);
+    }
+
+    public async Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesAsync(int associationId, IEnumerable<int> userIds)
+    {
+        if (userIds == null || !userIds.Any()) return Enumerable.Empty<UserFinanceSummary>();
+        
+        string csv = string.Join(",", userIds);
+        return await _invoiceRepository.GetUsersBalancesBulkAsync(associationId, csv);
+    }
+
+    public async Task<bool> SyncAssociationBalancesAsync(int associationId, int tenantId)
+    {
+        return await _ledgerService.SyncAssociationBalancesAsync(associationId, tenantId);
     }
 
     /// <summary>
@@ -1000,7 +1008,7 @@ public class FinanceService : IFinanceService
         // We use a broader fetch because we don't have a specific GetByInvoiceId in PaymentRepository yet, 
         // but we can filter the association's payments for efficiency.
         var associationId = _tenantContext.AssociationId;
-        var allPayments = await _paymentRepository.GetByTenantIdAsync(_tenantContext.TenantId, associationId);
+        var allPayments = await _paymentRepository.GetByTenantIdAsync(_tenantContext.UserId, associationId);
         var invoicePayments = allPayments.Where(p => p.InvoiceId == invoiceId);
 
         foreach (var p in invoicePayments)

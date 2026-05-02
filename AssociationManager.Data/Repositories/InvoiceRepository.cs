@@ -5,6 +5,8 @@ using Dapper;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
+using System.Linq;
+using System;
 
 namespace AssociationManager.Data.Repositories;
 
@@ -164,7 +166,7 @@ public class InvoiceRepository : IInvoiceRepository
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.ExecuteAsync(
             "assoc.sp_Invoices_Delete", 
-            new { Id = id, TenantId = tenantId, AssociationId = associationId },
+            new { Id = id, Status = "Cancelled", TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -323,5 +325,14 @@ public class InvoiceRepository : IInvoiceRepository
             commandType: CommandType.StoredProcedure);
 
         return true;
+    }
+
+    public async Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesBulkAsync(int associationId, string userIdsCsv)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<UserFinanceSummary>(
+            "assoc.sp_Finance_GetUsersBalancesBulk",
+            new { AssociationId = associationId, UserIds = userIdsCsv },
+            commandType: CommandType.StoredProcedure);
     }
 }

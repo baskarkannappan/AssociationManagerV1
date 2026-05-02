@@ -30,4 +30,5 @@ public interface IInvoiceRepository
     Task<bool> UpdateAsync(Invoice invoice);
     Task<bool> DeleteAllLineItemsAsync(int invoiceId);
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationSummaryAsync(int associationId, int tenantId);
+    Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesBulkAsync(int associationId, string userIdsCsv);
 }

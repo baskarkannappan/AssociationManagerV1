@@ -23,6 +23,8 @@ public interface ITariffRepository
     // Asset Attachments
     Task<IEnumerable<AssetTariff>> GetTariffsByAssetIdAsync(int assetId);
     Task<bool> UpsertAssetTariffAsync(AssetTariff assetTariff);
+    Task<bool> UpsertAssetTariffBulkAsync(IEnumerable<AssetTariff> tariffs);
+    Task<IEnumerable<Asset>> GetAvailableAssetsForLayerAsync(int associationId, int layerId);
     Task<bool> DeactivateTariffsBulkAsync(int layerId, IEnumerable<int> assetIds);
     Task<bool> RemoveAssetTariffAsync(int assetId, int layerId);
     Task<IEnumerable<AssetTariff>> GetActiveTariffsByTenantIdAsync(int tenantId);

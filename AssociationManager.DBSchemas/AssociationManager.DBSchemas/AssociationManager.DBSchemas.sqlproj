@@ -96,6 +96,7 @@
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetActiveByTenantId.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetByAssetId.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_Upsert.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_UpsertBulk.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Get.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationBankDetails_Upsert.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssociationProfile_Get.sql" />
@@ -286,6 +287,7 @@
     <Build Include="assoc\User Defined Types\typ_AuditLogBatch.sql" />
     <Build Include="assoc\User Defined Types\typ_InvoiceBatch.sql" />
     <Build Include="assoc\User Defined Types\typ_InvoiceLineItemBatch.sql" />
+    <Build Include="assoc\User Defined Types\typ_AssetTariffBatch.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_Create.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_Delete.sql" />
     <Build Include="corp\Stored Procedures\sp_Associations_GetAllByTenantId.sql" />
@@ -402,5 +404,6 @@
     <Build Include="assoc\Stored Procedures\sp_Assets_GetAssignedTariffs.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
+    <Build Include="assoc\Stored Procedures\sp_Assets_GetAvailableForLayer.sql" />
   </ItemGroup>
 </Project>
