@@ -83,7 +83,7 @@
         var ruleMatch = await AuthService.EvaluateRuleAsync(authState.User, "AssetRule_ManagePets", AssetId);
         var apiMatch = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{AssetId}");
         
-        _canManage = ruleMatch && apiMatch;
+        _canManage = ruleMatch || apiMatch;
         
         if (grid != null) await grid.RefreshDataAsync();
     }

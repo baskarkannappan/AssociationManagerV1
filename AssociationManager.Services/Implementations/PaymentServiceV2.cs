@@ -5,6 +5,7 @@ using AssociationManager.Shared.Models;
 using Microsoft.AspNetCore.SignalR;
 using AssociationManager.Realtime.Hubs;
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -17,19 +18,31 @@ public class PaymentServiceV2 : IPaymentServiceV2
     private readonly ITenantContext _tenantContext;
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IFinanceService _financeService;
+    private readonly IEmailService _emailService;
+    private readonly IPeopleService _peopleService;
+    private readonly IUserRepository _userRepository;
+    private readonly IAssetService _assetService;
 
     public PaymentServiceV2(
         IRazorpayRepository repository,
         AssociationManager.Services.Razorpay.RazorpayClient razorpayClient,
         ITenantContext tenantContext,
         IHubContext<NotificationHub> hubContext,
-        IFinanceService financeService)
+        IFinanceService financeService,
+        IEmailService emailService,
+        IPeopleService peopleService,
+        IUserRepository userRepository,
+        IAssetService assetService)
     {
         _repository = repository;
         _razorpayClient = razorpayClient;
         _tenantContext = tenantContext;
         _hubContext = hubContext;
         _financeService = financeService;
+        _emailService = emailService;
+        _peopleService = peopleService;
+        _userRepository = userRepository;
+        _assetService = assetService;
     }
 
     public async Task<RazorpayOrderResponse> CreateOrderAsync(RazorpayOrderRequest request)
@@ -307,6 +320,69 @@ public class PaymentServiceV2 : IPaymentServiceV2
 
         // 8. NOTIFY UI
         await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"Payment completed successfully for Order {orderId}");
+
+        // 9. EMAIL NOTIFICATION TO ADMINS
+        _ = Task.Run(() => SendPaymentNotificationToAdminsAsync(dbOrder, paymentId));
+    }
+
+    private async Task SendPaymentNotificationToAdminsAsync(PaymentOrder order, string paymentId)
+    {
+        try
+        {
+            // 1. Get Payer Details
+            var payerOccupancies = await _peopleService.GetOccupancyByUserIdAsync(order.UserId);
+            var payerOccupancy = payerOccupancies.FirstOrDefault(o => o.AssetId == order.AssetId) 
+                                 ?? payerOccupancies.FirstOrDefault();
+            
+            string payerName = payerOccupancy?.PersonName ?? "Unknown Resident";
+            string payerEmail = payerOccupancy?.Email ?? "Unknown Email";
+            
+            // 2. Get Asset Details
+            string assetDetail = "N/A";
+            if (order.AssetId.HasValue)
+            {
+                var asset = await _assetService.GetByIdAsync(order.AssetId.Value);
+                assetDetail = asset?.Name ?? $"Asset ID: {order.AssetId}";
+            }
+
+            // 3. Get Association Admins
+            var allUsers = await _userRepository.GetByAssociationIdAsync(order.AssociationId);
+            var admins = allUsers.Where(u => u.Role == "AssociationAdmin").ToList();
+
+            if (!admins.Any()) return;
+
+            // 4. Construct Email
+            string subject = order.InvoiceId.HasValue 
+                ? $"[Payment Received] Invoice #{order.InvoiceId} - {assetDetail}"
+                : $"[Wallet Top-up] {assetDetail}";
+
+            string paymentType = order.InvoiceId.HasValue ? "Invoice Payment" : "Wallet Top-up / Advance";
+            
+            string htmlBody = $@"
+                <div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;'>
+                    <h3 style='color: #2c3e50;'>Payment Notification</h3>
+                    <p>A new payment has been processed for your association.</p>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Payer Name</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{payerName}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Email</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{payerEmail}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Unit / Asset</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{assetDetail}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Amount</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{order.Currency} {order.Amount:N2}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Payment Type</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{paymentType}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Transaction ID</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{paymentId}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Date</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{DateTime.Now:f}</td></tr>
+                    </table>
+                    <p style='margin-top: 20px; color: #7f8c8d; font-size: 12px;'>This is an automated notification from Association Manager. Please check your dashboard for more details.</p>
+                </div>";
+
+            foreach (var admin in admins)
+            {
+                await _emailService.SendEmailAsync(admin.Email, admin.Name, subject, htmlBody);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending payment notification email: {ex.Message}");
+        }
     }
 
     public async Task<object> GetPaymentHistoryAsync(int invoiceId)
