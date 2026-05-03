@@ -1,0 +1,13 @@
+{
+    "IsEncrypted": false,
+    "Values": {
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "Smtp:Host": "smtp.gmail.com",
+        "Smtp:Port": "587",
+        "Smtp:Username": "MyAssociationManager005@gmail.com",
+        "Smtp:Password": "YOUR_APP_PASSWORD",
+        "Smtp:FromEmail": "MyAssociationManager005@gmail.com",
+        "Smtp:FromName": "Association Manager"
+    }
+}

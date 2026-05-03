@@ -16,3 +16,7 @@ force_fix_db.cs
 # SQL Project binaries
 *.dbmdl
 *.jfm
+
+# Deployment artifacts
+publish-func/
+func-deploy.zip
