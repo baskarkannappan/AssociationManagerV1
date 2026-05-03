@@ -7,4 +7,3 @@ BEGIN
     WHERE b.AssociationId = @AssociationId AND (b.AssetId = @AssetId OR b.AssetId IS NULL)
     ORDER BY b.IsPinned DESC, b.CreatedDate DESC;
 END
-GO

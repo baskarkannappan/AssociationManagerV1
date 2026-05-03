@@ -1,4 +1,4 @@
-﻿-- Update sp_TariffGroups_Create
+﻿-- 12. sp_TariffGroups_Create
 CREATE   PROCEDURE sp_TariffGroups_Create
     @TenantId INT,
     @AssociationId INT = NULL,
@@ -7,6 +7,7 @@ CREATE   PROCEDURE sp_TariffGroups_Create
 AS
 BEGIN
     INSERT INTO TariffGroups (TenantId, AssociationId, Name, Description)
-    OUTPUT INSERTED.TariffGroupId
     VALUES (@TenantId, @AssociationId, @Name, @Description);
+
+    SELECT SCOPE_IDENTITY();
 END

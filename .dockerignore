@@ -1,0 +1,13 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/node_modules
+**/.vscode
+**/ClientApp/dist
+**/wwwroot/_framework
+**/wwwroot/dist
+.dockerignore
+Dockerfile
+*.db
+*.log

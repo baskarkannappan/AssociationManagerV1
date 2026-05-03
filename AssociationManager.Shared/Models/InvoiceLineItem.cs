@@ -11,4 +11,5 @@ public class InvoiceLineItem
     public string Description { get; set; } = string.Empty;
     public int? TariffLayerId { get; set; }
     public decimal Rate { get; set; } // Points-in-time snapshot
+    public string? TempId { get; set; } // For bulk mapping
 }

@@ -1,4 +1,4 @@
-CREATE PROCEDURE assoc.sp_Invoices_Update
+﻿CREATE PROCEDURE assoc.sp_Invoices_Update
     @Id INT,
     @TenantId INT,
     @AssociationId INT,
@@ -24,5 +24,4 @@ BEGIN
     WHERE InvoiceId = @Id
     AND TenantId = @TenantId
     AND AssociationId = @AssociationId;
-END
-GO
+END;

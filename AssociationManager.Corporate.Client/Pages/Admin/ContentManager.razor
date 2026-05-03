@@ -1,0 +1,207 @@
+@page "/admin/content-manager"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Shared.Enums
+@using AssociationManager.Corporate.Client.Services
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+@inject ToastService _toastService
+@attribute [Authorize(Policy = "RequirePlatformAdmin")]
+
+<div class="container-fluid py-4 animate__animated animate__fadeIn">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1 fw-bold text-dark">Platform Content Management</h1>
+            <p class="text-muted small mb-0">Edit static pages and view user support queries.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="LoadQueries">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Queries
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Content Editor -->
+        <div class="col-xl-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold text-uppercase small text-muted">Select Page:</span>
+                        <select class="form-select form-select-sm border-2 fw-semibold" style="width: 220px;" 
+                                @onchange="OnPageSelected">
+                            <option value="about-us">About Us</option>
+                            <option value="rules-regulations">Rules & Regulations</option>
+                            <option value="contact-us-details">Contact Us Sidebar</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary btn-sm px-4 fw-bold" @onclick="SaveContent" disabled="@_isSaving">
+                            @if (_isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span>SAVING...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cloud-check-fill me-1"></i>
+                                <span>SAVE CHANGES</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    @if (_isLoadingContent)
+                    {
+                        <div class="py-5 text-center">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2 text-muted">Loading page data...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Display Title</label>
+                            <input type="text" class="form-control form-control-lg border-2" @bind="_currentContent.Title" placeholder="Enter Page Heading" />
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Page Content (HTML Allowed)</label>
+                            <textarea class="form-control border-2 font-monospace" rows="18" 
+                                      @bind="_currentContent.HtmlContent" 
+                                      placeholder="Paste your HTML or rich text here..."></textarea>
+                            <div class="mt-2 p-3 bg-light rounded-2 border small">
+                                <i class="bi bi-info-circle-fill text-info me-2"></i>
+                                <strong>Pro-tip:</strong> You can use standard HTML tags like <code>&lt;h2&gt;</code>, <code>&lt;p&gt;</code>, and <code>&lt;ul&gt;</code> to style the page.
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Queries List -->
+        <div class="col-xl-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-dark text-white py-3 border-0">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-chat-left-text-fill me-2"></i>Incoming Queries</h5>
+                </div>
+                <div class="card-body p-0 d-flex flex-column" style="height: 700px;">
+                    <div class="flex-grow-1 overflow-auto custom-scrollbar">
+                        @if (_queries == null)
+                        {
+                            <div class="p-5 text-center">
+                                <div class="spinner-border text-secondary" role="status"></div>
+                            </div>
+                        }
+                        else if (!_queries.Any())
+                        {
+                            <div class="p-5 text-center text-muted">
+                                <i class="bi bi-inbox fs-1 opacity-25 d-block mb-3"></i>
+                                <p>No queries received yet.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var query in _queries)
+                            {
+                                <div class="p-3 border-bottom query-item">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge @(query.Status == "New" ? "bg-info" : "bg-secondary") rounded-pill">@query.Status</span>
+                                        <small class="text-muted fw-bold">@query.CreatedDate.ToString("MMM dd, HH:mm")</small>
+                                    </div>
+                                    <h6 class="fw-bold text-dark mb-1">@query.Subject</h6>
+                                    <div class="small text-muted mb-2">
+                                        <i class="bi bi-person-fill me-1"></i> @query.Name<br/>
+                                        <i class="bi bi-envelope-fill me-1"></i> @query.Email
+                                    </div>
+                                    <div class="bg-light p-2 rounded small text-dark border">
+                                        @query.MessageBody
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _selectedKey = "about-us";
+    private StaticContent _currentContent = new();
+    private List<SupportQuery>? _queries;
+    private bool _isSaving = false;
+    private bool _isLoadingContent = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContent();
+        await LoadQueries();
+    }
+
+    private async Task OnPageSelected(ChangeEventArgs e)
+    {
+        _selectedKey = e.Value?.ToString() ?? "about-us";
+        await LoadContent();
+    }
+
+    private async Task LoadContent()
+    {
+        _isLoadingContent = true;
+        _currentContent = new() { ContentKey = _selectedKey };
+        try
+        {
+            var data = await ApiService.GetAsync<StaticContent>($"publiccontent/{_selectedKey}");
+            if (data != null)
+            {
+                _currentContent = data;
+            }
+        }
+        catch { /* Handled by default state */ }
+        finally { _isLoadingContent = false; }
+    }
+
+    private async Task SaveContent()
+    {
+        _isSaving = true;
+        try
+        {
+            var success = await ApiService.PostAsync("contentmanagement/upsert", _currentContent);
+            if (success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Success", "Content updated successfully."));
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Error", "Failed to save content."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, "System Error", ex.Message));
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task LoadQueries()
+    {
+        _queries = null;
+        try
+        {
+            _queries = await ApiService.GetAsync<List<SupportQuery>>("contentmanagement/queries");
+        }
+        catch { _queries = new(); }
+    }
+}
+
+<style>
+    .font-monospace { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace !important; font-size: 14px; }
+    .query-item:hover { background-color: rgba(0,0,0,0.02); }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #aaa; }
+</style>

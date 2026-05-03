@@ -1,4 +1,4 @@
-CREATE PROCEDURE assoc.sp_Dashboard_GetTotalMembers
+﻿CREATE PROCEDURE assoc.sp_Dashboard_GetTotalMembers
     @TenantId INT,
     @AssociationId INT
 AS

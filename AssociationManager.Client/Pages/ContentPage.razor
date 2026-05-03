@@ -1,0 +1,91 @@
+@page "/p/{ContentKey}"
+@using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@inject ApiService ApiService
+
+<div class="content-container">
+    @if (_loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading content...</p>
+        </div>
+    }
+    else if (_content != null)
+    {
+        <div class="card shadow-sm border-0 animate__animated animate__fadeIn">
+            <div class="card-body p-4 p-md-5">
+                <h1 class="display-6 mb-4 text-primary fw-bold">@_content.Title</h1>
+                <hr class="mb-4 opacity-10" />
+                <div class="static-content">
+                    @((MarkupString)_content.HtmlContent)
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning shadow-sm border-0 d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+            <div>
+                <strong>Content not found!</strong><br />
+                The page you are looking for ('@ContentKey') does not exist or has no content yet.
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string ContentKey { get; set; } = "";
+    private StaticContent? _content;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadContent();
+    }
+
+    private async Task LoadContent()
+    {
+        _loading = true;
+        try
+        {
+            var data = await ApiService.GetAsync<StaticContent>($"api/publiccontent/{ContentKey}");
+            if (data != null)
+            {
+                _content = data;
+            }
+            else
+            {
+                _content = null;
+            }
+        }
+        catch
+        {
+            _content = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
+
+<style>
+    .content-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+    .static-content {
+        line-height: 1.8;
+        font-size: 1.15rem;
+        color: #333;
+    }
+    .static-content h2 { margin-top: 2.5rem; margin-bottom: 1rem; color: #222; font-weight: 600; }
+    .static-content p { margin-bottom: 1.5rem; }
+    .static-content ul { margin-bottom: 1.5rem; }
+    .static-content li { margin-bottom: 0.5rem; }
+</style>

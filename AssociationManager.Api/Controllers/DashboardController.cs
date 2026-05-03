@@ -143,45 +143,39 @@ public class DashboardController : ControllerBase
         var tenantId = _tenantContext.TenantId;
         var aid = associationId ?? _tenantContext.AssociationId;
 
-        // Parallel fetch all dashboard components using optimized specialized methods
-        var membersCountTask = _dashboardRepository.GetTotalMembersAsync(tenantId, aid);
-        var committeeCountTask = _dashboardRepository.GetCommitteeCountAsync(tenantId, aid);
-        var revenue30DTask = _dashboardRepository.GetRevenue30DAsync(tenantId, aid);
-        var finSummaryTask = _financeService.GetAssociationFinanceSummaryAsync(aid, tenantId);
+        // Single snapshot read for all numeric metrics (PK lookup — sub-millisecond)
+        var snapshotTask = _dashboardRepository.GetAdminSnapshotAsync(tenantId, aid);
+
+        // Fetch list-based data in parallel (profile, committee, meetings, recent activity)
+        var snap = await snapshotTask;
         var profileTask = _governanceService.GetProfileAsync(aid);
         var committeeListTask = _governanceService.GetCommitteeMembersAsync(aid, true);
         var meetingsTask = _governanceService.GetMeetingsAsync(aid);
-        var workOrdersTask = _workOrderRepository.GetAllAsync(tenantId, aid);
-        var activityTask = _auditLogRepository.GetByTenantIdAsync(tenantId, aid);
+        var recentActivityTask = _auditLogRepository.GetRecentByTenantIdAsync(tenantId, aid, 5);
 
-        await Task.WhenAll(
-            membersCountTask, committeeCountTask, 
-            revenue30DTask, finSummaryTask,
-            profileTask, committeeListTask, meetingsTask,
-            workOrdersTask, activityTask);
-
-        var finSummary = await finSummaryTask;
+        await Task.WhenAll(profileTask, committeeListTask, meetingsTask, recentActivityTask);
 
         var overview = new AdminDashboardOverview
         {
-            TotalMembers = await membersCountTask,
-            CommitteeCount = await committeeCountTask,
-            Revenue30D = await revenue30DTask,
-            NetOutstanding = finSummary.TotalOutstanding,
-            HeldAdvanceMoney = finSummary.TotalCredits,
-            UnitsWithCredit = finSummary.UnitsWithCredit,
-            Profile = await profileTask,
-            Committee = (await committeeListTask).ToList(),
-            UpcomingMeetings = (await meetingsTask).ToList(),
+            TotalMembers      = snap.TotalMembers,
+            CommitteeCount    = snap.CommitteeCount,
+            Revenue30D        = snap.TotalRevenue,
+            NetOutstanding    = snap.NetOutstanding,
+            HeldAdvanceMoney  = snap.HeldAdvanceMoney,
+            UnitsWithCredit   = snap.UnitsWithCredit,
+            Profile           = await profileTask,
+            Committee         = (await committeeListTask).ToList(),
+            UpcomingMeetings  = (await meetingsTask).ToList(),
             Metrics = new AssociationDashboardMetrics
             {
-                TotalMembers = await membersCountTask,
-                TotalRevenueCollected = await revenue30DTask, // Using 30D as a proxy for dashboard "collected"
-                TotalOutstanding = finSummary.TotalOutstanding,
-                TotalAdvanceCredits = finSummary.TotalCredits,
-                UnitsWithCredit = finSummary.UnitsWithCredit,
-                PendingWorkOrders = (await workOrdersTask).Count(w => w.Status != "Completed" && w.Status != "Closed"),
-                RecentActivity = (await activityTask).OrderByDescending(a => a.Timestamp).Take(5).ToList()
+                TotalMembers          = snap.TotalMembers,
+                CommitteeCount        = snap.CommitteeCount,
+                TotalRevenueCollected = snap.TotalRevenue,
+                TotalOutstanding      = snap.NetOutstanding,
+                TotalAdvanceCredits   = snap.HeldAdvanceMoney,
+                UnitsWithCredit       = snap.UnitsWithCredit,
+                PendingWorkOrders     = snap.PendingWorkOrders,
+                RecentActivity        = (await recentActivityTask).ToList()
             }
         };
 
@@ -193,24 +187,18 @@ public class DashboardController : ControllerBase
         var tenantId = _tenantContext.TenantId;
         
         // Optimized fetch: use specialized queries instead of fetching full objects
-        var membersCountTask = _dashboardRepository.GetTotalMembersAsync(tenantId, associationId);
-        var revenue30DTask = _dashboardRepository.GetRevenue30DAsync(tenantId, associationId);
-        var workOrdersTask = _workOrderRepository.GetAllAsync(tenantId, associationId);
+        var snap = await _dashboardRepository.GetAdminSnapshotAsync(tenantId, associationId);
         var activityTask = _auditLogRepository.GetByTenantIdAsync(tenantId, associationId);
-        var finSummaryTask = _financeService.GetAssociationFinanceSummaryAsync(associationId, tenantId);
-
-        await Task.WhenAll(membersCountTask, revenue30DTask, workOrdersTask, activityTask, finSummaryTask);
-
-        var finSummary = await finSummaryTask;
 
         return new AssociationDashboardMetrics
         {
-            TotalMembers = await membersCountTask,
-            TotalRevenueCollected = await revenue30DTask,
-            TotalOutstanding = finSummary.TotalOutstanding,
-            TotalAdvanceCredits = finSummary.TotalCredits,
-            UnitsWithCredit = finSummary.UnitsWithCredit,
-            PendingWorkOrders = (await workOrdersTask).Count(w => w.Status != "Completed" && w.Status != "Closed"),
+            TotalMembers = snap.TotalMembers,
+            CommitteeCount = snap.CommitteeCount,
+            TotalRevenueCollected = snap.TotalRevenue,
+            TotalOutstanding = snap.NetOutstanding,
+            TotalAdvanceCredits = snap.HeldAdvanceMoney,
+            UnitsWithCredit = snap.UnitsWithCredit,
+            PendingWorkOrders = snap.PendingWorkOrders,
             RecentActivity = (await activityTask).OrderByDescending(a => a.Timestamp).Take(5).ToList()
         };
     }

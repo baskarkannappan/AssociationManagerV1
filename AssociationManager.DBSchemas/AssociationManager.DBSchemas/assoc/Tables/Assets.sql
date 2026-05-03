@@ -17,6 +17,8 @@
 );
 
 
+
+
 GO
 CREATE NONCLUSTERED INDEX [IX_Assets_AssociationId]
     ON [assoc].[Assets]([AssociationId] ASC);
@@ -35,4 +37,9 @@ CREATE NONCLUSTERED INDEX [IX_Assets_ParentId]
 GO
 CREATE NONCLUSTERED INDEX [IX_Assets_TenantId]
     ON [assoc].[Assets]([TenantId] ASC);
+
+
+GO
+CREATE NONCLUSTERED INDEX [IX_Assets_Performance_Fetch]
+    ON [assoc].[Assets]([TenantId] ASC, [AssociationId] ASC, [IsActive] ASC, [AssetType] ASC, [Name] ASC);
 

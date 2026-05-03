@@ -1,4 +1,4 @@
-﻿CREATE   PROCEDURE assoc.sp_Users_GetPaged
+CREATE   PROCEDURE assoc.sp_Users_GetPaged
     @AssociationId INT = NULL,
     @TenantId INT = NULL,
     @SearchTerm NVARCHAR(255) = NULL,
@@ -105,32 +105,16 @@ BEGIN
         * 
     FROM PagedMembers
     ORDER BY 
-        CASE WHEN @SortDirection = 'ASC' THEN
-            CASE 
-                WHEN @SortColumn = 'Name' THEN Name
-                WHEN @SortColumn = 'Email' THEN Email
-                WHEN @SortColumn = 'Role' THEN Role
-            END
-        END ASC,
-        CASE WHEN @SortDirection = 'DESC' THEN
-            CASE 
-                WHEN @SortColumn = 'Name' THEN Name
-                WHEN @SortColumn = 'Email' THEN Email
-                WHEN @SortColumn = 'Role' THEN Role
-            END
-        END DESC,
-        CASE WHEN @SortDirection = 'ASC' THEN
-            CASE 
-                WHEN @SortColumn = 'Balance' THEN Balance
-                WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT)
-            END
-        END ASC,
-        CASE WHEN @SortDirection = 'DESC' THEN
-            CASE 
-                WHEN @SortColumn = 'Balance' THEN Balance
-                WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT)
-            END
-        END DESC
+        CASE WHEN @SortDirection = 'ASC' AND @SortColumn = 'Name' THEN Name END ASC,
+        CASE WHEN @SortDirection = 'DESC' AND @SortColumn = 'Name' THEN Name END DESC,
+        CASE WHEN @SortDirection = 'ASC' AND @SortColumn = 'Email' THEN Email END ASC,
+        CASE WHEN @SortDirection = 'DESC' AND @SortColumn = 'Email' THEN Email END DESC,
+        CASE WHEN @SortDirection = 'ASC' AND @SortColumn = 'Role' THEN Role END ASC,
+        CASE WHEN @SortDirection = 'DESC' AND @SortColumn = 'Role' THEN Role END DESC,
+        CASE WHEN @SortDirection = 'ASC' AND @SortColumn = 'Balance' THEN Balance END ASC,
+        CASE WHEN @SortDirection = 'DESC' AND @SortColumn = 'Balance' THEN Balance END DESC,
+        CASE WHEN @SortDirection = 'ASC' AND @SortColumn = 'CreatedDate' THEN CreatedDate END ASC,
+        CASE WHEN @SortDirection = 'DESC' AND @SortColumn = 'CreatedDate' THEN CreatedDate END DESC
     OFFSET @Offset ROWS
     FETCH NEXT @PageSize ROWS ONLY;
 END;

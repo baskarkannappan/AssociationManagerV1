@@ -17,14 +17,18 @@ public interface IInvoiceRepository
     
     // Line Items
     Task<IEnumerable<InvoiceLineItem>> GetLineItemsAsync(int invoiceId);
+    Task<IEnumerable<InvoiceLineItem>> GetLineItemsBulkAsync(IEnumerable<int> invoiceIds);
     Task<int> CreateLineItemAsync(InvoiceLineItem lineItem);
+    Task<bool> CreateBulkAsync(int tenantId, int associationId, IEnumerable<Invoice> invoices, IEnumerable<InvoiceLineItem> lineItems);
 
     // Automation
     Task<IEnumerable<Invoice>> GetUnpaidOverdueInvoicesAsync();
     Task<IEnumerable<Invoice>> GetByBatchIdAsync(int batchId, int tenantId);
+    Task<IEnumerable<int>> GetInvoicedAssetIdsByPeriodAsync(int tenantId, int associationId, string periodPattern);
     
     // Management
     Task<bool> UpdateAsync(Invoice invoice);
     Task<bool> DeleteAllLineItemsAsync(int invoiceId);
     Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationSummaryAsync(int associationId, int tenantId);
+    Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesBulkAsync(int associationId, string userIdsCsv);
 }

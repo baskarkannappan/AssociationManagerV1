@@ -1,0 +1,11 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html"
+  },
+  "mimeHandlers": {
+    ".dll": "application/octet-stream"
+  },
+  "globalHeaders": {
+    "Cross-Origin-Opener-Policy": "unsafe-none"
+  }
+}

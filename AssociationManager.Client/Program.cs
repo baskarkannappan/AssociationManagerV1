@@ -54,13 +54,13 @@ builder.Services.AddAuthorizationCore(options =>
     options.AddPolicy("ShowMenu_Operations", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Operations")));
     options.AddPolicy("ShowMenu_Users", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Users")));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager, "ShowMenu_Users")));
     options.AddPolicy("ShowMenu_Tariffs", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Tariffs")));
     options.AddPolicy("ShowMenu_Community", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelAssociationAdmin, "ShowMenu_Community")));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelUserManager, "ShowMenu_Community")));
     options.AddPolicy("ShowMenu_Broadcasts", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelFinanceManager, "ShowMenu_Broadcasts")));
+        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Broadcasts")));
     options.AddPolicy("ShowMenu_Governance", policy => 
         policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "ShowMenu_Governance")));
     options.AddPolicy("ShowMenu_Settings", policy => 
@@ -109,7 +109,11 @@ builder.Services.AddHttpClient("GatewayClient", client =>
         client.BaseAddress = new Uri(gatewayUrl);
     })
     .AddHttpMessageHandler<AuthHeaderHandler>()
-    .AddStandardResilienceHandler();
+    .AddStandardResilienceHandler(options => {
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
+    });
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("GatewayClient"));
 

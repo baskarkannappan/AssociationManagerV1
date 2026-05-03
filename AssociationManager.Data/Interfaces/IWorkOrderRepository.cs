@@ -8,6 +8,7 @@ public interface IWorkOrderRepository
 {
     Task<WorkOrder?> GetByIdAsync(int id, int tenantId, int associationId);
     Task<IEnumerable<WorkOrder>> GetAllAsync(int tenantId, int associationId);
+    Task<int> GetPendingCountByAssociationIdAsync(int tenantId, int associationId);
     Task<IEnumerable<WorkOrder>> GetByAssetIdAsync(int assetId, int tenantId, int associationId);
     Task<int> CreateAsync(WorkOrder workOrder);
     Task<bool> UpdateAsync(WorkOrder workOrder);

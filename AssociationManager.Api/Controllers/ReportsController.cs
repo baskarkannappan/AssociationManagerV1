@@ -21,7 +21,7 @@ public class ReportsController : ControllerBase
     [HttpGet("financial-summary")]
     public async Task<IActionResult> GetFinancialSummary()
     {
-        var report = await _reportingService.GetFinancialMetricsV2Async();
+        var report = await _reportingService.GetFinancialMetricsAsync();
         return Ok(ApiResponse<FinancialMetricsReport>.SuccessResponse(report));
     }
 }

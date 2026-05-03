@@ -7,4 +7,3 @@ BEGIN
     WHERE b.AssociationId = @AssociationId
     ORDER BY b.IsPinned DESC, b.CreatedDate DESC;
 END
-GO

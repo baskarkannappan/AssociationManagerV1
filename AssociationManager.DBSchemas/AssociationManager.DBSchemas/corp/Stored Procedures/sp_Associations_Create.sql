@@ -1,5 +1,4 @@
-﻿-- 4. Update sp_Associations_Create
-CREATE   PROCEDURE corp.sp_Associations_Create 
+﻿CREATE   PROCEDURE corp.sp_Associations_Create 
     @TenantId INT, 
     @Name NVARCHAR(255), 
     @Description NVARCHAR(MAX), 
@@ -11,6 +10,7 @@ CREATE   PROCEDURE corp.sp_Associations_Create
 AS 
 BEGIN 
     INSERT INTO corp.Associations (TenantId, Name, Description, CreatedDate, CreatedBy, AdminEmail, PlatformAccountId, AdminPaysFee, Status) 
-    OUTPUT INSERTED.AssociationId 
     VALUES (@TenantId, @Name, @Description, @CreatedDate, @CreatedBy, @AdminEmail, @PlatformAccountId, @AdminPaysFee, 'Active'); 
+
+    SELECT SCOPE_IDENTITY();
 END

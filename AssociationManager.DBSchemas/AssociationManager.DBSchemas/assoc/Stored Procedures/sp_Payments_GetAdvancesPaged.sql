@@ -1,8 +1,8 @@
--- Script0082_DeduplicateWalletHistory.sql
+﻿-- Script0082_DeduplicateWalletHistory.sql
 -- Fix: Deduplicating wallet history by only including 'Debit' transactions from the ledger.
 -- This ensures only the money leaving the wallet is visible, excluding the corresponding invoice credit.
 
-CREATE OR ALTER PROCEDURE assoc.sp_Payments_GetAdvancesPaged
+CREATE   PROCEDURE assoc.sp_Payments_GetAdvancesPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @UserId INT = NULL,
@@ -165,4 +165,3 @@ BEGIN
     OFFSET @Offset ROWS
     FETCH NEXT @PageSize ROWS ONLY;
 END;
-GO

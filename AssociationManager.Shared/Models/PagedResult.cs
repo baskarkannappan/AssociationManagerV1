@@ -26,6 +26,9 @@ public class InvoiceSearchCriteria
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     
+    // Keyset/Cursor Pagination Support
+    public int? ReferenceId { get; set; }
+    
     // Paging/Sorting
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 10;

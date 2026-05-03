@@ -1,4 +1,4 @@
-﻿-- Create Transaction
+﻿
 CREATE   PROCEDURE assoc.sp_PaymentTransactions_Create
     @TenantId INT,
     @AssociationId INT,
@@ -21,5 +21,6 @@ AS
 BEGIN
     INSERT INTO assoc.PaymentTransactions (TenantId, AssociationId, PaymentOrderId, RazorpayPaymentId, RazorpayOrderId, RazorpaySignature, Status, Amount, RawResponse, PrimaryAccountName, PrimaryAccountNumber, PaymentMethod, BankName, BankRrn, CardNetwork, GatewayFee, GatewayTax)
     VALUES (@TenantId, @AssociationId, @PaymentOrderId, @RazorpayPaymentId, @RazorpayOrderId, @RazorpaySignature, @Status, @Amount, @RawResponse, @PrimaryAccountName, @PrimaryAccountNumber, @PaymentMethod, @BankName, @BankRrn, @CardNetwork, @GatewayFee, @GatewayTax);
+    
     SELECT SCOPE_IDENTITY();
-END;
+END

@@ -2,7 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <NoWarn>$(NoWarn);NU1605</NoWarn>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <ImplicitUsings Condition="'$(MSBuildProjectExtension)' != '.sqlproj'">enable</ImplicitUsings>
+    <Nullable Condition="'$(MSBuildProjectExtension)' != '.sqlproj'">enable</Nullable>
+
   </PropertyGroup>
 </Project>

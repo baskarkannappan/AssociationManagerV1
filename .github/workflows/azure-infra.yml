@@ -27,7 +27,7 @@ jobs:
       - name: Deploy Bicep
         uses: azure/arm-deploy@v1
         with:
-          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          resourceGroupName: 'rg-assocmgr-dev'
           template: Deployment/Azure/infra/main.bicep
-          parameters: environmentName=qa
+          parameters: environmentName=dev administratorLogin=appadmin administratorLoginPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
           failOnStdErr: false

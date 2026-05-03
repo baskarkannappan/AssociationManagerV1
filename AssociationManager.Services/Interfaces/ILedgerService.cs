@@ -12,4 +12,5 @@ public interface ILedgerService
     Task<IEnumerable<Transaction>> GetAssetTransactionsAsync(int assetId);
     Task<IEnumerable<Transaction>> GetTransactionsByInvoiceIdAsync(int invoiceId);
     Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null);
+    Task<bool> SyncAssociationBalancesAsync(int associationId, int tenantId);
 }

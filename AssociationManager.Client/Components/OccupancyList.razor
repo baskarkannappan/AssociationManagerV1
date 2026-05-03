@@ -3,6 +3,7 @@
 @inject AssociationManager.Client.Services.ApiService ApiService
 @inject AssociationManager.Client.Services.IAppAuthorizationService AuthService
 @inject ToastService _toastService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="occupants-section forced-text-dark">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -22,7 +23,8 @@
             <div class="row g-2">
                 <div class="col-6"><input @bind="_newPerson.FirstName" class="form-control" placeholder="First Name" /></div>
                 <div class="col-6"><input @bind="_newPerson.LastName" class="form-control" placeholder="Last Name" /></div>
-                <div class="col-12"><input @bind="_newPerson.Email" class="form-control" placeholder="Email" /></div>
+                <div class="col-6"><input @bind="_newPerson.Email" class="form-control" placeholder="Email" /></div>
+                <div class="col-6"><input @bind="_newPerson.Phone" class="form-control" placeholder="Mobile Number" /></div>
                 <div class="col-6">
                     <select @bind="_newOccupancy.OccupancyType" class="form-select">
                         @foreach (var type in Enum.GetValues<OccupancyType>()) { <option value="@type">@type</option> }
@@ -57,7 +59,7 @@
 
             <GridColumn TItem="Occupancy" HeaderText="Contact" PropertyName="PersonName" SortKeySelector="item => item.PersonName">
                 <div class="fw-bold">@context.PersonName</div>
-                <div class="text-muted" style="font-size: 10px;">@context.Email</div>
+                <div class="text-muted" style="font-size: 10px;">@context.Email @(!string.IsNullOrEmpty(context.Phone) ? $" | {context.Phone}" : "")</div>
             </GridColumn>
 
             <GridColumn TItem="Occupancy" HeaderText="Primary" PropertyName="IsPrimaryContact" SortKeySelector="item => item.IsPrimaryContact">
@@ -91,7 +93,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        _canManage = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{AssetId}");
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var ruleMatch = await AuthService.EvaluateRuleAsync(authState.User, "AssetRule_ManageOccupancy", AssetId);
+        var apiMatch = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{AssetId}");
+        
+        _canManage = ruleMatch || apiMatch;
+        
         if (grid != null) await grid.RefreshDataAsync();
     }
 
@@ -124,7 +131,8 @@
             PersonId = occ.PersonId,
             FirstName = occ.PersonName?.Split(' ').FirstOrDefault() ?? "",
             LastName = occ.PersonName?.Contains(' ') == true ? occ.PersonName?.Split(' ').LastOrDefault() ?? "" : "",
-            Email = occ.Email
+            Email = occ.Email,
+            Phone = occ.Phone
         };
         
         _showAddForm = true;
@@ -132,6 +140,21 @@
 
     private async Task SaveOccupant()
     {
+        // Validation
+        if (string.IsNullOrWhiteSpace(_newPerson.FirstName) || 
+            string.IsNullOrWhiteSpace(_newPerson.LastName) || 
+            string.IsNullOrWhiteSpace(_newPerson.Email))
+        {
+            _toastService.Notify(new(ToastType.Warning, "First Name, Last Name, and Email are mandatory."));
+            return;
+        }
+
+        if (_newOccupancy.IsPrimaryContact && string.IsNullOrWhiteSpace(_newPerson.Phone))
+        {
+            _toastService.Notify(new(ToastType.Warning, "Mobile Number is mandatory for primary contact."));
+            return;
+        }
+
         bool success = false;
         
         // 1. Update/Create Person

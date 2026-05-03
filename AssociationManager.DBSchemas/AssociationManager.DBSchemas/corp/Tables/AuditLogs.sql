@@ -39,3 +39,8 @@ GO
 CREATE NONCLUSTERED INDEX [IX_AuditLogs_TenantId] 
     ON [corp].[AuditLogs]([TenantId] ASC);
 
+GO
+CREATE NONCLUSTERED INDEX [IX_AuditLogs_AssociationRecent]
+    ON [corp].[AuditLogs]([AssociationId] ASC, [Timestamp] DESC);
+
+

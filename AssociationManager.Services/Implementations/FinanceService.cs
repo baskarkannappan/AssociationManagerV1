@@ -1,11 +1,21 @@
+using AssociationManager.Data;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Services.Interfaces;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Models;
+using Dapper;
+using System.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http;
+using Microsoft.AspNetCore.SignalR;
+using AssociationManager.Realtime.Hubs;
+using ClosedXML.Excel;
+using System.IO;
+using Hangfire;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -21,6 +31,15 @@ public class FinanceService : IFinanceService
     private readonly IAssetRepository _assetRepository;
     private readonly IAuditService _auditService;
     private readonly IBillingBatchRepository _billingBatchRepository;
+    private readonly IEmailTemplateService _emailTemplateService;
+    private readonly ICommunicationRepository _communicationRepository;
+    private readonly IPersonRepository _personRepository;
+    private readonly DbConnectionFactory _dbConnectionFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _config;
+    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IUserRepository _userRepository;
+    private readonly IBackgroundJobClient _backgroundJobClient;
 
     public FinanceService(
         IInvoiceRepository invoiceRepository, 
@@ -32,7 +51,17 @@ public class FinanceService : IFinanceService
         IFineService fineService,
         IAssetRepository assetRepository,
         IAuditService auditService,
-        IBillingBatchRepository billingBatchRepository)
+        IBillingBatchRepository billingBatchRepository,
+        IEmailTemplateService emailTemplateService,
+        ICommunicationRepository communicationRepository,
+        IPersonRepository personRepository,
+        DbConnectionFactory dbConnectionFactory,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration config,
+        IHubContext<NotificationHub> hubContext,
+        IEmailService emailService,
+        IUserRepository userRepository,
+        IBackgroundJobClient backgroundJobClient)
     {
         _invoiceRepository = invoiceRepository;
         _paymentRepository = paymentRepository;
@@ -44,7 +73,19 @@ public class FinanceService : IFinanceService
         _assetRepository = assetRepository;
         _auditService = auditService;
         _billingBatchRepository = billingBatchRepository;
+        _emailTemplateService = emailTemplateService;
+        _communicationRepository = communicationRepository;
+        _personRepository = personRepository;
+        _dbConnectionFactory = dbConnectionFactory;
+        _httpClientFactory = httpClientFactory;
+        _config = config;
+        _hubContext = hubContext;
+        _emailService = emailService;
+        _userRepository = userRepository;
+        _backgroundJobClient = backgroundJobClient;
     }
+    
+    private readonly IEmailService _emailService;
 
     private int CurrentTenantId => _tenantContext.TenantId;
     private int CurrentAssociationId => _tenantContext.AssociationId;
@@ -92,14 +133,86 @@ public class FinanceService : IFinanceService
     {
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
         var paged = await _invoiceRepository.GetPagedAsync(CurrentTenantId, criteria);
-        var settings = await _fineService.GetSettingsAsync(criteria.AssociationId.Value);
-
-        foreach (var inv in paged.Items)
+        
+        if (paged.Items != null && paged.Items.Any())
         {
-            inv.LineItems = (await _invoiceRepository.GetLineItemsAsync(inv.InvoiceId)).ToList();
-            await AddFinePreviewAsync(inv, settings);
+            var invoiceIds = paged.Items.Select(i => i.InvoiceId).Distinct();
+            var allLineItems = await _invoiceRepository.GetLineItemsBulkAsync(invoiceIds);
+            var lineItemsLookup = allLineItems.ToLookup(li => li.InvoiceId);
+            
+            var settings = await _fineService.GetSettingsAsync(criteria.AssociationId.Value);
+
+            foreach (var inv in paged.Items)
+            {
+                inv.LineItems = lineItemsLookup[inv.InvoiceId].ToList();
+                await AddFinePreviewAsync(inv, settings);
+            }
         }
         return paged;
+    }
+
+    public async Task<byte[]> ExportInvoicesToExcelAsync(InvoiceSearchCriteria criteria)
+    {
+        // 1. Fetch data matching criteria but without paging (fetch all)
+        criteria.PageNumber = 1;
+        criteria.PageSize = 100000; // Large enough for any single export
+        
+        var result = await GetPagedInvoicesAsync(criteria);
+        var invoices = result.Items;
+
+        // 2. Generate Excel Workbook
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Financial History");
+
+        // Header Styling
+        var headerRow = worksheet.Row(1);
+        headerRow.Style.Font.Bold = true;
+        headerRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#F3F4F6"); // Light Gray VS Code style
+
+        // Headers
+        worksheet.Cell(1, 1).Value = "Title";
+        worksheet.Cell(1, 2).Value = "Unit / Asset";
+        worksheet.Cell(1, 3).Value = "Total Amount (₹)";
+        worksheet.Cell(1, 4).Value = "Due Date";
+        worksheet.Cell(1, 5).Value = "Status";
+        worksheet.Cell(1, 6).Value = "Created Date";
+        worksheet.Cell(1, 7).Value = "Description";
+
+        // Data Rows
+        int currentRow = 2;
+        foreach (var inv in invoices)
+        {
+            var totalAmount = inv.Amount + inv.LineItems
+                .Where(l => l.InvoiceLineItemId == 0 || l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine"))
+                .Sum(li => li.Amount);
+
+            worksheet.Cell(currentRow, 1).Value = inv.Title;
+            worksheet.Cell(currentRow, 2).Value = inv.AssetName;
+            worksheet.Cell(currentRow, 3).Value = totalAmount;
+            worksheet.Cell(currentRow, 4).Value = inv.DueDate.ToShortDateString();
+            worksheet.Cell(currentRow, 5).Value = inv.Status;
+            worksheet.Cell(currentRow, 6).Value = inv.CreatedDate.ToShortDateString();
+            worksheet.Cell(currentRow, 7).Value = inv.Description;
+
+            // Conditional formatting for Status
+            if (inv.Status == "Paid")
+                worksheet.Cell(currentRow, 5).Style.Font.FontColor = XLColor.Green;
+            else if (inv.Status == "Unpaid")
+                worksheet.Cell(currentRow, 5).Style.Font.FontColor = XLColor.Red;
+            else if (inv.Status == "Partial")
+                worksheet.Cell(currentRow, 5).Style.Font.FontColor = XLColor.Orange;
+
+            currentRow++;
+        }
+
+        // Column Formatting
+        worksheet.Column(3).Style.NumberFormat.Format = "₹ #,##0.00";
+        worksheet.Columns().AdjustToContents();
+
+        // 3. Return as byte array
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     private async Task AddFinePreviewAsync(Invoice invoice, FineSettings? settings = null)
@@ -125,80 +238,59 @@ public class FinanceService : IFinanceService
 
     public async Task<FinanceSummary> GetFinanceSummaryAsync(int? associationId = null, int? assetId = null, IEnumerable<int>? assetIds = null, int? userId = null)
     {
-        // Get base stats from repository
-        var (_, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, associationId ?? CurrentAssociationId, assetId, assetIds);
-        
-        // Calculate REAL unpaid balance including ONLY virtual dynamic fines (to avoid double-counting persisted maintenance items)
-        IEnumerable<Invoice> unpaidInvoices;
-        
-        // If userId is provided, resolve their asset IDs first (UNIFIED: Occupancy + Payment History)
-        if (userId.HasValue && (assetIds == null || !assetIds.Any()))
-        {
-            // 1. Resolve from Occupancy
-            var occupancies = await _occupancyRepository.GetByUserIdAsync(userId.Value, CurrentTenantId, associationId ?? CurrentAssociationId);
-            var resolvedIds = occupancies.Select(o => o.AssetId).ToList();
+        var effectiveAssociationId = associationId ?? CurrentAssociationId;
 
-            // 2. Resolve from Payment History (for units paid but not yet officially occupied)
-            // Use non-paged GetAdvancesAsync for internal resolution
-            var advances = await _paymentRepository.GetAdvancesAsync(CurrentTenantId, associationId ?? CurrentAssociationId, userId: userId.Value);
-            var unitIdsFromHistory = advances.Where(h => h.AssetId.HasValue).Select(h => h.AssetId!.Value);
-
-            assetIds = resolvedIds.Union(unitIdsFromHistory).Distinct().ToList();
-        }
-
-        if (assetId.HasValue)
+        // SMART RESOLUTION: If userId is provided but no specific assets are specified, 
+        // resolve all assets belonging to this user in the current association.
+        if (userId.HasValue && !assetId.HasValue && (assetIds == null || !assetIds.Any()))
         {
-            unpaidInvoices = (await GetInvoicesByAssetIdAsync(assetId.Value, associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        }
-        else if (assetIds != null && assetIds.Any())
-        {
-            var allInUserScope = new List<Invoice>();
-            foreach(var id in assetIds)
+            var userAssets = await _occupancyRepository.GetByUserIdAsync(userId.Value, CurrentTenantId, effectiveAssociationId);
+            assetIds = userAssets.Select(o => o.AssetId).ToList();
+
+            // If the user has no assets in this association, return early with zeroed summary (except possibly their wallet)
+            if (!assetIds.Any())
             {
-                allInUserScope.AddRange(await GetInvoicesByAssetIdAsync(id, associationId));
+                return new FinanceSummary 
+                { 
+                    TotalUnpaid = 0, 
+                    Collected30Days = 0,
+                    TotalAdvanceCredits = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, effectiveAssociationId, userId.Value)
+                };
             }
-            unpaidInvoices = allInUserScope.Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
-        }
-        else
-        {
-            // STAFF/GLOBAL VIEW
-            unpaidInvoices = (await GetAllInvoicesAsync(associationId)).Where(i => i.Status != "Paid" && i.Status != "Draft" && i.Status != "Cancelled" && i.Status != "Void");
         }
 
-        // SMART SUM: Amount (Principal) + all Fine items + any virtual items
-        decimal realUnpaid = 0;
-        foreach (var inv in unpaidInvoices)
-        {
-            realUnpaid += await GetTotalInvoiceAmountAsync(inv);
-        }
+        // 1. Calculate REAL unpaid balance and 30-day collection stats
+        // UNIFIED FETCH: Use optimized repository stats which include penalty calculations in SQL
+        var (totalUnpaid, collected) = await _invoiceRepository.GetSummaryStatsAsync(CurrentTenantId, effectiveAssociationId, assetId, assetIds);
         
+        // 2. Resolve Wallet Balance (Credits)
         decimal totalWallet = 0;
         if (userId.HasValue)
         {
-            totalWallet = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, associationId ?? CurrentAssociationId, userId.Value);
+            totalWallet = await _paymentRepository.GetPersonalWalletBalanceAsync(CurrentTenantId, effectiveAssociationId, userId.Value);
         }
         else
         {
             var ids = assetId.HasValue ? new[] { assetId.Value } : (assetIds ?? Enumerable.Empty<int>());
-            if (!ids.Any() && (associationId.HasValue || CurrentAssociationId != 0))
+            if (!ids.Any() && (associationId.HasValue || effectiveAssociationId != 0))
             {
-                // ASSOCIATION-WIDE FETCH
-                var aid = associationId ?? CurrentAssociationId;
-                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(aid, CurrentTenantId);
+                // ASSOCIATION-WIDE FETCH: Uses optimized sp_Finance_GetAssociationSummary
+                var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(effectiveAssociationId, CurrentTenantId);
                 totalWallet = baseStats.TotalCredits;
             }
             else
             {
+                // Mapped Asset Fetch (Fallback for specific lists)
                 foreach (var aid in ids)
                 {
                     totalWallet += await GetAssetWalletBalanceAsync(aid);
                 }
             }
         }
-
+        
         return new FinanceSummary 
         { 
-            TotalUnpaid = realUnpaid, 
+            TotalUnpaid = totalUnpaid, 
             Collected30Days = collected,
             TotalAdvanceCredits = totalWallet
         };
@@ -263,6 +355,11 @@ public class FinanceService : IFinanceService
         }
         
         return payments;
+    }
+
+    public async Task<IEnumerable<Payment>> GetRecentPaymentsAsync(int? associationId = null, int count = 20, IEnumerable<int>? assetIds = null)
+    {
+        return await _paymentRepository.GetRecentByAssociationIdAsync(CurrentTenantId, associationId ?? CurrentAssociationId, count, assetIds);
     }
 
     public async Task<int> CreatePaymentAsync(Payment payment)
@@ -425,90 +522,125 @@ public class FinanceService : IFinanceService
 
     public async Task<bool> SettleInvoiceWithAdvanceAsync(int invoiceId)
     {
-        var invoice = await GetInvoiceByIdAsync(invoiceId);
-        if (invoice == null || !invoice.AssetId.HasValue || invoice.Status == "Paid") return false;
-
-        // Support Cross-Asset Settlement: Find all assets for this resident
-        var userAssets = (await _occupancyRepository.GetByUserIdAsync(_tenantContext.UserId, CurrentTenantId, CurrentAssociationId)).ToList();
+        // Use a session-level application lock to prevent concurrent settlement of the same invoice
+        using var lockConn = _dbConnectionFactory.CreateConnection();
+        var lockName = $"SettleInvoice_{invoiceId}";
         
-        // 1. Calculate Gross Wallet Power across ALL user assets
-        // Gross Wallet = (Sum of Payments/Advances) - (Sum of Credit Settlements)
-        decimal totalWalletPower = 0;
-        foreach (var asset in userAssets)
+        // Mode: Exclusive, Owner: Session, Timeout: 10 seconds
+        var lockResult = await lockConn.QueryFirstOrDefaultAsync<int>(
+            "EXEC sp_getapplock @Resource = @LockName, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 10000",
+            new { LockName = lockName });
+
+        if (lockResult < 0) return false; // Could not acquire lock
+
+        try
         {
-            totalWalletPower += await GetAssetWalletBalanceAsync(asset.AssetId);
-        }
+            var invoice = await GetInvoiceByIdAsync(invoiceId);
+            if (invoice == null || !invoice.AssetId.HasValue || invoice.Status == "Paid") return false;
 
-        if (totalWalletPower <= 0) return false;
-        
-        // UNIFIED TOTAL: Use the shared calculation logic to determine the exact amount due.
-        decimal totalAmountDue = await GetTotalInvoiceAmountAsync(invoice);
-        
-        if (totalWalletPower < totalAmountDue) return false;
-
-        decimal remainingSettleAmount = totalAmountDue;
-        decimal spendableWallet = totalWalletPower;
-
-        foreach (var asset in userAssets)
-        {
-            if (remainingSettleAmount <= 0 || spendableWallet <= 0) break;
-
-            // How much of the wallet power is stored specifically in this asset?
-            var assetWalletPower = await GetAssetWalletBalanceAsync(asset.AssetId);
-
-            if (assetWalletPower > 0)
+            // Support Cross-Asset Settlement: Find all assets for this resident
+            var userAssets = (await _occupancyRepository.GetByUserIdAsync(_tenantContext.UserId, CurrentTenantId, CurrentAssociationId)).ToList();
+            
+            // 1. Calculate Gross Wallet Power across ALL user assets
+            // Gross Wallet = (Sum of Payments/Advances) - (Sum of Credit Settlements)
+            decimal totalWalletPower = 0;
+            foreach (var asset in userAssets)
             {
-                var attribution = Math.Min(Math.Min(assetWalletPower, remainingSettleAmount), spendableWallet);
+                totalWalletPower += await GetAssetWalletBalanceAsync(asset.AssetId);
+            }
 
-                if (attribution > 0)
+            if (totalWalletPower <= 0) return false;
+            
+            // UNIFIED TOTAL: Use the shared calculation logic to determine the exact amount due.
+            decimal totalAmountDue = await GetTotalInvoiceAmountAsync(invoice);
+            
+            if (totalWalletPower < totalAmountDue) return false;
+
+            decimal remainingSettleAmount = totalAmountDue;
+            decimal spendableWallet = totalWalletPower;
+
+            foreach (var asset in userAssets)
+            {
+                if (remainingSettleAmount <= 0 || spendableWallet <= 0) break;
+
+                // How much of the wallet power is stored specifically in this asset?
+                var assetWalletPower = await GetAssetWalletBalanceAsync(asset.AssetId);
+
+                if (assetWalletPower > 0)
                 {
-                    // Record SETTLEMENT (Debit to the Wallet)
-                    await _ledgerService.RecordTransactionAsync(new Transaction
-                    {
-                        AssetId = asset.AssetId,
-                        Type = "Debit",
-                        Amount = attribution,
-                        Category = "Credit Settlement",
-                        Description = $"Advance used to pay Invoice #{invoiceId}"
-                    });
+                    var attribution = Math.Min(Math.Min(assetWalletPower, remainingSettleAmount), spendableWallet);
 
-                    // Record PAYMENT (Credit to the Invoice)
-                    await _ledgerService.RecordTransactionAsync(new Transaction
+                    if (attribution > 0)
                     {
-                        AssetId = invoice.AssetId.Value,
-                        InvoiceId = invoiceId,
-                        Type = "Credit",
-                        Amount = attribution,
-                        Category = "Credit Settlement",
-                        Description = asset.AssetId == invoice.AssetId.Value 
-                            ? "Settled via Advance Credit" 
-                            : $"Settled via Credit Transfer from Unit #{asset.AssetId}"
-                    });
+                        // Record SETTLEMENT (Debit to the Wallet)
+                        await _ledgerService.RecordTransactionAsync(new Transaction
+                        {
+                            AssetId = asset.AssetId,
+                            Type = "Debit",
+                            Amount = attribution,
+                            Category = "Credit Settlement",
+                            Description = $"Advance used to pay Invoice #{invoiceId}"
+                        });
 
-                    remainingSettleAmount -= attribution;
-                    spendableWallet -= attribution;
+                        // Record PAYMENT (Credit to the Invoice)
+                        await _ledgerService.RecordTransactionAsync(new Transaction
+                        {
+                            AssetId = invoice.AssetId.Value,
+                            InvoiceId = invoiceId,
+                            Type = "Credit",
+                            Amount = attribution,
+                            Category = "Credit Settlement",
+                            Description = asset.AssetId == invoice.AssetId.Value 
+                                ? "Settled via Advance Credit" 
+                                : $"Settled via Credit Transfer from Unit #{asset.AssetId}"
+                        });
+
+                        remainingSettleAmount -= attribution;
+                        spendableWallet -= attribution;
+                    }
                 }
             }
-        }
 
-        if (remainingSettleAmount <= 0)
-        {
-            // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
-            // We search for any line item with ID 0 that contains Fine/Penalty keywords
-            var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
-                               (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
-            
-            if (virtualFine != null)
+            if (remainingSettleAmount <= 0)
             {
-                virtualFine.InvoiceId = invoice.InvoiceId;
-                await _invoiceRepository.CreateLineItemAsync(virtualFine);
+                // PERSIST FINE: Convert the virtual preview fine into a permanent DB record before marking as Paid
+                // We search for any line item with ID 0 that contains Fine/Penalty keywords
+                var virtualFine = invoice.LineItems.FirstOrDefault(l => l.InvoiceLineItemId == 0 && 
+                                   (l.ChargeName.Contains("Penalty") || l.ChargeName.Contains("Fine")));
+                
+                if (virtualFine != null)
+                {
+                    virtualFine.InvoiceId = invoice.InvoiceId;
+                    await _invoiceRepository.CreateLineItemAsync(virtualFine);
+                }
+
+                await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
+                
+                // Trigger Real-time Dashboard Sync to update Net Outstanding metrics immediately
+                _ = Task.Run(() => SyncAssociationBalancesAsync(invoice.AssociationId, CurrentTenantId));
+
+                // 9. EMAIL NOTIFICATION TO ADMINS (Hangfire for reliability)
+                var notifyData = new PaymentOrder
+                {
+                    AssociationId = invoice.AssociationId,
+                    TenantId = CurrentTenantId,
+                    UserId = _tenantContext.UserId,
+                    Amount = totalAmountDue,
+                    InvoiceId = invoiceId,
+                    AssetId = invoice.AssetId,
+                    Currency = "INR"
+                };
+                _backgroundJobClient.Enqueue(() => SendPaymentNotificationToAdminsAsync(notifyData, "ADVANCE_SETTLEMENT"));
+                
+                return true;
             }
 
-            await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
-            return true;
+            return remainingSettleAmount < totalAmountDue;
         }
-
-        return remainingSettleAmount < totalAmountDue;
+        finally
+        {
+            await lockConn.ExecuteAsync("EXEC sp_releaseapplock @Resource = @LockName, @LockOwner = 'Session'", new { LockName = lockName });
+        }
     }
 
     public async Task<IEnumerable<Transaction>> GetTenantTransactionsAsync(DateTime? start = null, DateTime? end = null)
@@ -529,14 +661,12 @@ public class FinanceService : IFinanceService
 
     public async Task<(decimal TotalOutstanding, decimal TotalCredits, int UnitsWithCredit)> GetAssociationFinanceSummaryAsync(int associationId, int tenantId)
     {
-        // UNIFIED LOGIC: Use the smart summary to include penalties/fines
-        var summary = await GetFinanceSummaryAsync(associationId);
-        
-        // Fetch auxiliary stats (TotalCredits and UnitsWithCredit) from the optimized repository call
-        // summary.TotalAdvanceCredits might be scoped poorly for association-wide views
+        // OPTIMIZED: Single call to the snapshot SP which returns all three values.
+        // sp_Finance_GetAssociationSummary_Snapshot reads from AssociationBalances cache table (fast path)
+        // and only falls back to live calculation when no snapshot exists.
         var baseStats = await _invoiceRepository.GetAssociationSummaryAsync(associationId, tenantId);
         
-        return (summary.TotalUnpaid, baseStats.TotalCredits, baseStats.UnitsWithCredit);
+        return (baseStats.TotalOutstanding, baseStats.TotalCredits, baseStats.UnitsWithCredit);
     }
 
     public async Task<IEnumerable<AdvancePaymentHistory>> GetAdvancesAsync(int associationId, int tenantId, int? userId = null, int? assetId = null)
@@ -549,6 +679,19 @@ public class FinanceService : IFinanceService
         if (criteria.TenantId == null) criteria.TenantId = CurrentTenantId;
         if (criteria.AssociationId == null) criteria.AssociationId = CurrentAssociationId;
         return await _paymentRepository.GetAdvancesPagedAsync(criteria);
+    }
+
+    public async Task<IEnumerable<UserFinanceSummary>> GetUsersBalancesAsync(int associationId, IEnumerable<int> userIds)
+    {
+        if (userIds == null || !userIds.Any()) return Enumerable.Empty<UserFinanceSummary>();
+        
+        string csv = string.Join(",", userIds);
+        return await _invoiceRepository.GetUsersBalancesBulkAsync(associationId, csv);
+    }
+
+    public async Task<bool> SyncAssociationBalancesAsync(int associationId, int tenantId)
+    {
+        return await _ledgerService.SyncAssociationBalancesAsync(associationId, tenantId);
     }
 
     /// <summary>
@@ -695,41 +838,160 @@ public class FinanceService : IFinanceService
         return totalPostedCount;
     }
 
-    public async Task<bool> CommitBatchAsync(int batchId)
+    public async Task<bool> DeleteBatchAsync(int batchId, int? associationId = null)
     {
-        var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, CurrentAssociationId);
-        if (batch == null || batch.Status != "Draft") return false;
+        var aid = associationId ?? CurrentAssociationId;
+        var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, aid);
+        
+        if (batch == null) return false;
+        
+        // Safety: Only Draft, Failed, or inconsistent (with draft invoices) batches can be deleted
+        if (batch.Status != "Draft" && batch.Status != "COMMIT_FAILED" && !batch.HasDraftInvoices)
+        {
+            throw new InvalidOperationException("Only Draft, Failed, or incomplete batches can be deleted.");
+        }
 
-        // 1. Update Batch Status
-        await _billingBatchRepository.UpdateStatusAsync(batchId, "Committed", CurrentTenantId, CurrentAssociationId);
+        return await _billingBatchRepository.DeleteBatchAsync(batchId, CurrentTenantId, aid);
+    }
 
-        // 2. Transmit Invoices to Ledger
+    public async Task<bool> CommitBatchAsync(int batchId, int tenantId = 0, int associationId = 0)
+    {
+        if (tenantId > 0)
+        {
+            _tenantContext.SetContext(tenantId, associationId);
+        }
+
+        try
+        {
+            var batch = await _billingBatchRepository.GetByIdAsync(batchId, CurrentTenantId, CurrentAssociationId);
+            if (batch == null || (batch.Status != "Draft" && batch.Status != "Committed")) return false;
+
+            // 1. High-Performance Bulk Commit (Status + Ledger + Sync)
+            var success = await _billingBatchRepository.BulkCommitAsync(batchId, CurrentTenantId, CurrentAssociationId);
+            
+            if (success)
+            {
+                // 2. Offload Emails to Background Queue (Non-Blocking)
+                Hangfire.BackgroundJob.Enqueue<IFinanceService>(x => x.EnqueueBatchNotificationsAsync(batchId, CurrentTenantId, CurrentAssociationId));
+
+                // 3. Notify UI of Success
+                await NotifyCommitStatusAsync(batchId, CurrentTenantId, CurrentAssociationId, "COMMIT_READY");
+            }
+            else
+            {
+                await NotifyCommitStatusAsync(batchId, CurrentTenantId, CurrentAssociationId, "COMMIT_FAILED");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            // Log the error
+            await _auditService.LogAsync($"Batch Commitment Error: {ex.Message}", "BillingBatch", batchId, associationId: associationId, tenantId: tenantId);
+            
+            // Notify UI of Failure
+            await NotifyCommitStatusAsync(batchId, tenantId, associationId, "COMMIT_FAILED");
+            
+            throw; // Re-throw for Hangfire retry
+        }
+    }
+
+    public async Task NotifyCommitStatusAsync(int batchId, int tenantId, int associationId, string status)
+    {
+        try
+        {
+            // 1. Direct SignalR Broadcast (Highest Reliability)
+            var payload = $"{status}|{associationId}|batch-{batchId}|commit-{batchId}";
+            await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", payload);
+            await _hubContext.Clients.Group($"Association_{associationId}").SendAsync("ReceiveNotification", payload);
+            
+            // 2. Fallback to Gateway Notification (Existing logic)
+            var baseUrl = _config["ApiSettings:GatewayUrl"];
+            if (!string.IsNullOrEmpty(baseUrl))
+            {
+                var client = _httpClientFactory.CreateClient();
+                var url = $"{baseUrl.TrimEnd('/')}/api/finance/batches/notify-completion?tenantId={tenantId}&associationId={associationId}&period=batch-{batchId}&jobId=commit-{batchId}&status={status}";
+                
+                Console.WriteLine($"[Diagnostic] Notifying UI of Commit Status (Direct + Gateway): {url}");
+                await client.PostAsync(url, null);
+            }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[Diagnostic] Commit Notification Exception: {ex.Message}");
+             await _auditService.LogAsync($"Failed to notify UI of commit completion: {ex.Message}", "System", 0, associationId: associationId, tenantId: tenantId);
+        }
+    }
+
+    public async Task EnqueueBatchNotificationsAsync(int batchId, int tenantId, int associationId)
+    {
+         if (tenantId > 0)
+        {
+            _tenantContext.SetContext(tenantId, associationId);
+        }
+
         var invoices = await _invoiceRepository.GetByBatchIdAsync(batchId, CurrentTenantId);
         foreach (var inv in invoices)
         {
-            if (inv.Status == "Draft")
+            // Only notify if Unpaid (which they should be now after BulkCommit)
+            if (inv.Status == "Unpaid" && inv.AssetId.HasValue)
             {
-                // Update Status to Unpaid (or Paid if we eventually want immediate auto-settle here)
-                await _invoiceRepository.UpdateStatusAsync(inv.InvoiceId, "Unpaid", CurrentTenantId, CurrentAssociationId);
+                // Enqueue each individual email as its own job for maximum reliability
+                Hangfire.BackgroundJob.Enqueue<IFinanceService>(x => x.SendInvoiceNotificationAsync(inv.InvoiceId, tenantId, associationId));
+            }
+        }
+    }
 
-                // Record Ledger Transaction (Debit)
-                if (inv.AssetId.HasValue)
+    // New helper for Hangfire to send a single resident notification
+    public async Task SendInvoiceNotificationAsync(int invoiceId, int tenantId, int associationId)
+    {
+         if (tenantId > 0)
+        {
+            _tenantContext.SetContext(tenantId, associationId);
+        }
+
+        var inv = await _invoiceRepository.GetByIdAsync(invoiceId, CurrentTenantId, CurrentAssociationId);
+        if (inv == null || !inv.AssetId.HasValue) return;
+
+        var occupancies = await _occupancyRepository.GetByAssetIdAsync(inv.AssetId.Value, CurrentTenantId, CurrentAssociationId);
+        var primary = occupancies.FirstOrDefault(o => o.IsPrimaryContact) ?? occupancies.FirstOrDefault();
+        
+        if (primary != null)
+        {
+            var person = await _personRepository.GetByIdAsync(primary.PersonId, CurrentTenantId, CurrentAssociationId);
+            if (person != null && !string.IsNullOrEmpty(person.Email))
+            {
+                var htmlBody = await _emailTemplateService.GenerateInvoiceHtmlAsync(inv.InvoiceId);
+                var subject = $"Invoice Generated: {inv.Title} (Ref #{inv.InvoiceId})";
+                
+                // 1. Log to Comms for Audit Trail
+                var logId = await _communicationRepository.CreateAsync(new CommunicationLog
                 {
-                    await _ledgerService.RecordTransactionAsync(new Transaction
-                    {
-                        AssetId = inv.AssetId.Value,
-                        InvoiceId = inv.InvoiceId,
-                        Type = "Debit",
-                        Amount = inv.Amount,
-                        Category = "Billing",
-                        Description = $"Batch Billing Committed: {inv.Title}"
-                    });
+                    TenantId = CurrentTenantId,
+                    AssociationId = CurrentAssociationId,
+                    RecipientEmail = person.Email,
+                    RecipientName = $"{person.FirstName} {person.LastName}",
+                    Subject = subject,
+                    HtmlBody = htmlBody,
+                    ReferenceType = "Invoice",
+                    ReferenceId = inv.InvoiceId,
+                    Status = AssociationManager.Shared.Enums.CommunicationStatus.Posted
+                });
+
+                // 2. Send Immediately (since we are already in a background job)
+                var success = await _emailService.SendEmailAsync(person.Email, $"{person.FirstName} {person.LastName}", subject, htmlBody);
+                
+                // 3. Update Status
+                if (success)
+                {
+                    await _communicationRepository.UpdateStatusAsync(logId, CurrentTenantId, (int)AssociationManager.Shared.Enums.CommunicationStatus.Success);
+                }
+                else
+                {
+                    await _communicationRepository.UpdateStatusAsync(logId, CurrentTenantId, (int)AssociationManager.Shared.Enums.CommunicationStatus.Failure, "Email sending failed.");
                 }
             }
         }
-
-        await _auditService.LogAsync($"Committed Billing Batch #{batchId}", "BillingBatch", batchId);
-        return true;
     }
 
     public async Task<bool> AdjustInvoiceLineItemsAsync(int invoiceId, IEnumerable<InvoiceLineItem> items)
@@ -784,7 +1046,7 @@ public class FinanceService : IFinanceService
         // We use a broader fetch because we don't have a specific GetByInvoiceId in PaymentRepository yet, 
         // but we can filter the association's payments for efficiency.
         var associationId = _tenantContext.AssociationId;
-        var allPayments = await _paymentRepository.GetByTenantIdAsync(_tenantContext.TenantId, associationId);
+        var allPayments = await _paymentRepository.GetByTenantIdAsync(_tenantContext.UserId, associationId);
         var invoicePayments = allPayments.Where(p => p.InvoiceId == invoiceId);
 
         foreach (var p in invoicePayments)
@@ -801,5 +1063,76 @@ public class FinanceService : IFinanceService
         }
 
         return history.OrderByDescending(h => h.CreatedDate);
+    }
+
+    [Queue("default")]
+    public async Task SendPaymentNotificationToAdminsAsync(PaymentOrder order, string paymentId)
+    {
+        try
+        {
+            Console.WriteLine($"[EMAIL_NOTIF] Processing payment notification for Association {order.AssociationId}, Payer {order.UserId}");
+            
+            // 1. Get Payer Details (Using repository with explicit IDs for background job reliability)
+            var payerOccupancies = await _occupancyRepository.GetByUserIdAsync(order.UserId, order.TenantId, order.AssociationId);
+            var payerOccupancy = payerOccupancies.FirstOrDefault(o => o.AssetId == order.AssetId) 
+                                 ?? payerOccupancies.FirstOrDefault();
+            
+            string payerName = payerOccupancy?.PersonName ?? "Unknown Resident";
+            string payerEmail = payerOccupancy?.Email ?? "Unknown Email";
+            
+            // 2. Get Asset Details
+            string assetDetail = "N/A";
+            if (order.AssetId.HasValue)
+            {
+                var asset = await _assetRepository.GetByIdAsync(order.AssetId.Value, order.TenantId, order.AssociationId);
+                assetDetail = asset?.Name ?? $"Asset ID: {order.AssetId}";
+            }
+
+            // 3. Get Association Admins
+            var allUsers = await _userRepository.GetByAssociationIdAsync(order.AssociationId);
+            var admins = allUsers.Where(u => u.Role == "AssociationAdmin").ToList();
+
+            Console.WriteLine($"[EMAIL_NOTIF] Found {admins.Count} AssociationAdmin(s) for Association {order.AssociationId}");
+
+            if (!admins.Any()) 
+            {
+                Console.WriteLine($"[EMAIL_NOTIF] WARNING: No admins found for Association {order.AssociationId}. Email skipped.");
+                return;
+            }
+
+            // 4. Construct Email
+            string subject = order.InvoiceId.HasValue 
+                ? $"[Payment Received] Invoice #{order.InvoiceId} - {assetDetail}"
+                : $"[Wallet Top-up] {assetDetail}";
+
+            string paymentType = paymentId == "ADVANCE_SETTLEMENT" ? "Advance Settlement" : "Payment";
+            
+            string htmlBody = $@"
+                <div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;'>
+                    <h3 style='color: #2c3e50;'>Payment Notification</h3>
+                    <p>A new payment has been processed for your association.</p>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Payer Name</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{payerName}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Email</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{payerEmail}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Unit / Asset</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{assetDetail}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Amount</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{order.Currency} {order.Amount:N2}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Payment Type</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{paymentType}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Transaction ID</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{paymentId}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Date</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{DateTime.Now:f}</td></tr>
+                    </table>
+                    <p style='margin-top: 20px; color: #7f8c8d; font-size: 12px;'>This is an automated notification from Association Manager. Please check your dashboard for more details.</p>
+                </div>";
+
+            foreach (var admin in admins)
+            {
+                bool sent = await _emailService.SendEmailAsync(admin.Email, admin.Name, subject, htmlBody);
+                Console.WriteLine($"[EMAIL_NOTIF] Email sent to {admin.Email}: {sent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EMAIL_NOTIF] CRITICAL ERROR sending payment notification email: {ex.Message}");
+            throw; // Rethrow for Hangfire retry
+        }
     }
 }

@@ -18,10 +18,21 @@ using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using Azure.Identity;
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Key Vault Integration
+var keyVaultName = builder.Configuration["KeyVaultName"];
+if (!string.IsNullOrEmpty(keyVaultName))
+{
+    var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
+    Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
+}
 
 // Serilog
 Log.Logger = new LoggerConfiguration()
@@ -67,6 +78,8 @@ builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
+builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
+builder.Services.AddScoped<IContentRepository, ContentRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -90,10 +103,14 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
+builder.Services.AddScoped<AssociationManager.Services.Jobs.EmailDispatchJob>();
 builder.Services.AddScoped<RulesEngineSeeder>();
-
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<AssociationManager.Services.Jobs.BalanceSyncJob>();
 // Billing Strategies & Batch Service
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
 builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.AreaBasedBillingStrategy>();
@@ -107,22 +124,16 @@ builder.Services.AddHangfire(configuration => configuration
     {
         CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
         SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.Zero,
+        QueuePollInterval = TimeSpan.FromMinutes(5),
         UseRecommendedIsolationLevel = true,
         DisableGlobalLocks = true
     }));
 
-// Note: AddHangfireServer is NOT called here to avoid loading the API with batch jobs.
-// The Worker project will act as the Hangfire Server.
+builder.Services.AddHangfireServer();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
-/*
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetSection("Redis:Configuration").Value;
-});
-*/
+builder.Services.AddMemoryCache();
 
 // Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>() 
@@ -169,11 +180,12 @@ builder.Services.AddSignalR();
 */
 
 // CORS
+var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
     {
-        policy.WithOrigins("https://localhost:7001", "https://localhost:7011") // Client URLs
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -249,9 +261,15 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("AllowClient");
 
+// Fix 5: Enable WebSockets for stable SignalR handshake through gateway
+app.UseWebSockets();
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHangfireDashboard("/hangfire");
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new AssociationManager.Api.Authorization.HangfireAuthorizationFilter() }
+});
 
 // Multi-tenancy
 
@@ -263,6 +281,35 @@ using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
     await seeder.SeedAsync();
+
+    // Setup Recurring Jobs
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
+/*
+    // Daily Fine Accrual at 1:00 AM
+    recurringJobManager.AddOrUpdate<IFinanceService>(
+        "daily-fine-accrual",
+        service => service.PostOverdueFinesAsync(),
+        Cron.Daily(1));
+
+    // Daily Database Archiving at 3:00 AM
+    recurringJobManager.AddOrUpdate<IMaintenanceService>(
+        "database-archiving",
+        service => service.ArchiveAuditLogsAsync(180),
+        Cron.Daily(3));
+*/
+
+    // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
+    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
+        "automated-email-dispatch",
+        job => job.ProcessPendingEmailsAsync(),
+        "30 0,10,12,18 * * *");
+
+    // Hourly Enterprise Balance Synchronization
+    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.BalanceSyncJob>(
+        "enterprise-balance-sync",
+        job => job.ProcessAllAssociationsAsync(),
+        Cron.Daily());
 }
 
 app.Run();

@@ -15,10 +15,21 @@ using AssociationManager.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using Azure.Identity;
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Key Vault Integration
+var keyVaultName = builder.Configuration["KeyVaultName"];
+if (!string.IsNullOrEmpty(keyVaultName))
+{
+    var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
+    Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
+}
 
 // Serilog
 Log.Logger = new LoggerConfiguration()
@@ -64,6 +75,8 @@ builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
 builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
+builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
+builder.Services.AddScoped<IContentRepository, ContentRepository>();
 
 // Services
 builder.Services.AddHttpContextAccessor();
@@ -79,16 +92,23 @@ builder.Services.AddScoped<IOperationsService, OperationsService>();
 builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<ITariffService, TariffService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IGovernanceService, GovernanceService>();
 builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
+builder.Services.AddScoped<IPaymentServiceV2, PaymentServiceV2>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IReportingService, ReportingService>();
+builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
+builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<RulesEngineSeeder>();
 builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
 
 // Caching
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddMemoryCache();
 
 // Authentication
 var jwtSettingsData = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
@@ -114,11 +134,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddSignalR();
 
 // CORS
+var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
     {
-        policy.WithOrigins("https://localhost:7001", "https://localhost:7011")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();

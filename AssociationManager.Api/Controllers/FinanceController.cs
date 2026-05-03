@@ -6,7 +6,9 @@ using AssociationManager.Services.Billing;
 using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
 using System;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
@@ -29,6 +31,7 @@ public class FinanceController : ControllerBase
     private readonly IFineService _fineService;
     private readonly IInvoicePdfService _pdfService;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IDistributedCache _cache;
 
     public FinanceController(
         IFinanceService financeService, 
@@ -39,7 +42,8 @@ public class FinanceController : ControllerBase
         IRuleEngineService ruleEngine,
         IFineService fineService, 
         IInvoicePdfService pdfService,
-        IHubContext<NotificationHub> hubContext)
+        IHubContext<NotificationHub> hubContext,
+        IDistributedCache cache)
     {
         _financeService = financeService;
         _auditService = auditService;
@@ -50,23 +54,50 @@ public class FinanceController : ControllerBase
         _fineService = fineService;
         _pdfService = pdfService;
         _hubContext = hubContext;
+        _cache = cache;
     }
 
     [HttpPost("batch-generate")]
     [Authorize(Policy = "RequireFinanceManager")]
     public IActionResult GenerateBatch([FromBody] InvoiceBatchRequest request)
     {
-        var jobId = BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId));
-        return Accepted(ApiResponse<string>.SuccessResponse(jobId, "Billing batch generation has been queued. Job ID: " + jobId));
+        var trackingId = Guid.NewGuid().ToString("N");
+        BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId, trackingId));
+        return Accepted(ApiResponse<string>.SuccessResponse(trackingId, "Billing batch generation has been queued. Tracking ID: " + trackingId));
     }
 
     [HttpPost("batches/preview")]
     [Authorize(Policy = "RequireFinanceManager")]
-    public async Task<IActionResult> PreviewBatch([FromBody] InvoiceBatchRequest request)
+    public IActionResult PreviewBatch([FromBody] InvoiceBatchRequest request)
     {
         request.DryRun = true;
-        var result = await _batchService.ProcessBatchAsync(request, _tenantContext.TenantId);
-        return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result));
+        
+        // Generate a tracking ID for the job
+        var trackingId = Guid.NewGuid().ToString("N");
+        
+        // Enqueue the background job and pass the trackingId
+        BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId, trackingId));
+        
+        return Accepted(ApiResponse<string>.SuccessResponse(trackingId, "Batch preview generation has started. Tracking ID: " + trackingId));
+    }
+
+    [HttpGet("batches/preview/{trackingId}")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> GetPreviewResult(string trackingId)
+    {
+        var cacheKey = $"batch_preview_{trackingId}";
+        var json = await _cache.GetStringAsync(cacheKey);
+
+        if (!string.IsNullOrEmpty(json))
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var result = JsonSerializer.Deserialize<InvoiceBatchResult>(json, options);
+            if (result == null) return NotFound(ApiResponse.FailureResponse("Could not parse preview data."));
+            
+            return Ok(ApiResponse<InvoiceBatchResult>.SuccessResponse(result!));
+        }
+        
+        return NotFound(ApiResponse.FailureResponse("Preview not ready or expired."));
     }
 
     [HttpPost("batches/draft")]
@@ -74,8 +105,9 @@ public class FinanceController : ControllerBase
     public IActionResult CreateDraftBatch([FromBody] InvoiceBatchRequest request)
     {
         request.DryRun = false;
-        var jobId = BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId));
-        return Accepted(ApiResponse<string>.SuccessResponse(jobId, "Draft billing batch creation has been queued. Job ID: " + jobId));
+        var trackingId = Guid.NewGuid().ToString("N");
+        BackgroundJob.Enqueue<BillingBatchService>(x => x.ExecuteBatchJobAsync(request, _tenantContext.TenantId, trackingId));
+        return Accepted(ApiResponse<string>.SuccessResponse(trackingId, "Draft billing batch creation has been queued. Tracking ID: " + trackingId));
     }
 
     [HttpGet("batches")]
@@ -88,19 +120,62 @@ public class FinanceController : ControllerBase
 
     [HttpPost("batches/{id}/finalize")]
     [Authorize(Policy = "RequireFinanceManager")]
-    public async Task<IActionResult> CommitBatch(int id)
+    public IActionResult CommitBatch(int id)
     {
-        var success = await _financeService.CommitBatchAsync(id);
-        if (!success) return BadRequest(ApiResponse.FailureResponse("Failed to commit batch. It may not exist or is not in Draft status."));
-        return Ok(ApiResponse.SuccessResponse("Billing batch committed successfully. Invoices are now live in the ledger."));
+        Hangfire.BackgroundJob.Enqueue<IFinanceService>(x => x.CommitBatchAsync(id, _tenantContext.TenantId, _tenantContext.AssociationId));
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Batch commitment has been queued. Invoices will transition to Unpaid shortly."));
     }
 
     [HttpPost("batches/notify-completion")]
     [AllowAnonymous] // Allow background worker to call this without JWT
-    public async Task<IActionResult> NotifyBatchCompletion([FromQuery] int tenantId, [FromQuery] int associationId, [FromQuery] string period)
+    public async Task<IActionResult> NotifyBatchCompletion(
+        [FromQuery] int tenantId, 
+        [FromQuery] int associationId, 
+        [FromQuery] string period, 
+        [FromQuery] string? jobId = null, 
+        [FromQuery] string? status = "BATCH_READY",
+        [FromBody] InvoiceBatchResult? previewResult = null)
     {
-        await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"BATCH_READY|{associationId}|{period}");
+        if (previewResult != null && !string.IsNullOrEmpty(jobId))
+        {
+            var cacheKey = $"batch_preview_{jobId}";
+            var json = JsonSerializer.Serialize(previewResult);
+            await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+        }
+        
+        // Notification payload: STATUS|AssociationId|Period|JobId
+        var payload = $"{status}|{associationId}|{period}|{jobId}";
+        
+        // Notify both levels to ensure the UI catches it regardless of current context
+        await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", payload);
+        await _hubContext.Clients.Group($"Association_{associationId}").SendAsync("ReceiveNotification", payload);
+        
         return Ok();
+    }
+
+    [HttpDelete("batches/{id}")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> DeleteBatch(int id)
+    {
+        try
+        {
+            var success = await _financeService.DeleteBatchAsync(id);
+            if (!success) return BadRequest(ApiResponse.FailureResponse("Failed to delete batch. It may not exist or is not in Draft state."));
+            
+            await _auditService.LogAsync("Delete Billing Batch", "BillingBatch", id);
+            return Ok(ApiResponse.SuccessResponse("Billing batch and its draft invoices deleted successfully."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse.FailureResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse.FailureResponse($"Error deleting batch: {ex.Message}"));
+        }
     }
 
     [HttpGet("invoices")]
@@ -178,6 +253,55 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<PagedResult<Invoice>>.SuccessResponse(defaultResult));
     }
 
+    [HttpGet("invoices/export-excel")]
+    [Authorize(Policy = "RequireResident")]
+    public async Task<IActionResult> ExportInvoicesExcel(
+        [FromQuery] int? associationId = null, 
+        [FromQuery] int? assetId = null,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] string sortColumn = "CreatedDate",
+        [FromQuery] string sortDirection = "DESC",
+        [FromQuery] bool includeDrafts = false)
+    {
+        var userLevel = AppRole.GetMaxLevel(User.Claims);
+        bool isStaff = userLevel >= AppRole.LevelFinanceManager;
+        List<int>? allowedAssetIds = null;
+
+        if (!isStaff)
+        {
+            var userIdStr = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                allowedAssetIds = await GetUserAssetIdsAsync(userId);
+                if (assetId.HasValue)
+                {
+                    if (!allowedAssetIds.Contains(assetId.Value)) return Forbid();
+                }
+            }
+        }
+
+        var criteria = new InvoiceSearchCriteria
+        {
+            AssociationId = associationId,
+            AssetId = assetId,
+            AssetIds = allowedAssetIds,
+            SearchTerm = searchTerm,
+            Status = status,
+            StartDate = startDate,
+            EndDate = endDate,
+            SortColumn = sortColumn,
+            SortDirection = sortDirection,
+            IncludeDrafts = includeDrafts
+        };
+
+        var bytes = await _financeService.ExportInvoicesToExcelAsync(criteria);
+        var fileName = $"FinancialHistory_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
     [HttpGet("summary")]
     [Authorize(Policy = "RequireResident")]
     public async Task<IActionResult> GetSummary([FromQuery] int? associationId = null, [FromQuery] int? assetId = null)
@@ -220,7 +344,8 @@ public class FinanceController : ControllerBase
         }
 
         // Parallel fetch all billing components
-        var paymentsTask = _financeService.GetPaymentsAsync(assetIds: residentAssetIds);
+        // Optimized: Only fetch the Top 20 recent payments for the overview dashboard
+        var paymentsTask = _financeService.GetRecentPaymentsAsync(aid, 20, residentAssetIds);
         var balanceTask = _financeService.GetFinanceSummaryAsync(aid, assetId, assetIds: residentAssetIds, userId: userId);
         var batchesTask = _batchService.GetBatchesAsync(aid, _tenantContext.TenantId);
         

@@ -15,6 +15,7 @@ public class InvoiceBatchResult
 {
     public int TotalAssets { get; set; }
     public int InvoicesGenerated { get; set; }
+    public int SkippedAssets { get; set; }
     public decimal TotalAmount { get; set; }
     public List<InvoicePreviewItem> Previews { get; set; } = new();
     public string Message { get; set; } = string.Empty;

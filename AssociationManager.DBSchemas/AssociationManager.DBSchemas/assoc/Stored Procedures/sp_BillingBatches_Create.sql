@@ -1,4 +1,5 @@
-﻿CREATE   PROCEDURE assoc.sp_BillingBatches_Create 
+﻿-- 5. assoc.sp_BillingBatches_Create
+CREATE   PROCEDURE assoc.sp_BillingBatches_Create 
     @TenantId INT, 
     @AssociationId INT, 
     @Month INT, 
@@ -10,6 +11,7 @@
 AS 
 BEGIN 
     INSERT INTO assoc.BillingBatches (TenantId, AssociationId, Month, Year, Status, TotalAmount, InvoicesGenerated, CreatedDate) 
-    OUTPUT INSERTED.BillingBatchId 
     VALUES (@TenantId, @AssociationId, @Month, @Year, @Status, @TotalAmount, @InvoicesGenerated, @CreatedDate); 
+
+    SELECT SCOPE_IDENTITY();
 END

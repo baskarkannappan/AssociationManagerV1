@@ -9,6 +9,7 @@
 @inject LayoutStateService LayoutState
 @inject TariffStateService TariffState
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IAppAuthorizationService AuthService
 
 <AuthorizeView Policy="RequireFinanceManager">
     <Authorized>
@@ -53,6 +54,14 @@
             new AppBreadcrumbItem { Text = "Association" },
             new AppBreadcrumbItem { Text = "Tariffs", IsActive = true }
         });
+        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Tariffs");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
 
         // Parse once at the start to set Initial Scope
         TariffState.ParseQueryParameters();

@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Finance_ValidateIntegrity
+﻿CREATE   PROCEDURE assoc.sp_Finance_ValidateIntegrity
     @AssociationId INT,
     @TenantId INT,
     @IntegrityStatus_OUT NVARCHAR(50) = NULL OUTPUT
