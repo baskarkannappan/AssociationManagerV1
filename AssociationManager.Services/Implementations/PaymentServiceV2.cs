@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Hangfire;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -21,7 +22,9 @@ public class PaymentServiceV2 : IPaymentServiceV2
     private readonly IEmailService _emailService;
     private readonly IPeopleService _peopleService;
     private readonly IUserRepository _userRepository;
-    private readonly IAssetService _assetService;
+    private readonly IAssetRepository _assetRepository;
+    private readonly IOccupancyRepository _occupancyRepository;
+    private readonly IBackgroundJobClient _backgroundJobClient;
 
     public PaymentServiceV2(
         IRazorpayRepository repository,
@@ -32,7 +35,9 @@ public class PaymentServiceV2 : IPaymentServiceV2
         IEmailService emailService,
         IPeopleService peopleService,
         IUserRepository userRepository,
-        IAssetService assetService)
+        IAssetRepository assetRepository,
+        IOccupancyRepository occupancyRepository,
+        IBackgroundJobClient backgroundJobClient)
     {
         _repository = repository;
         _razorpayClient = razorpayClient;
@@ -42,7 +47,9 @@ public class PaymentServiceV2 : IPaymentServiceV2
         _emailService = emailService;
         _peopleService = peopleService;
         _userRepository = userRepository;
-        _assetService = assetService;
+        _assetRepository = assetRepository;
+        _occupancyRepository = occupancyRepository;
+        _backgroundJobClient = backgroundJobClient;
     }
 
     public async Task<RazorpayOrderResponse> CreateOrderAsync(RazorpayOrderRequest request)
@@ -321,16 +328,19 @@ public class PaymentServiceV2 : IPaymentServiceV2
         // 8. NOTIFY UI
         await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"Payment completed successfully for Order {orderId}");
 
-        // 9. EMAIL NOTIFICATION TO ADMINS
-        _ = Task.Run(() => SendPaymentNotificationToAdminsAsync(dbOrder, paymentId));
+        // 9. EMAIL NOTIFICATION TO ADMINS (Hangfire for reliability)
+        _backgroundJobClient.Enqueue(() => SendPaymentNotificationToAdminsAsync(dbOrder, paymentId));
     }
 
-    private async Task SendPaymentNotificationToAdminsAsync(PaymentOrder order, string paymentId)
+    [Queue("default")]
+    public async Task SendPaymentNotificationToAdminsAsync(PaymentOrder order, string paymentId)
     {
         try
         {
-            // 1. Get Payer Details
-            var payerOccupancies = await _peopleService.GetOccupancyByUserIdAsync(order.UserId);
+            Console.WriteLine($"[EMAIL_NOTIF] Processing payment notification for Association {order.AssociationId}, Payer {order.UserId}");
+            
+            // 1. Get Payer Details (Using repository with explicit IDs for background job reliability)
+            var payerOccupancies = await _occupancyRepository.GetByUserIdAsync(order.UserId, order.TenantId, order.AssociationId);
             var payerOccupancy = payerOccupancies.FirstOrDefault(o => o.AssetId == order.AssetId) 
                                  ?? payerOccupancies.FirstOrDefault();
             
@@ -341,7 +351,7 @@ public class PaymentServiceV2 : IPaymentServiceV2
             string assetDetail = "N/A";
             if (order.AssetId.HasValue)
             {
-                var asset = await _assetService.GetByIdAsync(order.AssetId.Value);
+                var asset = await _assetRepository.GetByIdAsync(order.AssetId.Value, order.TenantId, order.AssociationId);
                 assetDetail = asset?.Name ?? $"Asset ID: {order.AssetId}";
             }
 
@@ -349,7 +359,13 @@ public class PaymentServiceV2 : IPaymentServiceV2
             var allUsers = await _userRepository.GetByAssociationIdAsync(order.AssociationId);
             var admins = allUsers.Where(u => u.Role == "AssociationAdmin").ToList();
 
-            if (!admins.Any()) return;
+            Console.WriteLine($"[EMAIL_NOTIF] Found {admins.Count} AssociationAdmin(s) for Association {order.AssociationId}");
+
+            if (!admins.Any()) 
+            {
+                Console.WriteLine($"[EMAIL_NOTIF] WARNING: No admins found for Association {order.AssociationId}. Email skipped.");
+                return;
+            }
 
             // 4. Construct Email
             string subject = order.InvoiceId.HasValue 
@@ -376,12 +392,14 @@ public class PaymentServiceV2 : IPaymentServiceV2
 
             foreach (var admin in admins)
             {
-                await _emailService.SendEmailAsync(admin.Email, admin.Name, subject, htmlBody);
+                bool sent = await _emailService.SendEmailAsync(admin.Email, admin.Name, subject, htmlBody);
+                Console.WriteLine($"[EMAIL_NOTIF] Email sent to {admin.Email}: {sent}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending payment notification email: {ex.Message}");
+            Console.WriteLine($"[EMAIL_NOTIF] CRITICAL ERROR sending payment notification email: {ex.Message}");
+            throw; // Rethrow for Hangfire retry
         }
     }
 
