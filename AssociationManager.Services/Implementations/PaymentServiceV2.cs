@@ -5,8 +5,10 @@ using AssociationManager.Shared.Models;
 using Microsoft.AspNetCore.SignalR;
 using AssociationManager.Realtime.Hubs;
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Hangfire;
 
 namespace AssociationManager.Services.Implementations;
 
@@ -17,19 +19,37 @@ public class PaymentServiceV2 : IPaymentServiceV2
     private readonly ITenantContext _tenantContext;
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly IFinanceService _financeService;
+    private readonly IEmailService _emailService;
+    private readonly IPeopleService _peopleService;
+    private readonly IUserRepository _userRepository;
+    private readonly IAssetRepository _assetRepository;
+    private readonly IOccupancyRepository _occupancyRepository;
+    private readonly IBackgroundJobClient _backgroundJobClient;
 
     public PaymentServiceV2(
         IRazorpayRepository repository,
         AssociationManager.Services.Razorpay.RazorpayClient razorpayClient,
         ITenantContext tenantContext,
         IHubContext<NotificationHub> hubContext,
-        IFinanceService financeService)
+        IFinanceService financeService,
+        IEmailService emailService,
+        IPeopleService peopleService,
+        IUserRepository userRepository,
+        IAssetRepository assetRepository,
+        IOccupancyRepository occupancyRepository,
+        IBackgroundJobClient backgroundJobClient)
     {
         _repository = repository;
         _razorpayClient = razorpayClient;
         _tenantContext = tenantContext;
         _hubContext = hubContext;
         _financeService = financeService;
+        _emailService = emailService;
+        _peopleService = peopleService;
+        _userRepository = userRepository;
+        _assetRepository = assetRepository;
+        _occupancyRepository = occupancyRepository;
+        _backgroundJobClient = backgroundJobClient;
     }
 
     public async Task<RazorpayOrderResponse> CreateOrderAsync(RazorpayOrderRequest request)
@@ -307,6 +327,80 @@ public class PaymentServiceV2 : IPaymentServiceV2
 
         // 8. NOTIFY UI
         await _hubContext.Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", $"Payment completed successfully for Order {orderId}");
+
+        // 9. EMAIL NOTIFICATION TO ADMINS (Hangfire for reliability)
+        _backgroundJobClient.Enqueue(() => SendPaymentNotificationToAdminsAsync(dbOrder, paymentId));
+    }
+
+    [Queue("default")]
+    public async Task SendPaymentNotificationToAdminsAsync(PaymentOrder order, string paymentId)
+    {
+        try
+        {
+            Console.WriteLine($"[EMAIL_NOTIF] Processing payment notification for Association {order.AssociationId}, Payer {order.UserId}");
+            
+            // 1. Get Payer Details (Using repository with explicit IDs for background job reliability)
+            var payerOccupancies = await _occupancyRepository.GetByUserIdAsync(order.UserId, order.TenantId, order.AssociationId);
+            var payerOccupancy = payerOccupancies.FirstOrDefault(o => o.AssetId == order.AssetId) 
+                                 ?? payerOccupancies.FirstOrDefault();
+            
+            string payerName = payerOccupancy?.PersonName ?? "Unknown Resident";
+            string payerEmail = payerOccupancy?.Email ?? "Unknown Email";
+            
+            // 2. Get Asset Details
+            string assetDetail = "N/A";
+            if (order.AssetId.HasValue)
+            {
+                var asset = await _assetRepository.GetByIdAsync(order.AssetId.Value, order.TenantId, order.AssociationId);
+                assetDetail = asset?.Name ?? $"Asset ID: {order.AssetId}";
+            }
+
+            // 3. Get Association Admins
+            var allUsers = await _userRepository.GetByAssociationIdAsync(order.AssociationId);
+            var admins = allUsers.Where(u => u.Role == "AssociationAdmin").ToList();
+
+            Console.WriteLine($"[EMAIL_NOTIF] Found {admins.Count} AssociationAdmin(s) for Association {order.AssociationId}");
+
+            if (!admins.Any()) 
+            {
+                Console.WriteLine($"[EMAIL_NOTIF] WARNING: No admins found for Association {order.AssociationId}. Email skipped.");
+                return;
+            }
+
+            // 4. Construct Email
+            string subject = order.InvoiceId.HasValue 
+                ? $"[Payment Received] Invoice #{order.InvoiceId} - {assetDetail}"
+                : $"[Wallet Top-up] {assetDetail}";
+
+            string paymentType = order.InvoiceId.HasValue ? "Invoice Payment" : "Wallet Top-up / Advance";
+            
+            string htmlBody = $@"
+                <div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;'>
+                    <h3 style='color: #2c3e50;'>Payment Notification</h3>
+                    <p>A new payment has been processed for your association.</p>
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Payer Name</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{payerName}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Email</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{payerEmail}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Unit / Asset</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{assetDetail}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Amount</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{order.Currency} {order.Amount:N2}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Payment Type</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{paymentType}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Transaction ID</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{paymentId}</td></tr>
+                        <tr><td style='padding: 8px; border: 1px solid #ddd; background: #f9f9f9;'><b>Date</b></td><td style='padding: 8px; border: 1px solid #ddd;'>{DateTime.Now:f}</td></tr>
+                    </table>
+                    <p style='margin-top: 20px; color: #7f8c8d; font-size: 12px;'>This is an automated notification from Association Manager. Please check your dashboard for more details.</p>
+                </div>";
+
+            foreach (var admin in admins)
+            {
+                bool sent = await _emailService.SendEmailAsync(admin.Email, admin.Name, subject, htmlBody);
+                Console.WriteLine($"[EMAIL_NOTIF] Email sent to {admin.Email}: {sent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EMAIL_NOTIF] CRITICAL ERROR sending payment notification email: {ex.Message}");
+            throw; // Rethrow for Hangfire retry
+        }
     }
 
     public async Task<object> GetPaymentHistoryAsync(int invoiceId)

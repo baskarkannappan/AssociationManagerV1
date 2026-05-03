@@ -3,6 +3,7 @@
 @using System.Security.Claims
 @inject BillingStateService BillingService
 @inject ApiService Api
+@inject IAppAuthorizationService AuthService
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="compact-card">
@@ -21,6 +22,10 @@
                 <option value="Partial">Partial</option>
                 <option value="Draft">Draft</option>
             </select>
+            <button class="btn btn-sm btn-outline-success px-2 d-flex align-items-center" title="Export current view to Excel" @onclick="() => BillingService.DownloadInvoicesExcelAsync(AssetId)">
+                <i class="bi bi-file-earmark-excel me-1"></i>
+                <span class="d-none d-md-inline" style="font-size: 11px;">Excel</span>
+            </button>
         </div>
     </div>
 
@@ -84,7 +89,7 @@
         <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
             @if (context.Status == "Unpaid")
             {
-                @if (BillingService.Scope != "association" && !ForceAssociationScope || IsResident)
+                @if ((BillingService.Scope != "association" && !ForceAssociationScope || IsResident) && _showFinanceActions)
                 {
                     <button class="btn btn-sm btn-vscode py-1 px-2 me-2" @onclick="() => OnInitiatePayment.InvokeAsync(context)" @onclick:stopPropagation="true" style="font-size: 10px; white-space: nowrap;">
                         <i class="bi bi-credit-card me-1"></i> Pay Now
@@ -98,9 +103,12 @@
                 }
                 
                 <AuthorizeView Policy="RequireFinanceManager" Context="recordPayContext">
-                    <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => OnRecordManualPayment.InvokeAsync(context)" @onclick:stopPropagation="true">
-                        <i class="bi bi-cash-stack"></i>
-                    </button>
+                    @if (_showFinanceActions)
+                    {
+                        <button class="btn btn-sm btn-link p-0 text-success me-2" title="Record Manual Payment" @onclick="() => OnRecordManualPayment.InvokeAsync(context)" @onclick:stopPropagation="true">
+                            <i class="bi bi-cash-stack"></i>
+                        </button>
+                    }
                 </AuthorizeView>
             }
             <button class="btn btn-sm btn-link p-0 text-info me-2" title="Transaction History" @onclick="() => BillingService.LoadHistoryAsync(context)" @onclick:stopPropagation="true">
@@ -136,11 +144,13 @@
     private Grid<Invoice> _grid = default!;
     private System.Threading.Timer? _searchTimer;
     private ClaimsPrincipal? _user;
+    private bool _showFinanceActions;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateTask;
         _user = authState.User;
+        _showFinanceActions = await AuthService.EvaluateRuleAsync(_user, "AssetRule_ViewFinanceActions");
     }
 
     private bool IsResident => _user?.IsInRole("Resident") ?? false;

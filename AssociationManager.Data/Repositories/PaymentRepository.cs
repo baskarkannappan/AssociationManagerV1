@@ -37,6 +37,21 @@ public class PaymentRepository : IPaymentRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<IEnumerable<Payment>> GetRecentByAssociationIdAsync(int tenantId, int associationId, int count, IEnumerable<int>? assetIds = null)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Payment>(
+            "assoc.sp_Payments_GetRecent", 
+            new 
+            { 
+                TenantId = tenantId, 
+                AssociationId = associationId, 
+                Count = count,
+                AssetIds = assetIds != null && assetIds.Any() ? string.Join(",", assetIds) : null
+            },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<int> CreateAsync(Payment payment)
     {
         payment.TenantId = _tenantContext.TenantId;

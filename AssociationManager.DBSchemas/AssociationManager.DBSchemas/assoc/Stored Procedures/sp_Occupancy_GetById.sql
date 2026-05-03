@@ -1,4 +1,4 @@
-﻿CREATE   PROCEDURE assoc.sp_Occupancy_GetById
+CREATE   PROCEDURE assoc.sp_Occupancy_GetById
     @Id INT,
     @TenantId INT,
     @AssociationId INT
@@ -7,6 +7,7 @@ BEGIN
     SELECT o.*,
            (p.FirstName + ' ' + p.LastName) as PersonName,
            p.Email as Email,
+           p.Phone as Phone,
            a.Name as AssetName
     FROM assoc.Occupancy o
     INNER JOIN assoc.Persons p ON o.PersonId = p.PersonId

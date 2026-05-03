@@ -37,12 +37,20 @@ public class AssetRepository : IAssetRepository
             commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<IEnumerable<Asset>> GetHierarchyAsync(int tenantId, int associationId)
+    public async Task<IEnumerable<Asset>> GetHierarchyAsync(int tenantId, int associationId, int? parentId = null, int? userId = null)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        // Fetch all assets for the association and build the hierarchy in memory
         return await connection.QueryAsync<Asset>(
             "assoc.sp_Assets_GetHierarchy", 
+            new { TenantId = tenantId, AssociationId = associationId, ParentId = parentId, UserId = userId },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<IEnumerable<Asset>> GetAllFlatAsync(int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<Asset>(
+            "assoc.sp_Assets_GetAllFlat", 
             new { TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
     }
@@ -65,6 +73,43 @@ public class AssetRepository : IAssetRepository
                 asset.CreatedBy, 
                 asset.IsActive 
             },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<int> BulkCreateAsync(IEnumerable<Asset> assets)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var dt = new DataTable();
+        dt.Columns.Add("ParentId", typeof(int));
+        dt.Columns.Add("TenantId", typeof(int));
+        dt.Columns.Add("AssociationId", typeof(int));
+        dt.Columns.Add("Name", typeof(string));
+        dt.Columns.Add("Description", typeof(string));
+        dt.Columns.Add("AssetType", typeof(int));
+        dt.Columns.Add("MetadataJson", typeof(string));
+        dt.Columns.Add("CreatedDate", typeof(System.DateTime));
+        dt.Columns.Add("CreatedBy", typeof(int));
+        dt.Columns.Add("IsActive", typeof(bool));
+
+        foreach (var asset in assets)
+        {
+            dt.Rows.Add(
+                asset.ParentId,
+                asset.TenantId,
+                asset.AssociationId,
+                asset.Name,
+                asset.Description,
+                asset.AssetType,
+                asset.MetadataJson,
+                asset.CreatedDate,
+                asset.CreatedBy,
+                asset.IsActive
+            );
+        }
+
+        return await connection.ExecuteAsync(
+            "assoc.sp_Assets_BulkCreate",
+            new { Assets = dt.AsTableValuedParameter("assoc.AssetTableType") },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -111,10 +156,8 @@ public class AssetRepository : IAssetRepository
     {
         using var connection = _dbConnectionFactory.CreateConnection();
         return await connection.QueryAsync<dynamic>(
-            "SELECT t.TariffLayerId, t.Name as TariffName, t.AccountingCategory as Category, ISNULL(at.CustomAmount, t.BaseRate) as EffectiveAmount, t.BaseRate as BaseAmount, at.IsActive, at.IsRecurring " +
-            "FROM assoc.AssetTariffs at " +
-            "JOIN assoc.TariffLayers t ON at.TariffLayerId = t.TariffLayerId " +
-            "WHERE at.AssetId = @AssetId AND t.TenantId = @TenantId AND t.AssociationId = @AssociationId",
-            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId });
+            "assoc.sp_Assets_GetAssignedTariffs", 
+            new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
     }
 }

@@ -6,6 +6,12 @@
 
 <div class="p-4">
     <div class="row g-3">
+        <div class="col-12 mb-4">
+            <OccupancyList AssetId="AssetState.SelectedAsset!.AssetId" 
+                           Occupants="AssetState.Occupants" 
+                           OnDelete="RemoveOccupant" 
+                           OnDataChanged="() => AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId)" />
+        </div>
         <div class="col-md-6">
             <VehicleList AssetId="AssetState.SelectedAsset!.AssetId" 
                          Vehicles="AssetState.Vehicles" 
@@ -22,6 +28,14 @@
 </div>
 
 @code {
+    private async Task RemoveOccupant(int id) {
+        var success = await Api.DeleteAsync($"api/people/unit/occupant/{id}");
+        if (success) {
+            _toastService.Notify(new(ToastType.Warning, "Resident assignment removed."));
+            await AssetState.LoadUnitDataAsync(AssetState.SelectedAsset!.AssetId);
+        }
+    }
+
     private async Task RemoveVehicle(int id) {
         var success = await Api.DeleteAsync($"api/people/vehicles/{id}");
         if (success) {

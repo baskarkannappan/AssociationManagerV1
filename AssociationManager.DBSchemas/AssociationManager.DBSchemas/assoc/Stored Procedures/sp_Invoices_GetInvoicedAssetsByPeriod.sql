@@ -1,0 +1,1 @@
+﻿CREATE PROCEDURE assoc.sp_Invoices_GetInvoicedAssetsByPeriod @TenantId INT, @AssociationId INT, @PeriodPattern NVARCHAR(200) AS BEGIN SET NOCOUNT ON; SELECT AssetId FROM assoc.Invoices WHERE TenantId = @TenantId AND AssociationId = @AssociationId AND Title LIKE @PeriodPattern AND AssetId IS NOT NULL; END

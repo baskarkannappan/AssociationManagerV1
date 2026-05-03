@@ -1,4 +1,5 @@
-﻿-- Update payment order creation to include AssetId
+﻿
+-- 2. Update Stored Procedures
 CREATE   PROCEDURE assoc.sp_PaymentOrders_Create
     @TenantId INT,
     @AssociationId INT,
@@ -15,5 +16,6 @@ AS
 BEGIN
     INSERT INTO assoc.PaymentOrders (TenantId, AssociationId, UserId, RazorpayOrderId, Amount, Currency, InvoiceId, AssetId, Receipt, PrimaryAccountName, PrimaryAccountNumber)
     VALUES (@TenantId, @AssociationId, @UserId, @RazorpayOrderId, @Amount, @Currency, @InvoiceId, @AssetId, @Receipt, @PrimaryAccountName, @PrimaryAccountNumber);
+    
     SELECT SCOPE_IDENTITY();
-END;
+END

@@ -1,2 +1,3 @@
-CREATE SCHEMA [archive]
-    AUTHORIZATION [dbo];
+﻿CREATE SCHEMA [archive]
+    AUTHORIZATION [appuser];
+

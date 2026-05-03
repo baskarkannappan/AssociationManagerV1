@@ -1,19 +1,17 @@
 @inherits StatefulComponentBase
 @inject TariffStateService TariffState
-
-@code {
-    protected override void OnInitialized()
-    {
-        RegisterStateService(TariffState);
-    }
-}
+@inject IAppAuthorizationService AuthService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="tariff-sidebar-wrapper border-end bg-light d-flex flex-column @(TariffState.ShowWorkbenchOnMobile ? "d-none d-lg-flex" : "w-explorer")" style="flex-shrink: 0;">
     <div class="tree-header d-flex justify-content-between align-items-center">
         <span class="header-text">CATEGORIES</span>
-        <button class="btn btn-link p-0 text-vscode" @onclick='() => TariffState.ToggleGroupModal(true)'>
-            <i class="bi bi-plus-circle"></i>
-        </button>
+        @if (_canManageGroups)
+        {
+            <button class="btn btn-link p-0 text-vscode" @onclick='() => TariffState.ToggleGroupModal(true)'>
+                <i class="bi bi-plus-circle"></i>
+            </button>
+        }
     </div>
     
     <div class="explorer-search-container">
@@ -53,6 +51,16 @@
 </div>
 
 @code {
+    private bool _canManageGroups;
+
+    protected override async Task OnInitializedAsync()
+    {
+        RegisterStateService(TariffState);
+        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _canManageGroups = await AuthService.EvaluateRuleAsync(authState.User, "TariffRule_ManageGroups");
+    }
+
     private IEnumerable<TariffGroup> GetFilteredGroups()
     {
         if (TariffState.Groups == null) return Enumerable.Empty<TariffGroup>();

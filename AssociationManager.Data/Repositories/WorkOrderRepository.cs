@@ -37,6 +37,15 @@ public class WorkOrderRepository : IWorkOrderRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<int> GetPendingCountByAssociationIdAsync(int tenantId, int associationId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "assoc.sp_WorkOrders_GetPendingCount", 
+            new { TenantId = tenantId, AssociationId = associationId },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<IEnumerable<WorkOrder>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();

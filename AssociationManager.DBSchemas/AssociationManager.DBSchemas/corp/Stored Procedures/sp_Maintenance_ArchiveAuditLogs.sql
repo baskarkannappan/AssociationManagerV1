@@ -1,4 +1,4 @@
-CREATE   PROCEDURE corp.sp_Maintenance_ArchiveAuditLogs
+﻿CREATE PROCEDURE corp.sp_Maintenance_ArchiveAuditLogs
     @RetentionDays INT = 180, -- Default 6 months
     @BatchSize INT = 5000     -- Limit per run to avoid log bloat
 AS
@@ -46,4 +46,3 @@ BEGIN
     DROP TABLE #LogsToMove;
     SELECT @RowsAffected AS ArchivedCount;
 END
-GO

@@ -16,9 +16,16 @@ public class Invoice
     public string Status { get; set; } = "Unpaid";
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
+    // Persistent Fine Rules (Snapshot)
+    public string? FineStrategy { get; set; }
+    public decimal? FineValue { get; set; }
+    public int? FineGracePeriod { get; set; }
+    public bool? FineIsCompounding { get; set; }
+
     public List<InvoiceLineItem> LineItems { get; set; } = new();
 
     // Navigation helper (not mapped by Dapper automatically)
     public string? AssetName { get; set; }
     public bool IsAdvancePaid { get; set; }
+    public string? TempId { get; set; } // For bulk mapping
 }

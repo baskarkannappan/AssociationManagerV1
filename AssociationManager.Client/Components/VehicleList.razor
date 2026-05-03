@@ -2,6 +2,7 @@
 @inject AssociationManager.Client.Services.ApiService ApiService
 @inject AssociationManager.Client.Services.IAppAuthorizationService AuthService
 @inject ToastService _toastService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="vehicles-section forced-text-dark">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -79,7 +80,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        _canManage = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{AssetId}");
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var ruleMatch = await AuthService.EvaluateRuleAsync(authState.User, "AssetRule_ManageVehicles", AssetId);
+        var apiMatch = await ApiService.GetAsync<bool>($"api/people/can-manage-unit/{AssetId}");
+        
+        _canManage = ruleMatch || apiMatch;
+        
         if (grid != null) await grid.RefreshDataAsync();
     }
 

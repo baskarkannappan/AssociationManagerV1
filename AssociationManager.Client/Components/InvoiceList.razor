@@ -1,4 +1,8 @@
 @using AssociationManager.Shared.Models
+@using AssociationManager.Client.Services
+@using AssociationManager.Client.Components.Base
+@inherits StatefulComponentBase
+@inject BillingStateService BillingService
 
 <div class="invoices-list forced-text-dark">
     @if (Invoices == null)
@@ -80,24 +84,44 @@
                     }
                 </GridColumn>
 
-                <GridColumn TItem="Invoice" HeaderText="Actions">
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-link p-0 text-primary" @onclick="() => ShowDetails(context)" @onclick:stopPropagation="true" title="View Details">
-                            <i class="bi bi-info-circle"></i> Breakdown
-                        </button>
+                <GridColumn TItem="Invoice" HeaderText="Actions" HeaderClass="text-end" Class="text-end">
+                    <div class="d-flex gap-2 justify-content-end align-items-center" style="white-space: nowrap;">
                         @if (context.Status != "Paid")
                         {
-                            @if (CreditAvailable >= GetTotalAmount(context))
-                            {
-                                <button class="btn btn-sm btn-outline-primary py-0 px-2" @onclick="async () => await OnPayWithAdvance.InvokeAsync(context)" @onclick:stopPropagation="true" style="font-size: 10px;" title="Pay using your advance credit">
-                                    <i class="bi bi-wallet2 pe-1"></i> Pay with Advance
-                                </button>
-                            }
-                            
                             <button class="btn btn-sm btn-vscode py-0 px-2" @onclick="async () => await StartPayment(context)" @onclick:stopPropagation="true" style="font-size: 10px;">
                                 <i class="bi bi-credit-card pe-1"></i> Pay Now
                             </button>
+
+                            @if (CreditAvailable >= GetTotalAmount(context))
+                            {
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2" 
+                                        disabled="@(_processingInvoiceIds.Contains(context.InvoiceId))"
+                                        @onclick="async () => await HandlePayWithAdvance(context)" 
+                                        @onclick:stopPropagation="true" 
+                                        style="font-size: 10px;" 
+                                        title="Pay using your advance credit">
+                                    @if (_processingInvoiceIds.Contains(context.InvoiceId))
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Processing...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-wallet2 pe-1"></i>
+                                        <span>Pay with Advance</span>
+                                    }
+                                </button>
+                            }
                         }
+                        <button class="btn btn-sm btn-link p-0 text-primary" @onclick="() => ShowDetails(context)" @onclick:stopPropagation="true" title="View Breakdown">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-link p-0 text-info" @onclick="() => BillingService.LoadHistoryAsync(context)" @onclick:stopPropagation="true" title="Transaction History">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
+                        <button class="btn btn-sm btn-link p-0 text-danger" @onclick="() => BillingService.DownloadInvoicePdfAsync(context.InvoiceId)" @onclick:stopPropagation="true" title="Download PDF Invoice">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </button>
                     </div>
                 </GridColumn>
             </Grid>
@@ -138,21 +162,38 @@
                         }
                     </div>
                     <div class="mobile-card-footer">
-                        <button class="btn btn-sm btn-vscode-outline" @onclick="() => ShowDetails(invoice)">
-                            <i class="bi bi-info-circle"></i> View
-                        </button>
                         @if (invoice.Status != "Paid")
                         {
-                            @if (CreditAvailable >= total)
-                            {
-                                <button class="btn btn-sm btn-success" @onclick="async () => await OnPayWithAdvance.InvokeAsync(invoice)">
-                                    <i class="bi bi-wallet2"></i> Pay (Adv)
-                                </button>
-                            }
                             <button class="btn btn-sm btn-vscode" @onclick="async () => await StartPayment(invoice)">
                                 <i class="bi bi-credit-card"></i> Pay Now
                             </button>
+                            @if (CreditAvailable >= total)
+                            {
+                                <button class="btn btn-sm btn-success" 
+                                        disabled="@(_processingInvoiceIds.Contains(invoice.InvoiceId))"
+                                        @onclick="async () => await HandlePayWithAdvance(invoice)">
+                                    @if (_processingInvoiceIds.Contains(invoice.InvoiceId))
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Wait...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-wallet2"></i>
+                                        <span>Pay (Adv)</span>
+                                    }
+                                </button>
+                            }
                         }
+                        <button class="btn btn-sm btn-vscode-outline" @onclick="() => ShowDetails(invoice)">
+                            <i class="bi bi-info-circle"></i> View
+                        </button>
+                        <button class="btn btn-sm btn-link p-0 text-info" @onclick="() => BillingService.LoadHistoryAsync(invoice)" title="Transaction History">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
+                        <button class="btn btn-sm btn-link p-0 text-danger" @onclick="() => BillingService.DownloadInvoicePdfAsync(invoice.InvoiceId)" title="Download PDF Invoice">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </button>
                     </div>
                 </div>
             }
@@ -229,6 +270,12 @@
 
     private Grid<Invoice> _grid = default!;
     private Invoice? _selectedInvoice;
+    private HashSet<int> _processingInvoiceIds = new();
+
+    protected override void OnInitialized()
+    {
+        RegisterStateService(BillingService);
+    }
 
     public async Task RefreshAsync()
     {
@@ -254,6 +301,25 @@
         if (OnPayNow.HasDelegate)
         {
             await OnPayNow.InvokeAsync(invoice);
+        }
+    }
+
+    private async Task HandlePayWithAdvance(Invoice invoice)
+    {
+        if (_processingInvoiceIds.Contains(invoice.InvoiceId)) return;
+
+        try
+        {
+            _processingInvoiceIds.Add(invoice.InvoiceId);
+            if (OnPayWithAdvance.HasDelegate)
+            {
+                await OnPayWithAdvance.InvokeAsync(invoice);
+            }
+        }
+        finally
+        {
+            _processingInvoiceIds.Remove(invoice.InvoiceId);
+            StateHasChanged();
         }
     }
 

@@ -29,21 +29,21 @@ public class GovernanceRepository : IGovernanceRepository
     public async Task<bool> UpdateProfileAsync(AssociationProfile profile)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("@AssociationId", profile.AssociationId);
+        parameters.Add("@RegistrationNumber", profile.RegistrationNumber);
+        parameters.Add("@RegistrationDate", profile.RegistrationDate);
+        parameters.Add("@Address", profile.Address);
+        parameters.Add("@City", profile.City);
+        parameters.Add("@State", profile.State);
+        parameters.Add("@Pincode", profile.Pincode);
+        parameters.Add("@ContactEmail", profile.ContactEmail);
+        parameters.Add("@ContactPhone", profile.ContactPhone);
+        parameters.Add("@Logo", profile.Logo, DbType.Binary);
+
         return await connection.ExecuteAsync(
             "assoc.sp_AssociationProfile_Upsert",
-            new
-            {
-                profile.AssociationId,
-                profile.RegistrationNumber,
-                profile.RegistrationDate,
-                profile.Address,
-                profile.City,
-                profile.State,
-                profile.Pincode,
-                profile.ContactEmail,
-                profile.ContactPhone,
-                profile.Logo
-            },
+            parameters,
             commandType: CommandType.StoredProcedure) > 0;
     }
 

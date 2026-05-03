@@ -105,20 +105,24 @@ public class TariffController : ControllerBase
     {
         if (tariffs == null || !tariffs.Any()) return BadRequest(ApiResponse.FailureResponse("No assignments provided."));
         
-        foreach (var t in tariffs)
-        {
-            await _tariffService.AssignTariffToAssetAsync(t);
-        }
+        await _tariffService.BulkAssignTariffsAsync(tariffs);
         
         await _auditService.LogAsync("Bulk Assign Tariffs", "Asset", tariffs.First().AssetId);
         return Ok(ApiResponse.SuccessResponse($"Assigned tariffs to {tariffs.Count} assets."));
+    }
+
+    [HttpGet("layers/{layerId}/available-assets")]
+    public async Task<IActionResult> GetAvailableAssetsForLayer(int layerId, [FromQuery] int associationId)
+    {
+        var assets = await _tariffService.GetAvailableAssetsForLayerAsync(associationId, layerId);
+        return Ok(ApiResponse<IEnumerable<Asset>>.SuccessResponse(assets));
     }
 
     [HttpDelete("assets/{assetId}/layers/{layerId}")]
     [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> RemoveTariff(int assetId, int layerId)
     {
-        await _tariffService.RemoveTariffFromAssetAsync(assetId, layerId);
+        await _tariffService.UnassignTariffFromAssetAsync(assetId, layerId);
         await _auditService.LogAsync("Remove Tariff from Asset", "Asset", assetId);
         return Ok(ApiResponse.SuccessResponse("Tariff removed from asset."));
     }

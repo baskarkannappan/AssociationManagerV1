@@ -8,22 +8,23 @@
 @inject BillingStateService BillingState
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ApiService ApiService
+@inject IAppAuthorizationService AuthService
 @inject ToastService _toastService
 
 <div class="h-100 d-flex flex-column bg-white forced-text-dark">
     <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
     <div class="flex-grow-1 d-flex overflow-hidden">
-        <!-- Sidebar: Recent/Payment Activity -->
-        <PaymentHistoryPanel />
-
         <!-- Main Content Area -->
         <div class="flex-grow-1 d-flex flex-column" style="min-width: 0;">
             <div class="premium-tab-container-wrapper px-4 pt-3">
                 <div class="premium-tab-container border-bottom-0 pb-0">
                     <div class="premium-tab @(BillingState.ActiveTab == "invoices" ? "active" : "")" @onclick='() => BillingState.ActiveTab = "invoices"'>Invoices</div>
                     <AuthorizeView Policy="RequireManagement">
-                        <div class="premium-tab @(BillingState.ActiveTab == "generation" ? "active" : "")" @onclick='() => BillingState.ActiveTab = "generation"'>Batch Generation</div>
+                        @if (_canManageGeneration)
+                        {
+                            <div class="premium-tab @(BillingState.ActiveTab == "generation" ? "active" : "")" @onclick='() => BillingState.ActiveTab = "generation"'>Batch Generation</div>
+                        }
                     </AuthorizeView>
                 </div>
             </div>
@@ -33,11 +34,6 @@
                 {
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="mb-0 fw-bold">Financial History</h5>
-                        <AuthorizeView Policy="RequireManagement">
-                            <button class="btn btn-sm btn-vscode px-3" @onclick="() => BillingState.ShowCreateInvoiceModal = true">
-                                <i class="bi bi-plus-circle me-1"></i> Manual Invoice
-                            </button>
-                        </AuthorizeView>
                     </div>
                     <InvoiceGrid @ref="_invoiceGrid"
                                  OnInitiatePayment="OnInvoicePayNow" 
@@ -45,19 +41,21 @@
                                  OnRecordManualPayment="OnManualPayClicked"
                                  OnDownloadInvoice="OnDownloadPdf" />
                 }
-                else
+                else if (_canManageGeneration)
                 {
                     <BatchGenerator />
+                }
+                else
+                {
+                    <div class="p-5 text-center text-muted opacity-50">
+                        <i class="bi bi-lock-fill display-1 mb-3"></i>
+                        <p>You do not have permission to access batch generation.</p>
+                    </div>
                 }
             </div>
         </div>
     </div>
 </div>
-
-@if (BillingState.ShowCreateInvoiceModal)
-{
-    <CreateInvoiceModal />
-}
 
 @if (BillingState.ShowTransactionHistory && BillingState.TargetInvoiceId != 0)
 {
@@ -77,6 +75,7 @@
 @code {
     private RazorpayCheckout _razorpayCheckout = default!;
     private InvoiceGrid _invoiceGrid = default!;
+    private bool _canManageGeneration;
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,7 +86,17 @@
             new AppBreadcrumbItem { Text = "Finance", IsActive = true }
         });
 
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Finance");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         await BillingState.InitializeAsync();
+        
+        _canManageGeneration = await AuthService.EvaluateRuleAsync(authState.User, "BillingRule_ManageGeneration");
     }
 
     protected override async Task OnParametersSetAsync()

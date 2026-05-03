@@ -1,6 +1,9 @@
-@using AssociationManager.Client.Services
 @using AssociationManager.Client.Components.Dashboard.Widgets
+@using AssociationManager.Client.Components.Billing
+@using AssociationManager.Client.Components.Base
+@inherits StatefulComponentBase
 @inject DashboardStateService DashboardService
+@inject BillingStateService BillingService
 @inject ITenantContext TenantContext
 
 <div class="resident-dashboard p-3 animate-fade-in">
@@ -93,12 +96,22 @@
     </div>
 </div>
 
+@if (BillingService.ShowTransactionHistory && BillingService.TargetInvoiceId != 0)
+{
+    <TransactionHistoryModal />
+}
+
 @code {
     [Parameter] public EventCallback OnTopUpClicked { get; set; }
     [Parameter] public EventCallback<Invoice> OnPayNow { get; set; }
     [Parameter] public EventCallback<Invoice> OnPayWithAdvance { get; set; }
 
     private InvoiceList _invoiceList = default!;
+
+    protected override void OnInitialized()
+    {
+        RegisterStateService(BillingService);
+    }
 
     public async Task RefreshInvoiceListAsync()
     {

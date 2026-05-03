@@ -1,4 +1,4 @@
-﻿-- Update sp_TariffLayers_Create
+﻿-- 11. sp_TariffLayers_Create
 CREATE   PROCEDURE sp_TariffLayers_Create
     @TariffGroupId INT,
     @TenantId INT,
@@ -11,6 +11,7 @@ CREATE   PROCEDURE sp_TariffLayers_Create
 AS
 BEGIN
     INSERT INTO TariffLayers (TariffGroupId, TenantId, AssociationId, Name, BaseRate, Frequency, CalculationType, AccountingCategory)
-    OUTPUT INSERTED.TariffLayerId
     VALUES (@TariffGroupId, @TenantId, @AssociationId, @Name, @BaseRate, @Frequency, @CalculationType, @AccountingCategory);
+
+    SELECT SCOPE_IDENTITY();
 END

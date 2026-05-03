@@ -4,4 +4,3 @@ BEGIN
     SELECT * FROM assoc.Vehicles 
     WHERE AssetId = @AssetId AND AssociationId = @AssociationId; 
 END
-GO

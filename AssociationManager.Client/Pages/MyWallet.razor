@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject ApiService ApiService
 @inject NavigationManager Navigation
+@inject IAppAuthorizationService AuthService
 @inject BlazorBootstrap.ToastService ToastService
 @inject AuthenticationStateProvider AuthStateProvider
 @attribute [Authorize(Policy = "RequireResident")]
@@ -335,6 +336,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Wallet");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         await LoadBalance();
     }
 }

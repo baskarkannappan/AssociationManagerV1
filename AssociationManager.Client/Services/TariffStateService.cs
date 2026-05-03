@@ -38,11 +38,11 @@ namespace AssociationManager.Client.Services
 
         // State
         public string Scope { get; private set; } = "tenant";
-        public List<TariffGroup>? Groups { get; private set; }
-        public TariffGroup? SelectedGroup { get; private set; }
+        public List<TariffGroup>? Groups { get; set; }
+        public TariffGroup? SelectedGroup { get; set; }
         public int SelectedLayerId { get; set; }
-        public List<TariffLayer>? Layers { get; private set; }
-        public List<AssetTariff>? AssignedAssets { get; private set; }
+        public List<TariffLayer>? Layers { get; set; }
+        public List<AssetTariff>? AssignedAssets { get; set; }
         public List<Asset>? AllPossibleAssets { get; private set; }
         
         public string GroupFilter { get; set; } = "";
@@ -199,24 +199,31 @@ namespace AssociationManager.Client.Services
                 return;
             }
 
-            await LoadAllPossibleAssetsAsync();
-            
             // TARGETED FETCH: Optimized to current layer
             var assignments = await _api.GetAsync<List<AssetTariff>>($"api/tariff/layers/{layerId}/assignments?associationId={_tenantContext.AssociationId}");
-            if (assignments != null && AllPossibleAssets != null)
-            {
-                foreach (var a in assignments)
-                {
-                    var asset = AllPossibleAssets.FirstOrDefault(x => x.AssetId == a.AssetId);
-                    if (asset != null) a.AssetName = asset.Name;
-                }
-                AssignedAssets = assignments;
-            }
-            else
-            {
-                AssignedAssets = new List<AssetTariff>();
-            }
+            
+            // Even if we don't have all assets loaded yet, we can show what we have. 
+            // The chips will update names once LoadAllPossibleAssetsAsync finishes if needed, 
+            // but assignments usually return names already from the SP join.
+            AssignedAssets = assignments ?? new List<AssetTariff>();
             NotifyStateChanged();
+        }
+
+        public async Task<bool> AssignTariffsBulkAsync(IEnumerable<AssetTariff> assignments)
+        {
+            var success = await _api.PostAsync("api/tariff/assets/bulk-assign", assignments);
+            if (success)
+            {
+                NotifyStateChanged();
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<List<Asset>> GetAvailableAssetsForLayerAsync(int layerId)
+        {
+            return await _api.GetAsync<List<Asset>>($"api/tariff/layers/{layerId}/available-assets?associationId={_tenantContext.AssociationId}") 
+                   ?? new List<Asset>();
         }
 
         public async Task LoadAllPossibleAssetsAsync()
@@ -226,10 +233,11 @@ namespace AssociationManager.Client.Services
             var aid = _tenantContext.AssociationId;
             if (aid != 0)
             {
-                var assets = await _api.GetAsync<List<Asset>>($"api/assets/hierarchy?associationId={aid}");
+                // Fix: Call flat list API instead of hierarchy roots
+                var assets = await _api.GetAsync<List<Asset>>($"api/assets?associationId={aid}");
                 if (assets != null)
                 {
-                    AllPossibleAssets = Flatten(assets)
+                    AllPossibleAssets = assets
                         .Where(a => a.AssetType == AssetType.Unit || a.AssetType == AssetType.Villa || a.AssetType == AssetType.Property)
                         .ToList();
                 }

@@ -11,6 +11,10 @@
 @inject ApiService ApiService
 @inject ToastService _toastService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IAppAuthorizationService AuthService
+@inject RealtimeService RealtimeService
+@inject AssociationManager.Shared.Interfaces.ITenantContext TenantContext
+@implements IDisposable
 
 <RazorpayCheckout @ref="_razorpayCheckout" OnPaymentSuccess="OnPaymentProcessed" OnPaymentFailed="OnPaymentFailed" />
 
@@ -20,9 +24,7 @@
             <div class="flex-grow-1 d-flex overflow-hidden @(AssetState.ShowDetailOnMobile ? "mobile-detail-active" : "")">
                 <!-- Asset Tree Pane -->
                 <div class="asset-tree-wrapper @(AssetState.IsSidebarCollapsed ? "collapsed" : "") @(AssetState.ShowDetailOnMobile ? "d-none d-lg-block" : "w-explorer")" style="flex-shrink: 0;">
-                    <AssetTree Hierarchy="AssetState.Hierarchy" 
-                               SelectedAsset="AssetState.SelectedAsset" 
-                               ExpandedIds="AssetState.ExpandedIds" 
+                    <AssetTree SelectedAsset="AssetState.SelectedAsset" 
                                CanManage="AssetState.CanManageAssets"
                                OnSelected="AssetState.SelectAssetAsync" 
                                OnToggleExpand="AssetState.ToggleExpand"
@@ -109,6 +111,22 @@
 
     [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
+    protected override async Task OnParametersSetAsync()
+    {
+        // Re-join SignalR group if AssociationId changes
+        if (_lastAssociationId != TenantContext.AssociationId)
+        {
+            if (_lastAssociationId != 0)
+            {
+                await RealtimeService.LeaveAssociationGroupAsync(_lastAssociationId);
+            }
+            _lastAssociationId = TenantContext.AssociationId;
+            await RealtimeService.JoinAssociationGroupAsync(_lastAssociationId);
+        }
+    }
+
+    private int _lastAssociationId;
+
     protected override async Task OnInitializedAsync()
     {
         RegisterStateService(AssetState);
@@ -119,7 +137,37 @@
 
         await AssetState.InitializePermissionsAsync();
         var authState = await AuthStateTask;
-        if (authState.User.Identity?.IsAuthenticated == true) await AssetState.LoadHierarchyAsync();
+        
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Assets");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        if (authState.User.Identity?.IsAuthenticated == true) 
+    {
+        await AssetState.LoadHierarchyAsync();
+        RealtimeService.OnHierarchyChanged += OnHierarchyChanged;
+        RealtimeService.OnReconnected += OnHierarchyChanged;
+        _lastAssociationId = TenantContext.AssociationId;
+        await RealtimeService.JoinAssociationGroupAsync(_lastAssociationId);
+    }
+    }
+
+    private async void OnHierarchyChanged()
+    {
+        await InvokeAsync(async () => {
+            await AssetState.LoadHierarchyAsync();
+            StateHasChanged();
+        });
+    }
+
+    public override void Dispose()
+    {
+        RealtimeService.OnHierarchyChanged -= OnHierarchyChanged;
+        RealtimeService.OnReconnected -= OnHierarchyChanged;
+        base.Dispose();
     }
 
     private async Task HandleBulkSubmit(BulkCreateRequest request)
@@ -128,8 +176,8 @@
         var success = await ApiService.PostAsync("api/assets/bulk", request);
         if (success)
         {
-            _toastService.Notify(new(ToastType.Success, "Bulk asset creation complete."));
-            await AssetState.LoadHierarchyAsync();
+            _toastService.Notify(new(ToastType.Info, "Bulk asset creation started. The explorer will refresh automatically when complete."));
+            // No need to call LoadHierarchyAsync here, the background job will notify us
         }
     }
 

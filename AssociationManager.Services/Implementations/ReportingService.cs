@@ -21,9 +21,4 @@ public class ReportingService : IReportingService
     {
         return await _reportingRepository.GetFinancialMetricsAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
     }
-
-    public async Task<FinancialMetricsReport> GetFinancialMetricsV2Async()
-    {
-        return await _reportingRepository.GetFinancialMetricsV2Async(_tenantContext.TenantId, _tenantContext.AssociationId);
-    }
 }

@@ -133,6 +133,13 @@
         bool isManagement = await RuleEngine.EvaluateRuleAsync("RequireManagement", securityContext);
         _isResident = await RuleEngine.EvaluateRuleAsync("IsResident", securityContext);
         _isSystemAdmin = await RuleEngine.EvaluateRuleAsync("RequireAdmin", securityContext);
+        
+        // Ensure valid tenant context upon entry
+        if (TenantContext.TenantId == 0 && !_isSystemAdmin)
+        {
+            Navigation.NavigateTo("/context-selection");
+            return;
+        }
 
         if (TenantContext.AssociationId != 0 || _isSystemAdmin)
         {

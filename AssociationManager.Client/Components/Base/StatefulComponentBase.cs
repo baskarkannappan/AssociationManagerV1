@@ -29,19 +29,21 @@ namespace AssociationManager.Client.Components.Base
         }
 
         // Standard subscription helper for our State Services
-        protected void RegisterStateService(params dynamic[] services)
+        protected void RegisterStateService(params object[] services)
         {
             foreach (var service in services)
             {
                 try 
                 {
-                    // Check if service has an OnChange event
                     var eventInfo = service.GetType().GetEvent("OnChange");
                     if (eventInfo != null)
                     {
+                        // Create a delegate that matches the event type exactly
                         Action handler = () => InvokeAsync(StateHasChanged);
-                        eventInfo.AddEventHandler(service, handler);
-                        _subscriptions.Add(() => eventInfo.RemoveEventHandler(service, handler));
+                        var delegateHandler = Delegate.CreateDelegate(eventInfo.EventHandlerType!, handler.Target, handler.Method);
+                        
+                        eventInfo.AddEventHandler(service, delegateHandler);
+                        _subscriptions.Add(() => eventInfo.RemoveEventHandler(service, delegateHandler));
                     }
                 }
                 catch (Exception ex)

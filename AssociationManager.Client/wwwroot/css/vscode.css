@@ -141,10 +141,24 @@ body {
 /* EXPLORER */
 .vscode-explorer {
     width: 230px;
+    height: 100%;
     background: var(--vscode-explorer-bg);
     border-right: 1px solid var(--vscode-border);
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* Main container hidden, children will scroll */
+}
+
+.vscode-explorer-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.vscode-explorer-footer {
+    border-top: 1px solid var(--vscode-border);
+    padding: 8px 0;
+    flex-shrink: 0;
+    background: var(--vscode-explorer-bg);
 }
 
 .vscode-explorer-header {

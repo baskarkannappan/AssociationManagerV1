@@ -7,4 +7,3 @@ BEGIN
     LEFT JOIN assoc.Assets a ON b.AssetId = a.AssetId
     WHERE b.BroadcastId = @Id AND b.AssociationId = @AssociationId;
 END
-GO

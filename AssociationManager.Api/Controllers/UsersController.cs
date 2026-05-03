@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AssociationManager.Api.Controllers;
@@ -52,14 +53,19 @@ public class UsersController : ControllerBase
 
         var result = await _userRepository.GetPagedAsync(criteria);
 
-        // ENRICHMENT: Update balance with "Smart" values including virtual fines/penalties
-        foreach (var user in result.Items)
+        // 2. ENRICHMENT: Update balance with "Smart" values including virtual fines/penalties
+        if (result.Items != null && result.Items.Any() && criteria.AssociationId.HasValue)
         {
-            // Fetch unified financial summary for this user in the current association
-            var finSummary = await _financeService.GetFinanceSummaryAsync(associationId: criteria.AssociationId, userId: user.UserId);
-            
-            // Balance = Total Outstanding (incl. fines) - Advance Credits (Wallet)
-            user.Balance = finSummary.TotalUnpaid - finSummary.TotalAdvanceCredits;
+            var userIds = result.Items.Select(u => u.UserId).ToList();
+            var balances = (await _financeService.GetUsersBalancesAsync(criteria.AssociationId.Value, userIds)).ToDictionary(b => b.UserId);
+
+            foreach (var user in result.Items)
+            {
+                if (balances.TryGetValue(user.UserId, out var finSummary))
+                {
+                    user.Balance = finSummary.TotalUnpaid - finSummary.TotalAdvanceCredits;
+                }
+            }
         }
 
         return Ok(ApiResponse<PagedResult<User>>.SuccessResponse(result));

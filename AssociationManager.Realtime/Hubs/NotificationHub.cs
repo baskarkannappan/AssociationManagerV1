@@ -19,5 +19,15 @@ namespace AssociationManager.Realtime.Hubs
         {
             await Clients.Group($"Tenant_{tenantId}").SendAsync("ReceiveNotification", message);
         }
+
+        public async Task JoinAssociationGroup(int associationId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"Association_{associationId}");
+        }
+
+        public async Task LeaveAssociationGroup(int associationId)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"Association_{associationId}");
+        }
     }
 }

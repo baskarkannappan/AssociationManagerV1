@@ -20,13 +20,15 @@ public class PeopleController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly IRuleEngineService _ruleEngine;
     private readonly ITenantContext _tenantContext;
+    private readonly ILogger<PeopleController> _logger;
 
-    public PeopleController(IPeopleService peopleService, IAuditService auditService, IRuleEngineService ruleEngine, ITenantContext tenantContext)
+    public PeopleController(IPeopleService peopleService, IAuditService auditService, IRuleEngineService ruleEngine, ITenantContext tenantContext, ILogger<PeopleController> logger)
     {
         _peopleService = peopleService;
         _auditService = auditService;
         _ruleEngine = ruleEngine;
         _tenantContext = tenantContext;
+        _logger = logger;
     }
 
     private async Task<bool> IsAuthorizedForAsset(int assetId, string action = "Manage")
@@ -52,7 +54,15 @@ public class PeopleController : ControllerBase
 
         // 3. Evaluate Rule via Rule Engine
         string workflowName = action == "Manage" ? "CanManageAsset" : "CanViewAsset";
-        return await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
+        var result = await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
+
+        if (!result)
+        {
+            _logger.LogWarning("[People] Authorization failed for user {UserId} on asset {AssetId} for action {Action}. Level: {UserLevel}, Primary: {IsPrimary}", 
+                _tenantContext.UserId, assetId, action, securityContext.UserLevel, securityContext.IsPrimaryResident);
+        }
+
+        return result;
     }
 
     [HttpGet("can-manage-unit/{assetId}")]

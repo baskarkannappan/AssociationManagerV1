@@ -1,4 +1,5 @@
-CREATE PROCEDURE assoc.sp_Invoices_GetPaged
+﻿-- 3. Fix Invoices GetPaged Summary
+CREATE   PROCEDURE assoc.sp_Invoices_GetPaged
     @TenantId INT,
     @AssociationId INT = NULL,
     @AssetId INT = NULL,
@@ -11,79 +12,49 @@ CREATE PROCEDURE assoc.sp_Invoices_GetPaged
     @PageSize INT = 10,
     @SortColumn NVARCHAR(50) = 'CreatedDate',
     @SortDirection NVARCHAR(10) = 'DESC',
-    @IncludeDraft BIT = 0
+    @IncludeDraft BIT = 0,
+    @ReferenceId INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
-    
     DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
-    
-    IF @SortColumn NOT IN ('Title', 'Amount', 'DueDate', 'Status', 'CreatedDate', 'AssetName')
-        SET @SortColumn = 'CreatedDate';
-    
-    IF @SortDirection NOT IN ('ASC', 'DESC')
-        SET @SortDirection = 'DESC';
+    IF @SortColumn NOT IN ('Title', 'Amount', 'DueDate', 'Status', 'CreatedDate', 'AssetName') SET @SortColumn = 'CreatedDate';
+    IF @SortDirection NOT IN ('ASC', 'DESC') SET @SortDirection = 'DESC';
 
     ;WITH FilteredInvoices AS (
         SELECT 
-            i.*,
+            i.InvoiceId, i.TenantId, i.AssociationId, i.AssetId, i.BillingBatchId, i.Title, i.Description, 
+            i.Amount, i.IsAdvancePaid,
+            i.DueDate, i.Status, i.CreatedDate,
             a.Name AS AssetName,
             CAST(COUNT(*) OVER() AS INT) as TotalCount,
-            CAST(SUM(CASE WHEN LTRIM(RTRIM(i.Status)) IN ('Unpaid', 'unpaid', 'Partial', 'partial') 
-                 THEN (CASE WHEN i.Amount > lt.PrincipalLineSum THEN i.Amount ELSE lt.PrincipalLineSum END) + lt.PenaltyLineSum
-                 ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
-        FROM assoc.Invoices i
-        LEFT JOIN assoc.Assets a ON i.AssetId = a.AssetId
+            CAST(SUM(CASE WHEN i.Status NOT IN ('Paid', 'Cancelled', 'Void', 'Draft') THEN (i.Amount + ISNULL(fines.TotalFines, 0)) ELSE 0 END) OVER() AS DECIMAL(18,2)) as TotalUnpaid
+        FROM assoc.Invoices i WITH (NOLOCK)
+        LEFT JOIN assoc.Assets a WITH (NOLOCK) ON i.AssetId = a.AssetId
         OUTER APPLY (
-            SELECT 
-                ISNULL(SUM(CASE WHEN li.ChargeName NOT LIKE '%Penalty%' AND li.ChargeName NOT LIKE '%Fine%' THEN li.Amount ELSE 0 END), 0) as PrincipalLineSum,
-                ISNULL(SUM(CASE WHEN li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%' THEN li.Amount ELSE 0 END), 0) as PenaltyLineSum
-            FROM assoc.InvoiceLineItems li
-            WHERE li.InvoiceId = i.InvoiceId
-        ) lt
+            SELECT SUM(li.Amount) as TotalFines 
+            FROM assoc.InvoiceLineItems li WITH (NOLOCK) 
+            WHERE li.InvoiceId = i.InvoiceId 
+            AND (li.ChargeName LIKE '%Penalty%' OR li.ChargeName LIKE '%Fine%' OR li.ChargeName LIKE '%Late%' OR li.ChargeName LIKE '%Interest%')
+        ) fines
         WHERE i.TenantId = @TenantId
         AND (@AssociationId IS NULL OR i.AssociationId = @AssociationId)
         AND (@AssetId IS NULL OR i.AssetId = @AssetId)
         AND (@AssetIds IS NULL OR i.AssetId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(@AssetIds, ',')))
         AND (@Status IS NULL OR i.Status = @Status)
-        AND (@IncludeDraft = 1 OR i.Status != 'Draft')
+        AND (@IncludeDraft = 1 OR i.Status NOT IN ('Draft', 'Error'))
         AND (@SearchTerm IS NULL OR i.Title LIKE '%' + @SearchTerm + '%' OR a.Name LIKE '%' + @SearchTerm + '%')
         AND (@StartDate IS NULL OR i.CreatedDate >= @StartDate)
         AND (@EndDate IS NULL OR i.CreatedDate <= @EndDate)
+        AND (@ReferenceId IS NULL OR (@SortDirection = 'DESC' AND i.InvoiceId < @ReferenceId) OR (@SortDirection = 'ASC' AND i.InvoiceId > @ReferenceId))
     )
-    SELECT 
-        * 
-    FROM FilteredInvoices
+    SELECT * FROM FilteredInvoices
     ORDER BY 
-        CASE WHEN @SortDirection = 'ASC' THEN
-            CASE 
-                WHEN @SortColumn = 'Title' THEN Title
-                WHEN @SortColumn = 'Status' THEN Status
-                WHEN @SortColumn = 'AssetName' THEN AssetName
-            END
-        END ASC,
-        CASE WHEN @SortDirection = 'DESC' THEN
-            CASE 
-                WHEN @SortColumn = 'Title' THEN Title
-                WHEN @SortColumn = 'Status' THEN Status
-                WHEN @SortColumn = 'AssetName' THEN AssetName
-            END
-        END DESC,
-        CASE WHEN @SortDirection = 'ASC' THEN
-            CASE 
-                WHEN @SortColumn = 'Amount' THEN Amount
-                WHEN @SortColumn = 'DueDate' THEN CAST(DueDate AS SQL_VARIANT)
-                WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT)
-            END
-        END ASC,
-        CASE WHEN @SortDirection = 'DESC' THEN
-            CASE 
-                WHEN @SortColumn = 'Amount' THEN Amount
-                WHEN @SortColumn = 'DueDate' THEN CAST(DueDate AS SQL_VARIANT)
-                WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT)
-            END
-        END DESC
-    OFFSET @Offset ROWS
+        CASE WHEN @SortDirection = 'ASC' THEN CASE WHEN @SortColumn = 'Title' THEN Title WHEN @SortColumn = 'Status' THEN Status WHEN @SortColumn = 'AssetName' THEN AssetName END END ASC,
+        CASE WHEN @SortDirection = 'DESC' THEN CASE WHEN @SortColumn = 'Title' THEN Title WHEN @SortColumn = 'Status' THEN Status WHEN @SortColumn = 'AssetName' THEN AssetName END END DESC,
+        CASE WHEN @SortDirection = 'ASC' THEN CASE WHEN @SortColumn = 'Amount' THEN Amount WHEN @SortColumn = 'DueDate' THEN CAST(DueDate AS SQL_VARIANT) WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT) END END ASC,
+        CASE WHEN @SortDirection = 'DESC' THEN CASE WHEN @SortColumn = 'Amount' THEN Amount WHEN @SortColumn = 'DueDate' THEN CAST(DueDate AS SQL_VARIANT) WHEN @SortColumn = 'CreatedDate' THEN CAST(CreatedDate AS SQL_VARIANT) END END DESC
+    OFFSET (CASE WHEN @ReferenceId IS NOT NULL THEN 0 ELSE @Offset END) ROWS
     FETCH NEXT @PageSize ROWS ONLY
-    OPTION (RECOMPILE); -- Solve parameter sniffing issues for optional filters
-END;
+    OPTION (RECOMPILE); 
+END

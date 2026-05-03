@@ -6,5 +6,4 @@ namespace AssociationManager.Services.Interfaces;
 public interface IReportingService
 {
     Task<FinancialMetricsReport> GetFinancialMetricsAsync();
-    Task<FinancialMetricsReport> GetFinancialMetricsV2Async();
 }

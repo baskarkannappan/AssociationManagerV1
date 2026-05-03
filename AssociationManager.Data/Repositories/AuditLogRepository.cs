@@ -53,6 +53,15 @@ public class AuditLogRepository : IAuditLogRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<IEnumerable<AuditLog>> GetRecentByTenantIdAsync(int tenantId, int associationId, int count)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryAsync<AuditLog>(
+            "corp.sp_AuditLogs_GetRecent", 
+            new { TenantId = tenantId, AssociationId = associationId, Count = count },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<IEnumerable<AuditLog>> GetByAssetIdAsync(int assetId, int tenantId, int associationId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
@@ -60,5 +69,34 @@ public class AuditLogRepository : IAuditLogRepository
             "assoc.sp_AuditLogs_GetByAssetId", 
             new { AssetId = assetId, TenantId = tenantId, AssociationId = associationId },
             commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<bool> CreateBulkAsync(int tenantId, int associationId, int userId, IEnumerable<AuditLog> logs)
+    {
+        var dt = new DataTable();
+        dt.Columns.Add("AssetId", typeof(int));
+        dt.Columns.Add("Action", typeof(string));
+        dt.Columns.Add("Entity", typeof(string));
+        dt.Columns.Add("EntityId", typeof(int));
+        dt.Columns.Add("Timestamp", typeof(DateTime));
+
+        foreach (var log in logs)
+        {
+            dt.Rows.Add(log.AssetId, log.Action, log.Entity, log.EntityId, log.Timestamp);
+        }
+
+        using var connection = _dbConnectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "assoc.sp_AuditLogs_CreateBulk",
+            new
+            {
+                TenantId = tenantId,
+                AssociationId = associationId,
+                UserId = userId,
+                Logs = dt.AsTableValuedParameter("assoc.typ_AuditLogBatch")
+            },
+            commandType: CommandType.StoredProcedure);
+
+        return true;
     }
 }

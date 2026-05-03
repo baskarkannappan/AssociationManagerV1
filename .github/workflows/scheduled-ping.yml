@@ -1,0 +1,23 @@
+name: Scheduled API Ping
+
+on:
+  schedule:
+    # Run at 12:55 AM UTC every day to wake up the container for the 1:00 AM Cron
+    - cron: '55 0 * * *'
+    # Run at 2:55 AM UTC to wake up for 3:00 AM Archiving
+    - cron: '55 2 * * *'
+    # Run just before 00:30, 10:30, 12:30, 18:30 UTC for Email dispatch
+    - cron: '25 0,10,12,18 * * *'
+    # Run at 55 past every hour to wake up for the Hourly Balance Sync
+    - cron: '55 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API Endpoint
+        run: |
+          # Wake up the gateway to trigger the API container
+          curl -sS https://assocmgr-dev-gateway.yellowmoss-1aeb0444.centralindia.azurecontainerapps.io/ > /dev/null
+          echo "Pinged gateway successfully to wake up containers."

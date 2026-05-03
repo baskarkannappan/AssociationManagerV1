@@ -18,7 +18,23 @@
 );
 
 
+
+
+
+
 GO
 CREATE NONCLUSTERED INDEX [IX_WorkOrders_AssociationId]
     ON [assoc].[WorkOrders]([AssociationId] ASC);
 
+GO
+CREATE NONCLUSTERED INDEX [IX_WorkOrders_TenantId]
+    ON [assoc].[WorkOrders]([TenantId] ASC);
+
+GO
+CREATE NONCLUSTERED INDEX [IX_WorkOrders_Status]
+    ON [assoc].[WorkOrders]([Status] ASC);
+
+
+
+GO
+CREATE   TRIGGER assoc.tr_WorkOrders_SyncDashboard ON assoc.WorkOrders AFTER INSERT, UPDATE, DELETE AS BEGIN SET NOCOUNT ON; DECLARE @Aid INT; SELECT TOP 1 @Aid = AssociationId FROM (SELECT AssociationId FROM inserted UNION SELECT AssociationId FROM deleted) x; IF @Aid IS NOT NULL EXEC assoc.sp_AssociationBalances_Sync @AssociationId = @Aid; END;

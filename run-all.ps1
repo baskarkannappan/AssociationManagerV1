@@ -11,7 +11,7 @@ Stop-Process -Name "AssociationManager.Realtime" -Force
 Stop-Process -Name "AssociationManager.Gateway" -Force
 Stop-Process -Name "AssociationManager.Client" -Force
 Stop-Process -Name "AssociationManager.Corporate.Client" -Force
-Stop-Process -Name "AssociationManager.Worker" -Force
+# Stop-Process -Name "AssociationManager.Worker" -Force
 
 Write-Host "--- Building Core Projects ---" -ForegroundColor Cyan
 $projects = @(
@@ -20,7 +20,6 @@ $projects = @(
     "AssociationManager.Corporate.Api\AssociationManager.Corporate.Api.csproj",
     "AssociationManager.Client\AssociationManager.Client.csproj",
     "AssociationManager.Corporate.Client\AssociationManager.Corporate.Client.csproj",
-    "AssociationManager.Worker\AssociationManager.Worker.csproj",
     "AssociationManager.Database\AssociationManager.Database.csproj"
 )
 
@@ -63,21 +62,20 @@ Start-Process dotnet -ArgumentList "run --project AssociationManager.Api\Associa
 Write-Host "[2/5] Starting Corporate API (Port 7010)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Corporate.Api\AssociationManager.Corporate.Api.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
-# 4. Gateway
+# 3. Gateway
 Write-Host "[3/5] Starting API Gateway (Port 7000)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Gateway\AssociationManager.Gateway.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 5. Association Client
-Write-Host "[4/6] Starting Association Client (Port 7001)..."
+Write-Host "[4/5] Starting Association Client (Port 7001)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Client\AssociationManager.Client.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
 # 6. Corporate Client
-Write-Host "[5/6] Starting Corporate Client (Port 7011)..."
+Write-Host "[5/5] Starting Corporate Client (Port 7011)..."
 Start-Process dotnet -ArgumentList "run --project AssociationManager.Corporate.Client\AssociationManager.Corporate.Client.csproj --no-build --launch-profile https" -WindowStyle Minimized
 
-# 7. Background Worker (Hangfire Server)
-Write-Host "[6/6] Starting Background Worker (Hangfire Server)..."
-Start-Process dotnet -ArgumentList "run --project AssociationManager.Worker\AssociationManager.Worker.csproj --no-build" -WindowStyle Minimized
+# 7. Background Worker (Consolidated in API)
+# Start-Process dotnet -ArgumentList "run --project AssociationManager.Worker\AssociationManager.Worker.csproj --no-build" -WindowStyle Minimized
 
 Write-Host "`nInitialization complete!" -ForegroundColor Green
 Write-Host "Gateway:       https://localhost:7000"

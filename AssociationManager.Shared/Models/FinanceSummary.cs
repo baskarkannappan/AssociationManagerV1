@@ -6,3 +6,10 @@ public class FinanceSummary
     public decimal Collected30Days { get; set; }
     public decimal TotalAdvanceCredits { get; set; }
 }
+
+public class UserFinanceSummary
+{
+    public int UserId { get; set; }
+    public decimal TotalUnpaid { get; set; }
+    public decimal TotalAdvanceCredits { get; set; }
+}

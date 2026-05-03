@@ -1,54 +1,71 @@
-# Deployment Guide - AssociationManagerSaaS
+# AssociationManager Azure Deployment Playbook
 
-This guide outlines the steps required to deploy the AssociationManagerSaaS platform to production environments.
+This document serves as a reference for the successful deployment of the AssociationManager SaaS platform to Azure.
 
-## Infrastructure Requirements
-- **Web App Hosting**: Azure App Service, AWS Elastic Beanstalk, or Kubernetes.
-- **Database**: Azure SQL, AWS RDS, or managed SQL Server.
-- **Redis**: Azure Cache for Redis, AWS ElastiCache, or managed Redis.
-- **Static Hosting**: Azure Static Web Apps, AWS S3/CloudFront, or Cloudflare Pages (for the Blazor WASM client).
+## 🏗️ Architecture Overview
+- **Frontend**: Azure Static Web Apps (SWA)
+- **Backend**: Azure Container Apps (ACA)
+- **Database**: Azure SQL (Serverless)
+- **Secrets**: Azure Key Vault
+- **Registry**: Azure Container Registry (ACR)
 
-## 1. Database Deployment
-1. **Provision SQL Server**: Create a new database instance.
-2. **Run Migrations**: Deploy and run the `AssociationManager.Database` executable against the production connection string.
-   ```bash
-   ./AssociationManager.Database --ConnectionStrings:DefaultConnection="your_connection_string"
-   ```
-3. **User Access**: Ensure the application user has `db_datareader`, `db_datawriter`, and `db_ddladmin` (for Hangfire) permissions.
+---
 
-## 2. Shared Infrastructure
-1. **Provision Redis**: Ensure the instance is accessible from the API and Worker roles.
-2. **Key Vault / Secrets**: Store production secrets (Connection Strings, JWT Keys, Google Client Secrets) in a secure vault.
+## 🚀 Critical Lessons Learned (The "Gotchas")
 
-## 3. Backend Deployment (Api, Gateway, Worker)
-1. **Publish Projects**:
-   ```bash
-   dotnet publish AssociationManager.Gateway -c Release -o ./publish/gateway
-   dotnet publish AssociationManager.Api -c Release -o ./publish/api
-   dotnet publish AssociationManager.Worker -c Release -o ./publish/worker
-   ```
-2. **Environment Variables**: Set the following environment variables in your hosting provider:
-   - `ConnectionStrings__DefaultConnection`
-   - `Redis__Configuration`
-   - `JwtSettings__Key`
-   - `GoogleSettings__ClientId`
-3. **Reverse Proxy Configuration**: In production, ensure the `AssociationManager.Gateway` (YARP) is configured to point to the internal URIs of the API services.
+### 1. The .NET 9 Port Mismatch
+**Issue**: .NET 8 and 9 images listen on port **8080** by default, but Azure Container Apps default to port **80**.
+**Fix**: Ensure `TargetPort` is set to `8080` in the Ingress settings.
+```powershell
+az containerapp ingress update --name <app-name> --resource-group <rg> --target-port 8080
+```
 
-## 4. Frontend Deployment (Client)
-1. **Publish Client**:
-   ```bash
-   dotnet publish AssociationManager.Client -c Release -o ./publish/client
-   ```
-2. **Static Site Hosting**: Upload the contents of `./publish/client/wwwroot` to your static hosting provider.
-3. **SPA Routing**: Configure your host to serve `index.html` for all 404 routes (required for Blazor routing).
+### 2. Managed Identity & Key Vault
+**Issue**: When apps are deleted/re-created via `az containerapp up`, their Managed Identity is lost.
+**Fix**: 
+1. Enable System-Assigned Identity.
+2. Grant "Key Vault Secrets User" role on the Key Vault to the app's Principal ID.
+3. Inject `KeyVaultName` as an environment variable to override `appsettings.json`.
 
-## 5. Post-Deployment Checklist
-- [ ] Verify SSL/TLS certificates and HTTPS redirection.
-- [ ] Test the Google Login flow with production callback URLs.
-- [ ] Check Serilog sinks to ensure logs are flowing to your centralized logging provider (e.g., Azure Monitor, Seq, or ELK).
-- [ ] Monitor Hangfire dashboard for successful job initialization.
-- [ ] Verify SignalR connectivity via the Gateway.
+### 3. Google OAuth Origins
+**Issue**: Login fails with `origin_mismatch`.
+**Fix**: Add BOTH the base URL and the callback URL to the Google Cloud Console:
+- **Origin**: `https://<app-name>.azurestaticapps.net`
+- **Redirect URI**: `https://<app-name>.azurestaticapps.net/authentication/login-callback`
 
-## 6. Scaling Consideration
-- **Horizontal Scaling**: All services are stateless and can be scaled horizontally.
-- **Redis Core**: Redis is critical for SignalR and Token rotation; ensure it has high availability (HA).
+---
+
+## 🛠️ Management Commands
+
+### Start/Stop (Cost Savings)
+See [start_stop.md](file:///c:/Users/Baska/source/repos/baskarkannappan/AssociationManagerV1_dev/Docs/start_stop.md) for the exact scripts to scale to zero.
+
+### View Logs
+To see why an app is failing:
+```powershell
+# System logs (Azure events)
+az containerapp logs show --name <app-name> --resource-group <rg> --type system
+
+# Application logs (Console.WriteLine)
+az containerapp logs show --name <app-name> --resource-group <rg> --tail 100
+```
+
+---
+
+## 🔗 Live URLs
+| Component | URL |
+| :--- | :--- |
+| **Association Portal** | [https://happy-tree-0a717950f.7.azurestaticapps.net](https://happy-tree-0a717950f.7.azurestaticapps.net) |
+| **Corporate Portal** | [https://lemon-coast-03635380f.7.azurestaticapps.net](https://lemon-coast-03635380f.7.azurestaticapps.net) |
+| **API Gateway** | `assocmgr-dev-gateway.yellowmoss-1aeb0444.centralindia.azurecontainerapps.io` |
+
+---
+
+## 🔑 Key Vault Secrets Checklist
+Ensure these are in `kv-assocmgr-dev-unique`:
+- `ConnectionStrings--DefaultConnection`
+- `AllowedOrigins` (Comma-separated frontend URLs)
+- `JWT--Secret` (32+ chars)
+- `JWT--Issuer`: `AssocMgr`
+- `JWT--Audience`: `AssocMgr`
+- `GoogleSettings--ClientId`

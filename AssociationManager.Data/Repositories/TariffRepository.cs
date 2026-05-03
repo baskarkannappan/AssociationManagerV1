@@ -19,10 +19,11 @@ public class TariffRepository : ITariffRepository
     public async Task<IEnumerable<TariffGroup>> GetGroupsByTenantIdAsync(int tenantId, int? associationId = null)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<TariffGroup>(
+        var groups = await connection.QueryAsync<TariffGroup>(
             "assoc.sp_TariffGroups_GetByTenantId", 
             new { tenantId, associationId },
             commandType: CommandType.StoredProcedure);
+        return groups.ToList();
     }
 
     public async Task<int> CreateGroupAsync(TariffGroup group)
@@ -55,10 +56,21 @@ public class TariffRepository : ITariffRepository
     public async Task<IEnumerable<TariffLayer>> GetLayersByGroupIdAsync(int groupId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<TariffLayer>(
+        var layers = await connection.QueryAsync<TariffLayer>(
             "assoc.sp_TariffLayers_GetByGroupId", 
             new { groupId },
             commandType: CommandType.StoredProcedure);
+        return layers.ToList();
+    }
+
+    public async Task<IEnumerable<TariffLayer>> GetLayersByAssociationIdAsync(int associationId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var layers = await connection.QueryAsync<TariffLayer>(
+            "assoc.sp_TariffLayers_GetByAssociationId", 
+            new { associationId, tenantId },
+            commandType: CommandType.StoredProcedure);
+        return layers.ToList();
     }
 
     public async Task<int> CreateLayerAsync(TariffLayer layer)
@@ -109,10 +121,11 @@ public class TariffRepository : ITariffRepository
     public async Task<IEnumerable<AssetTariff>> GetTariffsByAssetIdAsync(int assetId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<AssetTariff>(
+        var tariffs = await connection.QueryAsync<AssetTariff>(
             "assoc.sp_AssetTariffs_GetByAssetId", 
             new { assetId },
             commandType: CommandType.StoredProcedure);
+        return tariffs.ToList();
     }
 
     public async Task<bool> UpsertAssetTariffAsync(AssetTariff assetTariff)
@@ -121,6 +134,56 @@ public class TariffRepository : ITariffRepository
         return await connection.ExecuteAsync(
             "assoc.sp_AssetTariffs_Upsert", 
             new { assetTariff.AssetId, assetTariff.TariffLayerId, assetTariff.CustomAmount, assetTariff.IsActive, assetTariff.IsRecurring },
+            commandType: CommandType.StoredProcedure) > 0;
+    }
+
+    public async Task<bool> UpsertAssetTariffBulkAsync(IEnumerable<AssetTariff> tariffs)
+    {
+        if (tariffs == null || !tariffs.Any()) return true;
+
+        var dt = new DataTable();
+        dt.Columns.Add("AssetId", typeof(int));
+        dt.Columns.Add("TariffLayerId", typeof(int));
+        dt.Columns.Add("CustomAmount", typeof(decimal));
+        dt.Columns.Add("IsActive", typeof(bool));
+        dt.Columns.Add("IsRecurring", typeof(bool));
+
+        foreach (var t in tariffs)
+        {
+            dt.Rows.Add(t.AssetId, t.TariffLayerId, t.CustomAmount, t.IsActive, t.IsRecurring);
+        }
+
+        using var connection = _dbConnectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "assoc.sp_AssetTariffs_UpsertBulk",
+            new { TariffAssignments = dt.AsTableValuedParameter("assoc.typ_AssetTariffBatch") },
+            commandType: CommandType.StoredProcedure);
+        
+        return true;
+    }
+
+    public async Task<IEnumerable<Asset>> GetAvailableAssetsForLayerAsync(int associationId, int layerId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var assets = await connection.QueryAsync<Asset>(
+            "assoc.sp_Assets_GetAvailableForLayer",
+            new { AssociationId = associationId, LayerId = layerId },
+            commandType: CommandType.StoredProcedure);
+        return assets.ToList();
+    }
+
+    public async Task<bool> DeactivateTariffsBulkAsync(int layerId, IEnumerable<int> assetIds)
+    {
+        if (assetIds == null || !assetIds.Any()) return true;
+
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var dt = new DataTable();
+        dt.Columns.Add("Id", typeof(int));
+        foreach (var id in assetIds) dt.Rows.Add(id);
+
+        return await connection.ExecuteAsync(
+            "assoc.sp_AssetTariffs_DeactivateBulk", 
+            new { layerId, AssetIds = dt.AsTableValuedParameter("assoc.IntegerList") },
             commandType: CommandType.StoredProcedure) > 0;
     }
 
@@ -136,22 +199,21 @@ public class TariffRepository : ITariffRepository
     public async Task<IEnumerable<AssetTariff>> GetActiveTariffsByTenantIdAsync(int tenantId)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
-        return await connection.QueryAsync<AssetTariff>(
+        var tariffs = await connection.QueryAsync<AssetTariff>(
             "assoc.sp_AssetTariffs_GetActiveByTenantId", 
             new { tenantId },
             commandType: CommandType.StoredProcedure);
+        return tariffs.ToList();
     }
 
     public async Task<IEnumerable<AssetTariff>> GetAssignmentsByLayerIdAsync(int layerId)
     {
         // TARGETED FETCH: Avoids pulling entire tenant data
         using var connection = _dbConnectionFactory.CreateConnection();
-        string sql = @"
-            SELECT at.*, a.Name as AssetName 
-            FROM assoc.AssetTariffs at
-            INNER JOIN assoc.Assets a ON at.AssetId = a.AssetId
-            WHERE at.TariffLayerId = @layerId AND at.IsActive = 1";
-            
-        return await connection.QueryAsync<AssetTariff>(sql, new { layerId });
+        var assignments = await connection.QueryAsync<AssetTariff>(
+            "assoc.sp_AssetTariffs_GetAssignmentsByLayerId", 
+            new { layerId },
+            commandType: CommandType.StoredProcedure);
+        return assignments.ToList();
     }
 }

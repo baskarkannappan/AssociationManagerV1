@@ -9,4 +9,5 @@ public interface ITenantContext
     bool IsPlatformAdmin { get; }
     bool IsSystemAdmin { get; }
     string AssociationStatus { get; }
+    void SetContext(int tenantId, int associationId, int userId = 0);
 }

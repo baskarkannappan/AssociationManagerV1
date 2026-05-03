@@ -26,13 +26,14 @@ CREATE OR ALTER PROCEDURE assoc.sp_PaymentOrders_Create
     @Amount DECIMAL(18,2),
     @Currency NVARCHAR(10),
     @InvoiceId INT = NULL,
+    @AssetId INT = NULL,
     @Receipt NVARCHAR(255) = NULL,
-    @PrimaryAccountName NVARCHAR(200) = NULL,
-    @PrimaryAccountNumber NVARCHAR(100) = NULL
+    @PrimaryAccountName NVARCHAR(255) = NULL,
+    @PrimaryAccountNumber NVARCHAR(255) = NULL
 AS
 BEGIN
-    INSERT INTO assoc.PaymentOrders (TenantId, AssociationId, UserId, RazorpayOrderId, Amount, Currency, InvoiceId, Receipt, PrimaryAccountName, PrimaryAccountNumber)
-    VALUES (@TenantId, @AssociationId, @UserId, @RazorpayOrderId, @Amount, @Currency, @InvoiceId, @Receipt, @PrimaryAccountName, @PrimaryAccountNumber);
+    INSERT INTO assoc.PaymentOrders (TenantId, AssociationId, UserId, RazorpayOrderId, Amount, Currency, InvoiceId, AssetId, Receipt, PrimaryAccountName, PrimaryAccountNumber)
+    VALUES (@TenantId, @AssociationId, @UserId, @RazorpayOrderId, @Amount, @Currency, @InvoiceId, @AssetId, @Receipt, @PrimaryAccountName, @PrimaryAccountNumber);
     
     SELECT SCOPE_IDENTITY();
 END
@@ -44,16 +45,22 @@ CREATE OR ALTER PROCEDURE assoc.sp_PaymentTransactions_Create
     @PaymentOrderId INT = NULL,
     @RazorpayPaymentId NVARCHAR(255),
     @RazorpayOrderId NVARCHAR(255),
-    @RazorpaySignature NVARCHAR(500),
+    @RazorpaySignature NVARCHAR(MAX),
     @Status NVARCHAR(50),
     @Amount DECIMAL(18,2),
     @RawResponse NVARCHAR(MAX) = NULL,
-    @PrimaryAccountName NVARCHAR(200) = NULL,
-    @PrimaryAccountNumber NVARCHAR(100) = NULL
+    @PrimaryAccountName NVARCHAR(255) = NULL,
+    @PrimaryAccountNumber NVARCHAR(255) = NULL,
+    @PaymentMethod NVARCHAR(50) = NULL,
+    @BankName NVARCHAR(255) = NULL,
+    @BankRrn NVARCHAR(255) = NULL,
+    @CardNetwork NVARCHAR(50) = NULL,
+    @GatewayFee DECIMAL(18,2) = NULL,
+    @GatewayTax DECIMAL(18,2) = NULL
 AS
 BEGIN
-    INSERT INTO assoc.PaymentTransactions (TenantId, AssociationId, PaymentOrderId, RazorpayPaymentId, RazorpayOrderId, RazorpaySignature, Status, Amount, RawResponse, PrimaryAccountName, PrimaryAccountNumber)
-    VALUES (@TenantId, @AssociationId, @PaymentOrderId, @RazorpayPaymentId, @RazorpayOrderId, @RazorpaySignature, @Status, @Amount, @RawResponse, @PrimaryAccountName, @PrimaryAccountNumber);
+    INSERT INTO assoc.PaymentTransactions (TenantId, AssociationId, PaymentOrderId, RazorpayPaymentId, RazorpayOrderId, RazorpaySignature, Status, Amount, RawResponse, PrimaryAccountName, PrimaryAccountNumber, PaymentMethod, BankName, BankRrn, CardNetwork, GatewayFee, GatewayTax)
+    VALUES (@TenantId, @AssociationId, @PaymentOrderId, @RazorpayPaymentId, @RazorpayOrderId, @RazorpaySignature, @Status, @Amount, @RawResponse, @PrimaryAccountName, @PrimaryAccountNumber, @PaymentMethod, @BankName, @BankRrn, @CardNetwork, @GatewayFee, @GatewayTax);
     
     SELECT SCOPE_IDENTITY();
 END
@@ -65,18 +72,13 @@ CREATE OR ALTER PROCEDURE assoc.sp_PaymentTransactions_GetByInvoiceId
 AS
 BEGIN
     SELECT 
-        PT.CreatedDate,
-        PT.Amount,
-        PT.Status,
-        PT.RazorpayPaymentId AS ReferenceId,
-        'Gateway' AS Method,
-        PT.RazorpayOrderId,
-        PT.PrimaryAccountName,
-        PT.PrimaryAccountNumber
-    FROM assoc.PaymentTransactions PT
-    INNER JOIN assoc.PaymentOrders PO ON PT.PaymentOrderId = PO.Id
-    WHERE PO.InvoiceId = @InvoiceId
-    AND PT.TenantId = @TenantId
-    ORDER BY PT.CreatedDate DESC;
+        pt.*, 
+        po.InvoiceId,
+        po.Status AS OrderStatus
+    FROM assoc.PaymentTransactions pt
+    JOIN assoc.PaymentOrders po ON pt.PaymentOrderId = po.Id
+    WHERE po.InvoiceId = @InvoiceId AND po.TenantId = @TenantId
+    ORDER BY pt.CreatedDate DESC;
 END
 GO
+

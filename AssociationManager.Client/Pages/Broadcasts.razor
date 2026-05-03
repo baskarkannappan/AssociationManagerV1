@@ -8,6 +8,7 @@
 @inject ApiService Api
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IAppAuthorizationService AuthService
 
 <div class="premium-page-header border-bottom px-4 py-3 mb-0">
     <div class="d-flex justify-content-between align-items-center">
@@ -20,9 +21,14 @@
         <div class="header-right">
             @if (_scope == "association")
             {
-                <button class="btn-vscode" @onclick="() => _broadcastList.ShowCreateModal()">
-                    <i class="bi bi-plus-lg"></i> Post Association Announcement
-                </button>
+                <AuthorizeView Policy="RequireManagement">
+                    @if (_canPostAnnouncement)
+                    {
+                        <button class="btn-vscode" @onclick="() => _broadcastList.ShowCreateModal()">
+                            <i class="bi bi-plus-lg"></i> Post Association Announcement
+                        </button>
+                    }
+                </AuthorizeView>
             }
             else
             {
@@ -43,10 +49,14 @@
 @code {
     private BroadcastList _broadcastList = default!;
     private string _scope = "tenant";
+    private bool _canPostAnnouncement;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         ParseQueryParameters();
+        
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _canPostAnnouncement = await AuthService.EvaluateRuleAsync(authState.User, "CommRule_PostAnnouncement");
     }
 
     protected override void OnParametersSet()

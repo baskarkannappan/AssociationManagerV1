@@ -1,3 +1,2 @@
-CREATE   PROCEDURE assoc.sp_Persons_GetById @Id INT, @TenantId INT, @AssociationId INT AS 
+﻿CREATE   PROCEDURE assoc.sp_Persons_GetById @Id INT, @TenantId INT, @AssociationId INT AS 
 BEGIN SELECT * FROM assoc.Persons WHERE PersonId = @Id AND AssociationId = @AssociationId; END
-GO

@@ -6,6 +6,8 @@
 @inject ApiService ApiService
 @inject ITenantContext TenantContext
 @inject LayoutStateService LayoutState
+@inject IAppAuthorizationService AuthService
+@inject AuthenticationStateProvider AuthStateProvider
 @attribute [Authorize(Policy = "RequireFinanceManager")]
 
 <div class="reports-container p-4 animate-fade-in">
@@ -200,6 +202,14 @@
             new AppBreadcrumbItem { Text = "Finance" },
             new AppBreadcrumbItem { Text = "Reports", IsActive = true }
         });
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var canAccess = await AuthService.EvaluateRuleAsync(authState.User, "ShowMenu_Finance");
+        if (!canAccess)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
 
         await LoadData();
     }

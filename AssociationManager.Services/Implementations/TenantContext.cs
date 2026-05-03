@@ -7,6 +7,9 @@ namespace AssociationManager.Services.Implementations;
 public class TenantContext : ITenantContext
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private int? _overrideTenantId;
+    private int? _overrideAssociationId;
+    private int? _overrideUserId;
 
     public TenantContext(IHttpContextAccessor httpContextAccessor)
     {
@@ -17,6 +20,7 @@ public class TenantContext : ITenantContext
     {
         get
         {
+            if (_overrideTenantId.HasValue) return _overrideTenantId.Value;
             var claim = GetClaim("TenantId", "tenant_id", "tid", "tenantid");
             return int.TryParse(claim, out int id) ? id : 0;
         }
@@ -26,6 +30,7 @@ public class TenantContext : ITenantContext
     {
         get
         {
+            if (_overrideAssociationId.HasValue) return _overrideAssociationId.Value;
             var claim = GetClaim("AssociationId", "association_id", "aid", "associationid");
             return int.TryParse(claim, out int id) ? id : 0;
         }
@@ -37,6 +42,7 @@ public class TenantContext : ITenantContext
     {
         get
         {
+            if (_overrideUserId.HasValue) return _overrideUserId.Value;
             var claim = GetClaim("UserId", "user_id", "uid", "id", "sub");
             return int.TryParse(claim, out int id) ? id : 0;
         }
@@ -46,6 +52,13 @@ public class TenantContext : ITenantContext
 
     public bool IsPlatformAdmin => IsInRole("PlatformAdmin");
     public bool IsSystemAdmin => IsInRole("SystemAdmin");
+
+    public void SetContext(int tenantId, int associationId, int userId = 0)
+    {
+        _overrideTenantId = tenantId;
+        _overrideAssociationId = associationId;
+        if (userId > 0) _overrideUserId = userId;
+    }
 
     private string? GetClaim(params string[] types)
     {

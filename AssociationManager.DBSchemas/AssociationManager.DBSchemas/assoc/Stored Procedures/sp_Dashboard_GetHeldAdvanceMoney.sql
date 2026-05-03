@@ -1,13 +1,16 @@
-CREATE PROCEDURE assoc.sp_Dashboard_GetHeldAdvanceMoney
+﻿CREATE   PROCEDURE assoc.sp_Dashboard_GetHeldAdvanceMoney
     @TenantId INT,
-    @AssociationId INT
+    @AssociationId INT,
+    @TotalAdvanceCredits_OUT DECIMAL(18,2) = NULL OUTPUT,
+    @UnitsWithCredit_OUT INT = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Calculate wallet balance per unit
-    -- Credits (Advances) - Debits (Settlements)
-    WITH UnitBalances AS (
+    DECLARE @TotalAdvanceCredits DECIMAL(18,2) = 0;
+    DECLARE @UnitsWithCredit INT = 0;
+
+    WITH WalletBalances AS (
         SELECT 
             AssetId,
             SUM(CASE WHEN Type = 'Credit' AND (Category = 'Payment' OR Category = 'Advance Payment') AND (InvoiceId IS NULL OR InvoiceId = 0) THEN Amount ELSE 0 END) -
@@ -17,8 +20,16 @@ BEGIN
         GROUP BY AssetId
     )
     SELECT 
-        ISNULL(SUM(Balance), 0) as TotalAdvanceCredits,
-        COUNT(CASE WHEN Balance > 0 THEN 1 END) as UnitsWithCredit
-    FROM UnitBalances
+        @TotalAdvanceCredits = CAST(ISNULL(SUM(Balance), 0) AS DECIMAL(18,2)),
+        @UnitsWithCredit = CAST(COUNT(*) AS INT) 
+    FROM WalletBalances
     WHERE Balance > 0;
+
+    IF @TotalAdvanceCredits_OUT IS NOT NULL SET @TotalAdvanceCredits_OUT = @TotalAdvanceCredits;
+    IF @UnitsWithCredit_OUT IS NOT NULL SET @UnitsWithCredit_OUT = @UnitsWithCredit;
+
+    IF @@NESTLEVEL = 1
+    BEGIN
+        SELECT @TotalAdvanceCredits as TotalAdvanceCredits, @UnitsWithCredit as UnitsWithCredit;
+    END
 END

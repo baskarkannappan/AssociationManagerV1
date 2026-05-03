@@ -1,9 +1,12 @@
-﻿-- Update sp_Invoices_Create to include BillingBatchId
+﻿-- 3. Redeploy procedures with snapshot/priority logic
+-- (Invoices procs, Dashboard, Balances, Summary)
+
+-- sp_Invoices_Create
 CREATE   PROCEDURE assoc.sp_Invoices_Create 
     @TenantId INT, 
     @AssociationId INT, 
     @AssetId INT = NULL, 
-    @BillingBatchId INT = NULL,
+    @BillingBatchId INT = NULL, 
     @Title NVARCHAR(200), 
     @Description NVARCHAR(MAX) = NULL, 
     @Amount DECIMAL(18, 2), 
@@ -12,7 +15,12 @@ CREATE   PROCEDURE assoc.sp_Invoices_Create
     @CreatedDate DATETIME 
 AS 
 BEGIN 
-    INSERT INTO assoc.Invoices (TenantId, AssociationId, AssetId, BillingBatchId, Title, Description, Amount, DueDate, Status, CreatedDate) 
-    OUTPUT INSERTED.InvoiceId 
-    VALUES (@TenantId, @AssociationId, @AssetId, @BillingBatchId, @Title, @Description, @Amount, @DueDate, @Status, @CreatedDate); 
+    SET NOCOUNT ON;
+    DECLARE @FineStrategy NVARCHAR(50), @FineValue DECIMAL(18,2), @FineGracePeriod INT, @FineIsCompounding BIT;
+    SELECT @FineStrategy = StrategyType, @FineValue = FineValue, @FineGracePeriod = GracePeriodDays, @FineIsCompounding = IsCompounding
+    FROM assoc.FineSettings WHERE AssociationId = @AssociationId AND TenantId = @TenantId;
+    INSERT INTO assoc.Invoices (TenantId, AssociationId, AssetId, BillingBatchId, Title, Description, Amount, DueDate, Status, CreatedDate, FineStrategy, FineValue, FineGracePeriod, FineIsCompounding) 
+    VALUES (@TenantId, @AssociationId, @AssetId, @BillingBatchId, @Title, @Description, @Amount, @DueDate, @Status, @CreatedDate, @FineStrategy, @FineValue, @FineGracePeriod, @FineIsCompounding); 
+    SELECT SCOPE_IDENTITY(); 
 END
+GO

@@ -1,3 +1,4 @@
+﻿
 CREATE PROCEDURE assoc.sp_Analyze_AssetInvoiceTree
     @AssociationId INT
 AS
@@ -56,4 +57,3 @@ BEGIN
     LEFT JOIN assoc.Invoices i ON ah.AssetId = i.AssetId
     ORDER BY ah.SortKey, o.IsPrimaryContact DESC, i.DueDate DESC;
 END
-GO

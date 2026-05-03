@@ -1,5 +1,6 @@
 @using AssociationManager.Shared.Models
 @using AssociationManager.Shared.Enums
+@inject AssetStateService AssetState
 
 <div class="asset-tree-node">
     <div class="vscode-tree-item @(IsSelected ? "active" : "")" 
@@ -7,43 +8,27 @@
          @onclick="HandleToggleExpansion">
         
         <div class="expand-icon-container">
-            @if (Asset.Children.Any())
+            @if (Node.HasChildren)
             {
-                <i class="bi @(IsExpanded ? "bi-chevron-down" : "bi-chevron-right")"></i>
+                <i class="bi @(Node.IsExpanded ? "bi-chevron-down" : "bi-chevron-right")"></i>
             }
         </div>
         
         <i class="bi @GetIconClass() @GetIconColorClass() asset-icon"></i>
         
         <span class="asset-name">
-            @if (string.IsNullOrWhiteSpace(SearchTerm))
+            @if (string.IsNullOrWhiteSpace(AssetState.SearchTerm))
             {
-                @Asset.Name
+                @Node.Asset.Name
             }
             else
             {
-                @GetHighlightedText(Asset.Name, SearchTerm)
+                @GetHighlightedText(Node.Asset.Name, AssetState.SearchTerm)
             }
         </span>
         
-        <span class="tree-type-badge">@Asset.AssetType</span>
+        <span class="tree-type-badge">@Node.Asset.AssetType</span>
     </div>
-
-    @if (IsExpanded && Asset.Children.Any())
-    {
-        <div class="asset-children-group">
-            @foreach (var child in Asset.Children)
-            {
-                <AssetTreeNode Asset="child" 
-                               Level="@(Level + 1)"
-                               OnSelected="OnSelected" 
-                               SelectedAsset="SelectedAsset"
-                               ExpandedIds="ExpandedIds"
-                               OnToggleExpand="OnToggleExpand"
-                               SearchTerm="@SearchTerm" />
-            }
-        </div>
-    }
 </div>
 
 <style>
@@ -64,10 +49,10 @@
         background-color: #e2e8f0;
     }
     .vscode-tree-item.active {
-    background-color: #e0f2fe;
-    color: #0369a1;
-    font-weight: 600;
-}
+        background-color: #e0f2fe;
+        color: #0369a1;
+        font-weight: 600;
+    }
     .expand-icon-container {
         width: 16px;
         height: 16px;
@@ -92,15 +77,6 @@
         text-overflow: ellipsis;
         margin-right: 8px;
     }
-    .tree-count {
-        font-size: 10px;
-        background: #94a3b8;
-        color: white;
-        padding: 0 5px;
-        border-radius: 10px;
-        margin-right: 6px;
-        flex-shrink: 0;
-    }
     .tree-type-badge {
         font-size: 9px;
         text-transform: uppercase;
@@ -113,27 +89,25 @@
 </style>
 
 @code {
-    [Parameter] public int Level { get; set; } = 0;
-    [Parameter] public Asset Asset { get; set; } = null!;
+    [Parameter] public FlatAssetNode Node { get; set; } = null!;
     [Parameter] public Asset? SelectedAsset { get; set; }
     [Parameter] public EventCallback<Asset> OnSelected { get; set; }
-    
-    [Parameter] public HashSet<int> ExpandedIds { get; set; } = new();
     [Parameter] public EventCallback<int> OnToggleExpand { get; set; }
-    [Parameter] public string SearchTerm { get; set; } = "";
 
-    private bool IsExpanded => ExpandedIds.Contains(Asset.AssetId);
-    private bool IsSelected => SelectedAsset?.AssetId == Asset.AssetId;
+    private bool IsSelected => SelectedAsset?.AssetId == Node.Asset.AssetId;
 
-    private int GetPadding() => 8 + (Level * 16);
+    private int GetPadding() => 8 + (Node.Level * 16);
 
     private async Task HandleToggleExpansion()
     {
-        await OnToggleExpand.InvokeAsync(Asset.AssetId);
-        await OnSelected.InvokeAsync(Asset);
+        if (Node.HasChildren)
+        {
+            await OnToggleExpand.InvokeAsync(Node.Asset.AssetId);
+        }
+        await OnSelected.InvokeAsync(Node.Asset);
     }
 
-    private string GetIconClass() => Asset.AssetType switch
+    private string GetIconClass() => Node.Asset.AssetType switch
     {
         AssociationManager.Shared.Enums.AssetType.Property => "bi-geo-alt",
         AssociationManager.Shared.Enums.AssetType.Building => "bi-building",
@@ -146,7 +120,7 @@
         _ => "bi-box"
     };
 
-    private string GetIconColorClass() => Asset.AssetType switch
+    private string GetIconColorClass() => Node.Asset.AssetType switch
     {
         AssociationManager.Shared.Enums.AssetType.Property => "asset-icon-property",
         AssociationManager.Shared.Enums.AssetType.Building => "asset-icon-building",
