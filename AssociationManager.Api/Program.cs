@@ -295,40 +295,43 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
-// Seed Rules Engine
-using (var scope = app.Services.CreateScope())
+// Seed Rules Engine & Setup Jobs
+var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(defaultConnectionString))
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
-    await seeder.SeedAsync();
+    try
+    {
+        Console.WriteLine("DEBUG: Seeding Rules Engine & Setting up Jobs...");
+        using (var scope = app.Services.CreateScope())
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
+            await seeder.SeedAsync();
 
-    // Setup Recurring Jobs
-    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
-    
-/*
-    // Daily Fine Accrual at 1:00 AM
-    recurringJobManager.AddOrUpdate<IFinanceService>(
-        "daily-fine-accrual",
-        service => service.PostOverdueFinesAsync(),
-        Cron.Daily(1));
+            // Setup Recurring Jobs
+            var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+            
+            // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
+            recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
+                "automated-email-dispatch",
+                job => job.ProcessPendingEmailsAsync(),
+                "30 0,10,12,18 * * *");
 
-    // Daily Database Archiving at 3:00 AM
-    recurringJobManager.AddOrUpdate<IMaintenanceService>(
-        "database-archiving",
-        service => service.ArchiveAuditLogsAsync(180),
-        Cron.Daily(3));
-*/
-
-    // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
-    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
-        "automated-email-dispatch",
-        job => job.ProcessPendingEmailsAsync(),
-        "30 0,10,12,18 * * *");
-
-    // Hourly Enterprise Balance Synchronization
-    recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.BalanceSyncJob>(
-        "enterprise-balance-sync",
-        job => job.ProcessAllAssociationsAsync(),
-        Cron.Daily());
+            // Hourly Enterprise Balance Synchronization
+            recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.BalanceSyncJob>(
+                "enterprise-balance-sync",
+                job => job.ProcessAllAssociationsAsync(),
+                Cron.Daily());
+        }
+        Console.WriteLine("DEBUG: Seeding and Jobs setup successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[CRITICAL] Rules Engine Seeding or Job Setup failed: {ex.Message}");
+    }
+}
+else
+{
+    Console.WriteLine("DEBUG: Skipping Seeding and Job setup (Connection string missing).");
 }
 
 app.Run();

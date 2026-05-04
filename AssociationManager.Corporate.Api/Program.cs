@@ -207,11 +207,29 @@ app.MapHealthChecks("/health");
 app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
 // Seed Rules Engine
-using (var scope = app.Services.CreateScope())
+var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(defaultConnectionString))
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
-    await seeder.SeedAsync();
+    try
+    {
+        Console.WriteLine("DEBUG: Seeding Rules Engine...");
+        using (var scope = app.Services.CreateScope())
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
+            await seeder.SeedAsync();
+        }
+        Console.WriteLine("DEBUG: Rules Engine seeded successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[CRITICAL] Rules Engine Seeding failed: {ex.Message}");
+        // We allow the app to continue starting even if seeding fails
+    }
+}
+else
+{
+    Console.WriteLine("DEBUG: Skipping Rules Engine seeding (Connection string missing).");
 }
 
-Console.WriteLine("DEBUG: Corporate API started.");
+Console.WriteLine("DEBUG: Corporate API is now starting app.Run()...");
 app.Run();
