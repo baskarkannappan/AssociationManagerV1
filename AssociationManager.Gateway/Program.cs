@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,10 +21,17 @@ builder.Services.AddApplicationInsightsTelemetry();
 // Health Checks
 builder.Services.AddHealthChecks();
 
+// Forwarded Headers for Azure Container Apps
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() 
     ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 
-Console.WriteLine($"[CORS DEBUG] Origins: {string.Join(", ", allowedOrigins)}");
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultPolicy", policy =>
@@ -50,17 +58,22 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst
             }));
     
-    // Custom response for 429
     options.OnRejected = async (context, token) =>
     {
         await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", cancellationToken: token);
     };
 });
 
-builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+var proxyConfig = builder.Configuration.GetSection("ReverseProxy");
+if (proxyConfig.Exists())
+{
+    builder.Services.AddReverseProxy()
+        .LoadFromConfig(proxyConfig);
+}
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -69,12 +82,10 @@ if (!app.Environment.IsDevelopment())
 
 app.Use(async (context, next) =>
 {
-    // Security Headers
     context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none';");
     context.Response.Headers.Append("X-Frame-Options", "DENY");
     context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
     context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-    context.Response.Headers.Append("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
     
     await next();
 });
@@ -84,6 +95,10 @@ app.UseWebSockets();
 app.UseRateLimiter();
 
 app.MapHealthChecks("/health");
-app.MapReverseProxy();
+
+if (proxyConfig.Exists())
+{
+    app.MapReverseProxy();
+}
 
 app.Run();
