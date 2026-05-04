@@ -2,6 +2,7 @@ using AssociationManager.Auth.Interfaces;
 using AssociationManager.Auth.Models;
 using AssociationManager.Auth.Services;
 using AssociationManager.Data;
+using AssociationManager.Data.Context;
 using AssociationManager.Data.Interfaces;
 using AssociationManager.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -18,17 +19,18 @@ using System.IdentityModel.Tokens.Jwt;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Key Vault Integration
-var keyVaultName = builder.Configuration["KeyVaultName"];
 if (!string.IsNullOrEmpty(keyVaultName))
 {
-    var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
-    builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
-    Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
+    try
+    {
+        var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+        builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
+        Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[BOOTSTRAP] WARNING: Failed to load Key Vault: {ex.Message}");
+    }
 }
 
 // Application Insights
@@ -236,5 +238,11 @@ else
     Console.WriteLine("DEBUG: Skipping Rules Engine seeding (Connection string missing).");
 }
 
-Console.WriteLine("DEBUG: Corporate API is now starting app.Run()...");
-app.Run();
+    Console.WriteLine("[BOOTSTRAP] Corporate API is starting app.Run()...");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[FATAL] Corporate API Startup Failed: {ex}");
+    throw;
+}
