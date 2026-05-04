@@ -38,9 +38,19 @@ if (!string.IsNullOrEmpty(keyVaultName))
 builder.Services.AddApplicationInsightsTelemetry();
 
 // Health Checks
-builder.Services.AddHealthChecks()
-    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!, name: "SQL Server")
-    .AddRedis(builder.Configuration["Redis:Configuration"]!, name: "Redis");
+var healthChecks = builder.Services.AddHealthChecks();
+
+var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(defaultConnectionString))
+{
+    healthChecks.AddSqlServer(defaultConnectionString, name: "SQL Server");
+}
+
+var redisConnectionString = builder.Configuration["Redis:Configuration"];
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    healthChecks.AddRedis(redisConnectionString, name: "Redis");
+}
 
 // Serilog
 Log.Logger = new LoggerConfiguration()
