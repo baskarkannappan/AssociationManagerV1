@@ -19,223 +19,219 @@ using System.IdentityModel.Tokens.Jwt;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 
-if (!string.IsNullOrEmpty(keyVaultName))
+Console.WriteLine("[BOOTSTRAP] Corporate API starting...");
+
+try
 {
-    try
+    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Key Vault Integration (Safe)
+    var keyVaultName = builder.Configuration["KeyVaultName"];
+    if (!string.IsNullOrEmpty(keyVaultName))
     {
-        var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
-        builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
-        Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[BOOTSTRAP] WARNING: Failed to load Key Vault: {ex.Message}");
-    }
-}
-
-// Application Insights
-builder.Services.AddApplicationInsightsTelemetry();
-
-// Health Checks
-var healthChecks = builder.Services.AddHealthChecks();
-
-var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrEmpty(defaultConnectionString))
-{
-    healthChecks.AddSqlServer(defaultConnectionString, name: "SQL Server");
-}
-
-var redisConnectionString = builder.Configuration["Redis:Configuration"];
-if (!string.IsNullOrEmpty(redisConnectionString))
-{
-    healthChecks.AddRedis(redisConnectionString, name: "Redis");
-}
-
-// Serilog
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .CreateLogger();
-builder.Host.UseSerilog();
-
-// Add services to the container.
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// Auth Settings
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-builder.Services.Configure<GoogleSettings>(builder.Configuration.GetSection("GoogleSettings"));
-
-// Data Access
-builder.Services.AddScoped<DbConnectionFactory>();
-builder.Services.AddScoped<ITenantRepository, TenantRepository>();
-builder.Services.AddScoped<IGlobalUserRepository, GlobalUserRepository>();
-builder.Services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<IGlobalUserRepository>());
-builder.Services.AddScoped<IAssocUserRepository, AssocUserRepository>();
-builder.Services.AddScoped<IAssociationRepository>(sp => new AssociationRepository(sp.GetRequiredService<DbConnectionFactory>(), sp.GetRequiredService<ITenantContext>(), "corp"));
-builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
-builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-builder.Services.AddScoped<IAssetRepository, AssetRepository>();
-builder.Services.AddScoped<IPersonRepository, PersonRepository>();
-builder.Services.AddScoped<IOccupancyRepository, OccupancyRepository>();
-builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
-builder.Services.AddScoped<IPetRepository, PetRepository>();
-builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
-builder.Services.AddScoped<IBillingBatchRepository, BillingBatchRepository>();
-builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
-builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
-builder.Services.AddScoped<ITariffRepository, TariffRepository>();
-builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
-builder.Services.AddScoped<IGovernanceRepository, GovernanceRepository>();
-builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
-builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
-builder.Services.AddScoped<IFineRepository, FineRepository>();
-builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
-builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
-builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
-builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
-builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
-builder.Services.AddScoped<IContentRepository, ContentRepository>();
-
-// Services
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ITenantContext, TenantContext>();
-builder.Services.AddScoped<AssociationManager.Auth.Interfaces.IAuthService, AssociationManager.Auth.Services.AuthService>();
-builder.Services.AddScoped<IAssociationService, AssociationService>();
-builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddScoped<ILedgerService, LedgerService>();
-builder.Services.AddScoped<IAssetService, AssetService>();
-builder.Services.AddScoped<IPeopleService, PeopleService>();
-builder.Services.AddScoped<IFinanceService, FinanceService>();
-builder.Services.AddScoped<IOperationsService, OperationsService>();
-builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
-builder.Services.AddScoped<ITariffService, TariffService>();
-builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
-builder.Services.AddScoped<IGovernanceService, GovernanceService>();
-builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
-builder.Services.AddScoped<IPaymentServiceV2, PaymentServiceV2>();
-builder.Services.AddScoped<IFineService, FineService>();
-builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
-builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<IReportingService, ReportingService>();
-builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
-builder.Services.AddScoped<AssociationManager.Services.Billing.BillingBatchService>();
-builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<RulesEngineSeeder>();
-builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
-
-// Caching
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddMemoryCache();
-
-// Authentication
-var jwtSettingsData = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
-if (jwtSettingsData == null)
-{
-    Console.WriteLine("[BOOTSTRAP] WARNING: JwtSettings section is missing from configuration.");
-}
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = new TokenValidationParameters
+        try
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettingsData?.Issuer ?? "TempIssuer",
-            ValidAudience = jwtSettingsData?.Audience ?? "TempAudience",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettingsData?.Key ?? "TemporaryKeyForBuildValidationOnlyMustBeLongEnough123!")),
-            RoleClaimType = "role",
-            NameClaimType = "name"
-        };
-    });
-
-// Real-time
-builder.Services.AddSignalR();
-
-// CORS
-var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() ?? new[] { "https://localhost:7001", "https://localhost:7011" };
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowClient", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-});
-
-// Authorization Policies
-builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("RequireCorporate", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateManager, "RequireCorporate")));
-
-    options.AddPolicy("RequireManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateManager, "RequireManagement")));
-
-    options.AddPolicy("RequirePlanManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSubscriptionManager, "RequirePlanManagement")));
-
-    options.AddPolicy("RequireUserManagement", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelGlobalUserManager, "RequireUserManagement")));
-
-    options.AddPolicy("RequirePlatformAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "RequirePlatformAdmin")));
-    
-    options.AddPolicy("RequireAdmin", policy => 
-        policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin, "RequireAdmin")));
-});
-
-Console.WriteLine("DEBUG: Builder build starting...");
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseCors("AllowClient");
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-app.MapHealthChecks("/health");
-app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
-
-// Seed Rules Engine
-if (!string.IsNullOrEmpty(defaultConnectionString))
-{
-    try
-    {
-        Console.WriteLine("DEBUG: Seeding Rules Engine...");
-        using (var scope = app.Services.CreateScope())
-        {
-            var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
-            await seeder.SeedAsync();
+            var kvUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+            builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
+            Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
         }
-        Console.WriteLine("DEBUG: Rules Engine seeded successfully.");
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BOOTSTRAP] WARNING: Failed to load Key Vault: {ex.Message}");
+        }
     }
-    catch (Exception ex)
+
+    // Application Insights
+    builder.Services.AddApplicationInsightsTelemetry();
+
+    // Health Checks
+    var healthChecks = builder.Services.AddHealthChecks();
+
+    var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrEmpty(defaultConnectionString))
     {
-        Console.WriteLine($"[CRITICAL] Rules Engine Seeding failed: {ex.Message}");
-        // We allow the app to continue starting even if seeding fails
+        healthChecks.AddSqlServer(defaultConnectionString, name: "SQL Server");
     }
-}
-else
-{
-    Console.WriteLine("DEBUG: Skipping Rules Engine seeding (Connection string missing).");
-}
+
+    var redisConnectionString = builder.Configuration["Redis:Configuration"];
+    if (!string.IsNullOrEmpty(redisConnectionString))
+    {
+        healthChecks.AddRedis(redisConnectionString, name: "Redis");
+    }
+
+    // Serilog
+    Log.Logger = new LoggerConfiguration()
+        .ReadFrom.Configuration(builder.Configuration)
+        .CreateLogger();
+    builder.Host.UseSerilog();
+
+    // Add services to the container.
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+
+    // Data Access
+    builder.Services.AddScoped<DbConnectionFactory>();
+    builder.Services.AddScoped<ITenantRepository, TenantRepository>();
+    builder.Services.AddScoped<IGlobalUserRepository, GlobalUserRepository>();
+    builder.Services.AddScoped<IAssocUserRepository, AssocUserRepository>();
+    builder.Services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<IGlobalUserRepository>());
+    builder.Services.AddScoped<IAssociationRepository>(sp => new AssociationRepository(sp.GetRequiredService<DbConnectionFactory>(), sp.GetRequiredService<ITenantContext>(), "corp"));
+    builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+    builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+    builder.Services.AddScoped<IAssetRepository, AssetRepository>();
+    builder.Services.AddScoped<IPersonRepository, PersonRepository>();
+    builder.Services.AddScoped<IOccupancyRepository, OccupancyRepository>();
+    builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+    builder.Services.AddScoped<IPetRepository, PetRepository>();
+    builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+    builder.Services.AddScoped<IBillingBatchRepository, BillingBatchRepository>();
+    builder.Services.AddScoped<IWorkOrderRepository, WorkOrderRepository>();
+    builder.Services.AddScoped<IBroadcastRepository, BroadcastRepository>();
+    builder.Services.AddScoped<ITariffRepository, TariffRepository>();
+    builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+    builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+    builder.Services.AddScoped<IGovernanceRepository, GovernanceRepository>();
+    builder.Services.AddScoped<IPlatformBillingRepository, PlatformBillingRepository>();
+    builder.Services.AddScoped<IAuthWorkflowRepository, AuthWorkflowRepository>();
+    builder.Services.AddScoped<IFineRepository, FineRepository>();
+    builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+    builder.Services.AddScoped<IRazorpayRepository, RazorpayRepository>();
+    builder.Services.AddScoped<IPlatformAccountRepository, PlatformAccountRepository>();
+    builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
+    builder.Services.AddScoped<ICommunicationRepository, CommunicationRepository>();
+    builder.Services.AddScoped<IContentRepository, ContentRepository>();
+
+    // Services
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<ITenantContext, TenantContext>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<IAssociationService, AssociationService>();
+    builder.Services.AddScoped<IAuditService, AuditService>();
+    builder.Services.AddScoped<ILedgerService, LedgerService>();
+    builder.Services.AddScoped<IAssetService, AssetService>();
+    builder.Services.AddScoped<IPeopleService, PeopleService>();
+    builder.Services.AddScoped<IFinanceService, FinanceService>();
+    builder.Services.AddScoped<IOperationsService, OperationsService>();
+    builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
+    builder.Services.AddScoped<ITariffService, TariffService>();
+    builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+    builder.Services.AddScoped<IGovernanceService, GovernanceService>();
+    builder.Services.AddScoped<IPlatformBillingService, PlatformBillingService>();
+    builder.Services.AddScoped<IPaymentServiceV2, PaymentServiceV2>();
+    builder.Services.AddScoped<IFineService, FineService>();
+    builder.Services.AddScoped<IDashboardService, DashboardService>();
+    builder.Services.AddScoped<IReportingService, ReportingService>();
+    builder.Services.AddScoped<IRuleEngineService, RuleEngineService>();
+    builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
+    builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+    builder.Services.AddScoped<IEmailService, EmailService>();
+    builder.Services.AddHttpClient<AssociationManager.Services.Razorpay.RazorpayClient>();
+    builder.Services.AddScoped<RulesEngineSeeder>();
+    builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+
+    // Billing Strategies
+    builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
+    builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.AreaBasedBillingStrategy>();
+
+    // Caching
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddMemoryCache();
+
+    // Authentication
+    var jwtSettingsData = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+    if (jwtSettingsData == null)
+    {
+        Console.WriteLine("[BOOTSTRAP] WARNING: JwtSettings section is missing from configuration.");
+    }
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtSettingsData?.Issuer ?? "TempIssuer",
+                ValidAudience = jwtSettingsData?.Audience ?? "TempAudience",
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettingsData?.Key ?? "TemporaryKeyForBuildValidationOnlyMustBeLongEnough123!")),
+                RoleClaimType = "role",
+                NameClaimType = "name"
+            };
+        });
+
+    // Real-time
+    builder.Services.AddSignalR();
+
+    // CORS
+    var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() ?? new[] { "https://localhost:7001", "https://localhost:7011" };
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowClient", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    });
+
+    // Authorization Policies
+    builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("RequirePlatformAdmin", policy => 
+            policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "RequirePlatformAdmin")));
+        options.AddPolicy("RequireSystemAdmin", policy => 
+            policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelSystemAdmin, "RequireAdmin")));
+    });
+
+    var app = builder.Build();
+
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseCors("AllowClient");
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+    app.MapHealthChecks("/health");
+    app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
+
+    // Seed Rules Engine
+    if (!string.IsNullOrEmpty(defaultConnectionString))
+    {
+        try
+        {
+            Console.WriteLine("DEBUG: Seeding Rules Engine...");
+            using (var scope = app.Services.CreateScope())
+            {
+                var seeder = scope.ServiceProvider.GetRequiredService<RulesEngineSeeder>();
+                await seeder.SeedAsync();
+            }
+            Console.WriteLine("DEBUG: Rules Engine seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CRITICAL] Rules Engine Seeding failed: {ex.Message}");
+            // We allow the app to continue starting even if seeding fails
+        }
+    }
+    else
+    {
+        Console.WriteLine("DEBUG: Skipping Rules Engine seeding (Connection string missing).");
+    }
 
     Console.WriteLine("[BOOTSTRAP] Corporate API is starting app.Run()...");
     app.Run();

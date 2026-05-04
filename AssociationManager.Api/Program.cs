@@ -311,7 +311,7 @@ try
     app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
     // Seed Rules Engine & Setup Jobs
-    var dbConn = app.Configuration.GetConnectionString("DefaultConnection");
+    var dbConn = builder.Configuration.GetConnectionString("DefaultConnection");
     if (!string.IsNullOrEmpty(dbConn))
     {
         try
@@ -337,30 +337,23 @@ try
                     job => job.ProcessAllAssociationsAsync(),
                     Cron.Daily());
             }
-            var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
-            
-            // Automated Email Dispatch (4 times a day: 6AM, 4PM, 6PM, 12 AM IST)
-            recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.EmailDispatchJob>(
-                "automated-email-dispatch",
-                job => job.ProcessPendingEmailsAsync(),
-                "30 0,10,12,18 * * *");
-
-            // Hourly Enterprise Balance Synchronization
-            recurringJobManager.AddOrUpdate<AssociationManager.Services.Jobs.BalanceSyncJob>(
-                "enterprise-balance-sync",
-                job => job.ProcessAllAssociationsAsync(),
-                Cron.Daily());
+            Console.WriteLine("DEBUG: Seeding and Jobs setup successfully.");
         }
-        Console.WriteLine("DEBUG: Seeding and Jobs setup successfully.");
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CRITICAL] Rules Engine Seeding or Job Setup failed: {ex.Message}");
+        }
     }
-    catch (Exception ex)
+    else
     {
-        Console.WriteLine($"[CRITICAL] Rules Engine Seeding or Job Setup failed: {ex.Message}");
+        Console.WriteLine("DEBUG: Skipping Seeding and Job setup (Connection string missing).");
     }
-}
-else
-{
-    Console.WriteLine("DEBUG: Skipping Seeding and Job setup (Connection string missing).");
-}
 
-app.Run();
+    Console.WriteLine("[BOOTSTRAP] Main API is starting app.Run()...");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[FATAL] Main API Startup Failed: {ex}");
+    throw;
+}
