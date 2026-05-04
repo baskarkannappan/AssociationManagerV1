@@ -20,3 +20,8 @@ force_fix_db.cs
 # Deployment artifacts
 publish-func/
 func-deploy.zip
+
+# Local Settings
+localappsettings.json
+appsettings.Development.json
+local.settings.json

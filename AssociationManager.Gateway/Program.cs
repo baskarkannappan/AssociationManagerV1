@@ -14,6 +14,12 @@ if (!string.IsNullOrEmpty(keyVaultName))
     Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
 }
 
+// Application Insights
+builder.Services.AddApplicationInsightsTelemetry();
+
+// Health Checks
+builder.Services.AddHealthChecks();
+
 var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',').Select(x => x.Trim()).ToArray() 
     ?? new[] { "https://localhost:7001", "https://localhost:7011" };
 
@@ -31,18 +37,22 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter(policyName: "fixed", options =>
-    {
-        options.PermitLimit = 100;
-        options.Window = TimeSpan.FromSeconds(10);
-        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        options.QueueLimit = 10;
-    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("fixed", httpContext => 
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 50,
+                Window = TimeSpan.FromSeconds(10),
+                QueueLimit = 5,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
     
     // Custom response for 429
     options.OnRejected = async (context, token) =>
     {
-        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", cancellationToken: token);
     };
 });
@@ -52,15 +62,28 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.Use(async (context, next) =>
 {
-    // Simplified for compatibility with Google Auth popups
+    // Security Headers
+    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none';");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    
     await next();
 });
 
 app.UseCors("DefaultPolicy");
 app.UseWebSockets();
 app.UseRateLimiter();
+
+app.MapHealthChecks("/health");
 app.MapReverseProxy();
 
 app.Run();

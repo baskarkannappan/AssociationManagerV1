@@ -31,6 +31,14 @@ if (!string.IsNullOrEmpty(keyVaultName))
     Console.WriteLine($"[BOOTSTRAP] Azure Key Vault configuration successfully loaded from: {kvUri}");
 }
 
+// Application Insights
+builder.Services.AddApplicationInsightsTelemetry();
+
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!, name: "SQL Server")
+    .AddRedis(builder.Configuration["Redis:Configuration"]!, name: "Redis");
+
 // Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -185,6 +193,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
 // Seed Rules Engine

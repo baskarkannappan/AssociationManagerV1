@@ -3,11 +3,12 @@
     "Values": {
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "Smtp:Host": "smtp.gmail.com",
+        "KeyVaultName": "kv-assocmgr-dev-unique",
+        "Smtp:Host": "REPLACE_IN_KEYVAULT",
         "Smtp:Port": "587",
-        "Smtp:Username": "MyAssociationManager005@gmail.com",
-        "Smtp:Password": "YOUR_APP_PASSWORD",
-        "Smtp:FromEmail": "MyAssociationManager005@gmail.com",
+        "Smtp:Username": "REPLACE_IN_KEYVAULT",
+        "Smtp:Password": "REPLACE_IN_KEYVAULT",
+        "Smtp:FromEmail": "REPLACE_IN_KEYVAULT",
         "Smtp:FromName": "Association Manager"
     }
 }
