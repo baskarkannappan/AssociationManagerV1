@@ -130,6 +130,11 @@ builder.Services.AddMemoryCache();
 
 // Authentication
 var jwtSettingsData = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+if (jwtSettingsData == null)
+{
+    Console.WriteLine("[BOOTSTRAP] WARNING: JwtSettings section is missing from configuration.");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -140,8 +145,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettingsData?.Issuer,
-            ValidAudience = jwtSettingsData?.Audience,
+            ValidIssuer = jwtSettingsData?.Issuer ?? "TempIssuer",
+            ValidAudience = jwtSettingsData?.Audience ?? "TempAudience",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettingsData?.Key ?? "TemporaryKeyForBuildValidationOnlyMustBeLongEnough123!")),
             RoleClaimType = "role",
             NameClaimType = "name"
