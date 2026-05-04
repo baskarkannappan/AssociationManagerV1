@@ -214,7 +214,6 @@ app.MapHealthChecks("/health");
 app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
 // Seed Rules Engine
-var defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrEmpty(defaultConnectionString))
 {
     try
