@@ -14,7 +14,7 @@ WORKDIR "/src/AssociationManager.Gateway"
 RUN dotnet publish "AssociationManager.Gateway.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime Stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-bookworm-slim AS final
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
