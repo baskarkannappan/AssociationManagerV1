@@ -63,8 +63,8 @@ jobs:
 
       - name: Pull Base Images
         run: |
-          docker pull mcr.microsoft.com/dotnet/sdk:9.0-bookworm
-          docker pull mcr.microsoft.com/dotnet/aspnet:9.0-bookworm-slim
+          docker pull mcr.microsoft.com/dotnet/sdk:9.0-noble
+          docker pull mcr.microsoft.com/dotnet/aspnet:9.0-noble
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin

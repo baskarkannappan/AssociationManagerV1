@@ -1,5 +1,5 @@
 # Build Stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0-bookworm AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
 WORKDIR /src
 
 # Copy all project files to restore dependencies
@@ -18,7 +18,7 @@ WORKDIR "/src/AssociationManager.Api"
 RUN dotnet publish "AssociationManager.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime Stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-bookworm-slim AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble AS final
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
