@@ -698,7 +698,7 @@ public class FinanceController : ControllerBase
     [Authorize(Policy = "RequireFinanceManager")]
     public async Task<IActionResult> ReconcileAll()
     {
-        await _financeService.ReconcileAllBalancesAsync(_tenantContext.AssociationId);
+        await _financeService.ReconcileAllBalancesAsync(_tenantContext.TenantId, _tenantContext.AssociationId);
         return Ok(ApiResponse.SuccessResponse("Association balance reconciliation completed. Dashboard metrics updated."));
     }
 
