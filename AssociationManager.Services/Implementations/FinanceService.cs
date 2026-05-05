@@ -1167,16 +1167,21 @@ public class FinanceService : IFinanceService
     {
         try
         {
+            Console.WriteLine($"[INFO] Starting bulk reconciliation for Association {associationId} (Tenant: {tenantId})...");
             using var connection = _dbConnectionFactory.CreateConnection();
             await connection.ExecuteAsync("assoc.sp_Finance_ReconcileAllBalances", 
                 new { TenantId = tenantId, AssociationId = associationId }, 
-                commandType: CommandType.StoredProcedure);
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 180); // 3 minute timeout
             
+            Console.WriteLine($"[INFO] Bulk reconciliation SUCCESS for Association {associationId}.");
             return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Error] Bulk reconciliation failed for Association {associationId}: {ex.Message}");
+            if (ex.InnerException != null)
+                Console.WriteLine($"[Inner Error] {ex.InnerException.Message}");
             return false;
         }
     }
