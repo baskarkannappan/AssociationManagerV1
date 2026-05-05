@@ -694,6 +694,14 @@ public class FinanceController : ControllerBase
         return Ok(ApiResponse<int>.SuccessResponse(count, $"Batch processed fine posting. {count} new fine items recorded in the ledger."));
     }
 
+    [HttpPost("reconcile-all")]
+    [Authorize(Policy = "RequireFinanceManager")]
+    public async Task<IActionResult> ReconcileAll()
+    {
+        await _financeService.ReconcileAllBalancesAsync(_tenantContext.AssociationId);
+        return Ok(ApiResponse.SuccessResponse("Association balance reconciliation completed. Dashboard metrics updated."));
+    }
+
     private async Task<List<int>> GetUserAssetIdsAsync(int userId)
     {
         var occupancies = await _peopleService.GetOccupancyByUserIdAsync(userId);

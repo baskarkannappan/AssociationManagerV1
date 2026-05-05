@@ -34,6 +34,12 @@
                 {
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="mb-0 fw-bold">Financial History</h5>
+                        <AuthorizeView Policy="RequireManagement">
+                            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" @onclick="ReconcileBalances" disabled="@_isReconciling">
+                                @if (_isReconciling) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                <i class="bi bi-arrow-repeat me-1"></i> Recalculate Balances
+                            </button>
+                        </AuthorizeView>
                     </div>
                     <InvoiceGrid @ref="_invoiceGrid"
                                  OnInitiatePayment="OnInvoicePayNow" 
@@ -75,6 +81,7 @@
 @code {
     private RazorpayCheckout _razorpayCheckout = default!;
     private InvoiceGrid _invoiceGrid = default!;
+    private bool _isReconciling;
     private bool _canManageGeneration;
 
     protected override async Task OnInitializedAsync()
@@ -153,5 +160,31 @@
     private void OnPaymentFailed()
     {
         _toastService.Notify(new(ToastType.Danger, "Payment failed or was cancelled."));
+    }
+
+    private async Task ReconcileBalances()
+    {
+        _isReconciling = true;
+        try
+        {
+            var result = await ApiService.PostAsync<object, ApiResponse>("api/finance/reconcile-all", new { });
+            if (result != null && result.Success)
+            {
+                _toastService.Notify(new(ToastType.Success, "Balances recalculated successfully! Dashboard updated."));
+                await _invoiceGrid.RefreshAsync();
+            }
+            else
+            {
+                _toastService.Notify(new(ToastType.Danger, "Failed to recalculate balances."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _toastService.Notify(new(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+        finally
+        {
+            _isReconciling = false;
+        }
     }
 }

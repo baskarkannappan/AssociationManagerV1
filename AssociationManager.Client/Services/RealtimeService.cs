@@ -27,49 +27,63 @@ public class RealtimeService : IAsyncDisposable
 
     public async Task StartAsync()
     {
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(_hubUrl, options =>
-            {
-                options.AccessTokenProvider = async () => await _tokenService.GetToken();
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        _hubConnection.On<string>("ReceiveNotification", (message) =>
+        try
         {
-            if (message.Contains("|"))
+            if (_hubConnection != null && _hubConnection.State != HubConnectionState.Disconnected)
             {
-                var parts = message.Split('|');
-                var status = parts[0];
-                
-                if (status == "BATCH_READY" || status == "PREVIEW_READY" || status == "COMMIT_READY" || status == "COMMIT_FAILED")
+                return; // Already started or starting
+            }
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(_hubUrl, options =>
                 {
-                    if (parts.Length >= 3 && int.TryParse(parts[1], out int assocId))
+                    options.AccessTokenProvider = async () => await _tokenService.GetToken();
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string>("ReceiveNotification", (message) =>
+            {
+                if (message.Contains("|"))
+                {
+                    var parts = message.Split('|');
+                    var status = parts[0];
+                    
+                    if (status == "BATCH_READY" || status == "PREVIEW_READY" || status == "COMMIT_READY" || status == "COMMIT_FAILED")
                     {
-                        var period = parts[2];
-                        var jobId = parts.Length >= 4 ? parts[3] : null;
-                        
-                        OnBatchCompleted?.Invoke(assocId, period, jobId, status);
-                        return;
+                        if (parts.Length >= 3 && int.TryParse(parts[1], out int assocId))
+                        {
+                            var period = parts[2];
+                            var jobId = parts.Length >= 4 ? parts[3] : null;
+                            
+                            OnBatchCompleted?.Invoke(assocId, period, jobId, status);
+                            return;
+                        }
                     }
                 }
-            }
-            OnNotificationReceived?.Invoke(message);
-        });
+                OnNotificationReceived?.Invoke(message);
+            });
 
-        _hubConnection.On("HierarchyChanged", () =>
+            _hubConnection.On("HierarchyChanged", () =>
+            {
+                OnHierarchyChanged?.Invoke();
+            });
+
+            _hubConnection.Reconnected += async (connectionId) =>
+            {
+                if (_currentTenantId.HasValue) await JoinTenantGroupAsync(_currentTenantId.Value);
+                if (_currentAssociationId.HasValue) await JoinAssociationGroupAsync(_currentAssociationId.Value);
+                OnReconnected?.Invoke();
+            };
+
+            await _hubConnection.StartAsync();
+            Console.WriteLine($"[Realtime] Connected to hub at {_hubUrl}");
+        }
+        catch (Exception ex)
         {
-            OnHierarchyChanged?.Invoke();
-        });
-
-        _hubConnection.Reconnected += async (connectionId) =>
-        {
-            if (_currentTenantId.HasValue) await JoinTenantGroupAsync(_currentTenantId.Value);
-            if (_currentAssociationId.HasValue) await JoinAssociationGroupAsync(_currentAssociationId.Value);
-            OnReconnected?.Invoke();
-        };
-
-        await _hubConnection.StartAsync();
+            Console.WriteLine($"[Realtime] ERROR: Could not connect to SignalR hub: {ex.Message}");
+            throw; // Re-throw so the caller (MainLayout) can handle it gracefully
+        }
     }
 
     public async Task JoinTenantGroupAsync(int tenantId)

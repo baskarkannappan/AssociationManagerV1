@@ -223,8 +223,16 @@
                 }
 
                 // Initialize SignalR and join group
-                await _realtime.StartAsync();
-                await _realtime.JoinTenantGroupAsync(_currentTenantId);
+                try
+                {
+                    await _realtime.StartAsync();
+                    await _realtime.JoinTenantGroupAsync(_currentTenantId);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Realtime] Failed to start SignalR: {ex.Message}");
+                    // Don't crash the app if real-time features fail
+                }
             }
         }
         finally { _isLoadingTenants = false; }
