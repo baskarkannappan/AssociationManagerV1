@@ -1,5 +1,5 @@
 -- 1. Fix Association Balances Sync
-CREATE OR ALTER   PROCEDURE assoc.sp_AssociationBalances_Sync 
+CREATE   PROCEDURE assoc.sp_AssociationBalances_Sync 
     @TenantId INT = NULL, 
     @AssociationId INT 
 AS 

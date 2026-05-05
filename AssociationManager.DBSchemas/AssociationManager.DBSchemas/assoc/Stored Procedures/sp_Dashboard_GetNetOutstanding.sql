@@ -1,5 +1,5 @@
 -- 2. Fix Net Outstanding Dashboard Proc
-CREATE OR ALTER   PROCEDURE assoc.sp_Dashboard_GetNetOutstanding
+CREATE PROCEDURE assoc.sp_Dashboard_GetNetOutstanding
     @TenantId INT, @AssociationId INT
 AS
 BEGIN

@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Finance_UpdateAssetBalanceSnapshot
+CREATE PROCEDURE assoc.sp_Finance_UpdateAssetBalanceSnapshot
     @AssetId INT,
     @TenantId INT,
     @AssociationId INT

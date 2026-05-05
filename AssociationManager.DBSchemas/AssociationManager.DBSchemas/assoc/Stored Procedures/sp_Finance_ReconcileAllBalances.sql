@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Finance_ReconcileAllBalances
+CREATE PROCEDURE assoc.sp_Finance_ReconcileAllBalances
     @TenantId INT,
     @AssociationId INT
 AS

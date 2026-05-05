@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Finance_GetUsersBalancesBulk
+CREATE PROCEDURE assoc.sp_Finance_GetUsersBalancesBulk
     @AssociationId INT,
     @UserIds NVARCHAR(MAX) -- Comma-separated list of UserIds
 AS
