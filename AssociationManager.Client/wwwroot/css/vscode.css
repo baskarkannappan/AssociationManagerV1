@@ -415,7 +415,7 @@ body {
     .sidebar-wrapper {
         position: absolute;
         left: -240px;
-        top: 40px;
+        top: 48px;
         bottom: 0;
         z-index: 999;
         transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);

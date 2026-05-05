@@ -127,8 +127,8 @@ public class BillingBatchService
         Console.WriteLine($"[Perf] Step 2a - Bulk Fetch Tariff Layers ({allLayers.Count} layers): {sw.ElapsedMilliseconds}ms");
         
         sw.Restart();
-        var assignments = (await _tariffRepository.GetActiveTariffsByTenantIdAsync(tenantId)).ToList();
-        Console.WriteLine($"[Perf] Step 2b - Fetch {assignments.Count} Assignments: {sw.ElapsedMilliseconds}ms");
+        var assignments = (await _tariffRepository.GetActiveTariffsByAssociationIdAsync(request.AssociationId, tenantId)).ToList();
+        Console.WriteLine($"[Perf] Step 2b - Fetch {assignments.Count} Assignments (Optimized): {sw.ElapsedMilliseconds}ms");
 
         // Build lookup dictionaries for O(1) access
         sw.Restart();

@@ -408,5 +408,6 @@
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetAssignmentsByLayerId.sql" />
     <Build Include="assoc\Stored Procedures\sp_Finance_GetUsersBalancesBulk.sql" />
     <Build Include="assoc\Stored Procedures\sp_AssetTariffs_DeactivateBulk.sql" />
+    <Build Include="assoc\Stored Procedures\sp_AssetTariffs_GetActiveByAssociationId.sql" />
   </ItemGroup>
 </Project>
