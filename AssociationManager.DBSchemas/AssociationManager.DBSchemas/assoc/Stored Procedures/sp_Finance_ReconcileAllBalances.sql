@@ -23,5 +23,8 @@ BEGIN
 
     CLOSE AssetCursor;
     DEALLOCATE AssetCursor;
+
+    -- 3. Trigger Association-level sync to update dashboard totals
+    EXEC assoc.sp_AssociationBalances_Sync @TenantId = @TenantId, @AssociationId = @AssociationId;
 END
 GO
