@@ -167,8 +167,8 @@
         _isReconciling = true;
         try
         {
-            var result = await ApiService.PostAsync<object, ApiResponse>("api/finance/reconcile-all", new { });
-            if (result != null && result.Success)
+            var success = await ApiService.PostAsync("api/finance/reconcile-all", new { });
+            if (success)
             {
                 _toastService.Notify(new(ToastType.Success, "Balances recalculated successfully! Dashboard updated."));
                 await _invoiceGrid.RefreshAsync();
