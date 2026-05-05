@@ -147,6 +147,8 @@
     <Build Include="assoc\Stored Procedures\sp_Finance_GetAssociationSummary_Snapshot.sql" />
     <Build Include="assoc\Stored Procedures\sp_Finance_GetPersonalWalletBalance.sql" />
     <Build Include="assoc\Stored Procedures\sp_Finance_GetSummaryStats.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_ReconcileAllBalances.sql" />
+    <Build Include="assoc\Stored Procedures\sp_Finance_UpdateAssetBalanceSnapshot.sql" />
     <Build Include="assoc\Stored Procedures\sp_Finance_ValidateIntegrity.sql" />
     <Build Include="assoc\Stored Procedures\sp_FineSettings_Get.sql" />
     <Build Include="assoc\Stored Procedures\sp_FineSettings_Upsert.sql" />
@@ -247,6 +249,7 @@
     <Build Include="assoc\Stored Procedures\sp_WorkOrders_GetPendingCount.sql" />
     <Build Include="assoc\Stored Procedures\sp_WorkOrders_Update.sql" />
     <Build Include="assoc\Stored Procedures\sp_WorkOrders_UpdateStatus.sql" />
+    <Build Include="assoc\Tables\AssetBalancesSnapshot.sql" />
     <Build Include="assoc\Tables\Assets.sql" />
     <Build Include="assoc\Tables\AssetTariffs.sql" />
     <Build Include="assoc\Tables\AssociationBalances.sql" />
