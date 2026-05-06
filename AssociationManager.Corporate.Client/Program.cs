@@ -25,7 +25,6 @@ builder.Services.AddBlazorBootstrap();
 builder.Services.AddOptions();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
 // Configure MSAL for Entra External ID
 builder.Services.AddMsalAuthentication(options =>
@@ -35,6 +34,8 @@ builder.Services.AddMsalAuthentication(options =>
     options.ProviderOptions.Authentication.PostLogoutRedirectUri = "/";
     options.ProviderOptions.Authentication.RedirectUri = builder.HostEnvironment.BaseAddress;
 });
+
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
 // Authorization Policies
 builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
