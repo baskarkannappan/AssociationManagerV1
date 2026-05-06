@@ -24,15 +24,16 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("google")]
-    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+    [HttpPost("b2c-login")]
+    [Authorize]
+    public async Task<IActionResult> B2CLogin()
     {
-        var response = await _authService.GoogleLoginAsync(request.IdToken);
+        var response = await _authService.B2CLoginAsync(User);
         if (response.Success)
         {
             return Ok(response);
         }
-        _logger.LogWarning("Google Login failed: {Message}", response.Message);
+        _logger.LogWarning("B2C Login failed: {Message}", response.Message);
         return Unauthorized(response);
     }
 

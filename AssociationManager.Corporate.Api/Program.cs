@@ -18,6 +18,7 @@ using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
+using Microsoft.Identity.Web;
 
 Console.WriteLine("[BOOTSTRAP] Corporate API starting...");
 
@@ -153,29 +154,14 @@ try
     builder.Services.AddMemoryCache();
 
     // Authentication
-    var jwtSettingsData = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
-    if (jwtSettingsData == null)
-    {
-        Console.WriteLine("[BOOTSTRAP] WARNING: JwtSettings section is missing from configuration.");
-    }
-
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.MapInboundClaims = false;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = jwtSettingsData?.Issuer ?? "TempIssuer",
-                ValidAudience = jwtSettingsData?.Audience ?? "TempAudience",
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettingsData?.Key ?? "TemporaryKeyForBuildValidationOnlyMustBeLongEnough123!")),
-                RoleClaimType = "role",
-                NameClaimType = "name"
-            };
-        });
+        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+    builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.TokenValidationParameters.RoleClaimType = "extension_Role";
+        options.TokenValidationParameters.NameClaimType = "name";
+    });
 
     // Real-time
     builder.Services.AddSignalR();
