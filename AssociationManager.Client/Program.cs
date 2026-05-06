@@ -36,6 +36,7 @@ builder.Services.AddMsalAuthentication(options =>
     options.ProviderOptions.Authentication.RedirectUri = builder.HostEnvironment.BaseAddress;
 });
 
+// We register our custom provider AFTER MSAL to ensure it is the primary one used by the UI
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
 // Authorization Policies

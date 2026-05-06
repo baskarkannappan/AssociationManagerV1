@@ -35,6 +35,7 @@ builder.Services.AddMsalAuthentication(options =>
     options.ProviderOptions.Authentication.RedirectUri = builder.HostEnvironment.BaseAddress;
 });
 
+// Primary auth provider for the app
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
 // Authorization Policies
