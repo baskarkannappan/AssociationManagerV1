@@ -161,6 +161,12 @@ try
     {
         options.TokenValidationParameters.RoleClaimType = "extension_Role";
         options.TokenValidationParameters.NameClaimType = "name";
+        // Ensure both the API ID and Client ID are trusted audiences
+        options.TokenValidationParameters.ValidAudiences = new[] 
+        { 
+            builder.Configuration["AzureAd:ClientId"], 
+            "b6769384-144c-4c59-a9f5-02c201d4e769" 
+        };
     });
 
     // Real-time
