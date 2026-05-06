@@ -4,7 +4,8 @@ window.msalHelper = {
             auth: {
                 clientId: clientId,
                 authority: authority,
-                validateAuthority: true
+                validateAuthority: true,
+                knownAuthorities: ["assocmgruat.ciamlogin.com"]
             },
             cache: {
                 cacheLocation: "localStorage",
