@@ -183,9 +183,10 @@ try
 
     builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
     {
-        options.TokenValidationParameters.RoleClaimType = "extension_Role"; // B2C custom attribute mapping
+        options.TokenValidationParameters.RoleClaimType = "extension_Role";
         options.TokenValidationParameters.NameClaimType = "name";
-        // Ensure both the API ID and Client ID are trusted audiences
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.TokenValidationParameters.ValidIssuer = $"https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0";
         options.TokenValidationParameters.ValidAudiences = new[] 
         { 
             builder.Configuration["AzureAd:ClientId"], 
