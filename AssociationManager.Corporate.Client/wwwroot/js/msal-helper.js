@@ -45,7 +45,8 @@ window.msalHelper = {
             auth: {
                 clientId: clientId,
                 authority: authority,
-                redirectUri: window.location.origin + "/"
+                redirectUri: window.location.origin + "/",
+                knownAuthorities: ["assocmgruat.ciamlogin.com"]
             },
             cache: {
                 cacheLocation: "sessionStorage",
