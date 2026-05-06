@@ -24,26 +24,42 @@ window.msalHelper = {
         const msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
 
-        // Handle any redirect results
-        await msalInstance.handleRedirectPromise();
-
         try {
             const loginRequest = {
                 scopes: [scope],
                 prompt: "select_account",
-                // Explicitly set redirectUri to match the portal (with trailing slash)
                 redirectUri: window.location.origin + "/" 
             };
 
             console.log("[MSAL] Starting login with Redirect URI:", loginRequest.redirectUri);
-            const response = await msalInstance.loginPopup(loginRequest);
-            return response.accessToken;
+            // Switch from popup to redirect to avoid COOP issues
+            await msalInstance.loginRedirect(loginRequest);
+            return null; // Will reload the page
         } catch (error) {
-            if (error.name === "BrowserAuthError" && (error.errorCode === "interaction_in_progress" || error.errorCode === "user_cancelled")) {
-                console.warn("[MSAL] Interaction error detected. If you didn't close the window, this is a browser policy issue.");
-            }
             console.error("MSAL Login Error:", error);
             throw error;
         }
+    handleRedirect: async function(clientId, authority, scope) {
+        const msalConfig = {
+            auth: {
+                clientId: clientId,
+                authority: authority,
+                redirectUri: window.location.origin + "/"
+            },
+            cache: {
+                cacheLocation: "sessionStorage",
+                storeAuthStateInCookie: false
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+        await msalInstance.initialize();
+
+        const response = await msalInstance.handleRedirectPromise();
+        if (response) {
+            console.log("[MSAL] Redirect response found:", response);
+            return response.accessToken;
+        }
+        return null;
     }
 };

@@ -175,12 +175,39 @@
     {
         if (firstRender)
         {
-            // Check if we just returned from a successful MSAL login
+            // Check if we just returned from an MSAL Redirect login
+            try 
+            {
+                var clientId = Configuration["AzureAd:ClientId"];
+                var authority = Configuration["AzureAd:Authority"];
+                var scope = "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user";
+
+                var token = await JS.InvokeAsync<string>("msalHelper.handleRedirect", clientId, authority, scope);
+                
+                if (!string.IsNullOrEmpty(token))
+                {
+                    var result = await AuthService.LoginWithB2C(token);
+                    if (result?.Success == true)
+                    {
+                        await RedirectAfterLogin();
+                    }
+                    else
+                    {
+                        _errorMessage = result?.Message ?? "Backend authentication failed.";
+                        StateHasChanged();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Redirect handle failed: {ex.Message}";
+                StateHasChanged();
+            }
+
+            // Normal auth check
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity?.IsAuthenticated == true)
             {
-                // In a real flow, we might need to exchange the token here if not already handled by a handler
-                // But for now, we redirect to process the session
                 await RedirectAfterLogin();
             }
         }
