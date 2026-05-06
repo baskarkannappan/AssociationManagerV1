@@ -21,9 +21,10 @@ public class AuthService
         _authStateProvider = authStateProvider;
     }
 
-    public async Task<AuthResponse?> LoginWithGoogle(string idToken)
+    public async Task<AuthResponse?> LoginWithB2C(string b2cToken)
     {
-        var result = await _httpClient.PostAsJsonAsync("api/auth/google", new GoogleLoginRequest { IdToken = idToken });
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", b2cToken);
+        var result = await _httpClient.PostAsync("api/auth/b2c-login", null);
         if (result.IsSuccessStatusCode)
         {
             var response = await result.Content.ReadFromJsonAsync<AuthResponse>();

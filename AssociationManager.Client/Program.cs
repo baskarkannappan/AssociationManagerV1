@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Authorization;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -26,6 +27,15 @@ builder.Services.AddOptions();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
+
+// Configure MSAL for Entra External ID
+builder.Services.AddMsalAuthentication(options =>
+{
+    builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
+    options.ProviderOptions.DefaultAccessTokenScopes.Add("api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user");
+    options.ProviderOptions.Authentication.PostLogoutRedirectUri = "/";
+    options.ProviderOptions.Authentication.RedirectUri = builder.HostEnvironment.BaseAddress;
+});
 
 // Authorization Policies
 builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
