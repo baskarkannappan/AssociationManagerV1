@@ -39,6 +39,7 @@ window.msalHelper = {
             console.error("MSAL Login Error:", error);
             throw error;
         }
+    },
     handleRedirect: async function(clientId, authority, scope) {
         const msalConfig = {
             auth: {
