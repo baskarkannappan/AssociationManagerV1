@@ -1,5 +1,6 @@
 window.msalHelper = {
     login: async function (clientId, authority, scope) {
+        console.log("[MSAL] Initializing with Authority:", authority);
         const msalConfig = {
             auth: {
                 clientId: clientId,
