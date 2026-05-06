@@ -27,7 +27,6 @@ public class AuthService : IAuthService
     private readonly IAssociationRepository _associationRepository;
     private readonly IDistributedCache _cache;
     private readonly JwtSettings _jwtSettings;
-    private readonly GoogleSettings _googleSettings;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -36,7 +35,6 @@ public class AuthService : IAuthService
         IAssociationRepository associationRepository,
         IDistributedCache cache,
         IOptions<JwtSettings> jwtSettings,
-        IOptions<GoogleSettings> googleSettings,
         ILogger<AuthService> logger)
     {
         _userRepository = userRepository;
@@ -44,106 +42,90 @@ public class AuthService : IAuthService
         _associationRepository = associationRepository;
         _cache = cache;
         _jwtSettings = jwtSettings.Value;
-        _googleSettings = googleSettings.Value;
         _logger = logger;
     }
 
-    public async Task<AuthResponse> GoogleLoginAsync(string idToken)
+    public async Task<AuthResponse> B2CLoginAsync(ClaimsPrincipal principal)
     {
-        _logger.LogInformation("[AUTH_DIAG] Attempting Google login. ClientId in Config: {ClientId}", _googleSettings.ClientId);
+        var subjectId = principal.Claims.FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier)?.Value;
+        var email = principal.Claims.FirstOrDefault(c => c.Type == "emails" || c.Type == "email" || c.Type == ClaimTypes.Email)?.Value;
+        var name = principal.Claims.FirstOrDefault(c => c.Type == "name" || c.Type == ClaimTypes.Name)?.Value ?? "B2C User";
+        var picture = principal.Claims.FirstOrDefault(c => c.Type == "picture")?.Value;
+
+        if (string.IsNullOrEmpty(subjectId) || string.IsNullOrEmpty(email))
+        {
+            _logger.LogWarning("[AUTH_B2C] Missing critical claims. Sub: {Sub}, Email: {Email}", subjectId, email);
+            return new AuthResponse { Success = false, Message = "Invalid authentication token: Missing Subject or Email claims." };
+        }
+
+        _logger.LogInformation("[AUTH_B2C] Processing login for {Email} (Subject: {Subject})", email, subjectId);
+
         try
         {
-            var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
-            {
-                Audience = new[] { _googleSettings.ClientId }
-            });
-            _logger.LogInformation("[AUTH_DIAG] Token validated successfully for {Email}", payload.Email);
-
-            var user = await _userRepository.GetByGoogleIdAsync(payload.Subject);
+            // 1. Try lookup by SubjectId (Primary B2C Identifier)
+            var user = await _userRepository.GetBySubjectIdAsync(subjectId);
+            
             if (user == null)
             {
-                // 1. Try local schema (assoc or corp)
-                user = await _userRepository.GetByEmailAsync(payload.Email);
+                // 2. MIGRATION BRIDGE: Try lookup by Email
+                user = await _userRepository.GetByEmailAsync(email);
                 
                 if (user == null)
                 {
-                    // 2. Try global schema (corp) as fallback for Admins
-                    var globalUser = await _userRepository.GetByEmailGlobalAsync(payload.Email);
+                    // 3. Fallback for Admins in global schema
+                    var globalUser = await _userRepository.GetByEmailGlobalAsync(email);
                     if (globalUser != null && (globalUser.Role == AppRole.SystemAdmin || 
                                                globalUser.Role == AppRole.PlatformAdmin ||
                                                globalUser.Role == AppRole.AssociationAdmin))
                     {
-                        // Provision this global admin into the local (assoc) schema
-                        globalUser.UserId = 0; // Ensure new ID
-                        globalUser.GoogleId = payload.Subject;
+                        globalUser.UserId = 0;
+                        globalUser.SubjectId = subjectId;
                         globalUser.CreatedDate = DateTime.UtcNow;
                         var newId = await _userRepository.CreateAsync(globalUser);
                         user = await _userRepository.GetByIdAsync(newId);
                     }
                 }
 
-                if (user == null)
+                if (user != null)
                 {
-                    return new AuthResponse { Success = false, Message = "Access Denied: Your email is not configured in the system. Please contact your administrator." };
+                    // Link the SubjectId for future logins
+                    user.SubjectId = subjectId;
                 }
-
-                // Link their newly authenticated GoogleId to their record
-                user.GoogleId = payload.Subject;
             }
 
-            user.Name = payload.Name;
-            user.PictureUrl = payload.Picture;
+            if (user == null)
+            {
+                return new AuthResponse { Success = false, Message = "Access Denied: Your account is not configured in Association Manager." };
+            }
+
+            // Sync profile data from B2C
+            user.Name = name;
+            if (!string.IsNullOrEmpty(picture)) user.PictureUrl = picture;
             user.LastLoginDate = DateTime.UtcNow;
 
-            // Cleanup potentially contaminated role string from DB
+            // Cleanup roles if needed
             if (!string.IsNullOrEmpty(user.Role) && user.Role.Contains(","))
             {
                 user.Role = AppRole.GetRoleHierarchy(user.Role).FirstOrDefault() ?? AppRole.Resident;
             }
             
-            // Auto-resolve association if currently invalid (0 or 1)
-            if (user.AssociationId == null || user.AssociationId <= 1 || (user.TenantId <= 1 && user.AssociationId == null))
+            // Association resolution logic
+            if (user.AssociationId == null || user.AssociationId <= 1)
             {
                 var associations = await _associationRepository.GetByUserIdAsync(user.UserId);
                 var firstAssoc = associations.FirstOrDefault();
                 if (firstAssoc != null)
                 {
-                    // Update whichever field is used for current context
-                    if (user.AssociationId != null || (user.AssociationId == null && user.TenantId <= 1))
-                    {
-                         user.AssociationId = firstAssoc.AssociationId;
-                    }
-                    user.TenantId = firstAssoc.TenantId; // Usually 1 in assoc schema
+                    user.AssociationId = firstAssoc.AssociationId;
+                    user.TenantId = firstAssoc.TenantId;
                 }
             }
 
             await _userRepository.UpdateAsync(user);
 
-            // Get the role for the current tenant or association
             var roleId = user.AssociationId > 0 ? user.AssociationId.Value : user.TenantId;
             var role = await _userRepository.GetRoleInTenantAsync(user.UserId, roleId);
-            
-            // Final role resolution
-            if (user.AssociationId > 0)
-            {
-                // In association context, role is determined by mapping, defaulting to Resident
-                user.Role = role ?? AppRole.Resident;
-            }
-            else
-            {
-                // In corporate/tenant context, keep corporate roles if assigned, or use mapping
-                if (AppRole.IsCorporateRole(user.Role))
-                {
-                    if (!string.IsNullOrEmpty(role) && user.Role != role)
-                    {
-                        user.Role = $"{user.Role}, {role}";
-                    }
-                }
-                else
-                {
-                    user.Role = role ?? AppRole.Resident;
-                }
-            }
+            user.Role = role ?? user.Role ?? AppRole.Resident;
 
             var status = "Active";
             if (user.AssociationId > 0)
@@ -156,8 +138,8 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AUTH_DIAG] Google validation failed. Message: {Message}", ex.Message);
-            return new AuthResponse { Success = false, Message = $"Authentication failed: {ex.Message}" };
+            _logger.LogError(ex, "[AUTH_B2C] Failed to process login for {Email}", email);
+            return new AuthResponse { Success = false, Message = $"Authentication processing failed: {ex.Message}" };
         }
     }
 

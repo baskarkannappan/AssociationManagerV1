@@ -7,6 +7,7 @@ public class User
     public int UserId { get; set; }
     public int TenantId { get; set; }
     public string GoogleId { get; set; } = string.Empty;
+    public string? SubjectId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? PictureUrl { get; set; }

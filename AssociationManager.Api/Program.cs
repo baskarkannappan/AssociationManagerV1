@@ -1,3 +1,4 @@
+using Microsoft.Identity.Web;
 using AssociationManager.Api.Middlewares;
 using AssociationManager.Auth.Interfaces;
 using Hangfire;
@@ -177,46 +178,14 @@ try
     builder.Services.AddMemoryCache();
 
     // Authentication
-    var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
-    if (jwtSettings == null)
-    {
-        Console.WriteLine("[BOOTSTRAP] WARNING: JwtSettings section is missing from configuration.");
-    }
-
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.MapInboundClaims = false;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = jwtSettings?.Issuer ?? "TempIssuer",
-                ValidAudience = jwtSettings?.Audience ?? "TempAudience",
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.Key ?? "TemporaryKeyForBuildValidationOnlyMustBeLongEnough123!")),
-                RoleClaimType = "role",
-                NameClaimType = "name"
-            };
-            options.Events = new JwtBearerEvents
-            {
-                OnAuthenticationFailed = context =>
-                {
-                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                    logger.LogError("Association API Authentication failed: {Message}. Token info: {TokenHeader}", 
-                        context.Exception.Message, 
-                        context.Request.Headers.Authorization.ToString());
-                    return Task.CompletedTask;
-                },
-                OnTokenValidated = context =>
-                {
-                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                    logger.LogInformation("Token validated for {User}", context.Principal?.Identity?.Name);
-                    return Task.CompletedTask;
-                }
-            };
-        });
+        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+    builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.TokenValidationParameters.RoleClaimType = "extension_Role"; // B2C custom attribute mapping
+        options.TokenValidationParameters.NameClaimType = "name";
+    });
 
     // Real-time
     builder.Services.AddSignalR();

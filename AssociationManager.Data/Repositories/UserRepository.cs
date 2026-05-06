@@ -39,6 +39,15 @@ public class UserRepository : IUserRepository
             commandType: CommandType.StoredProcedure);
     }
 
+    public async Task<User?> GetBySubjectIdAsync(string subjectId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<User>(
+            $"{_schema}.sp_Users_GetBySubjectId", 
+            new { SubjectId = subjectId },
+            commandType: CommandType.StoredProcedure);
+    }
+
     public async Task<User?> GetByEmailAsync(string email)
     {
         using var connection = _dbConnectionFactory.CreateConnection();
@@ -82,6 +91,7 @@ public class UserRepository : IUserRepository
             { 
                 user.TenantId, 
                 user.GoogleId, 
+                user.SubjectId,
                 user.Email, 
                 user.Name, 
                 user.PictureUrl, 
@@ -101,6 +111,8 @@ public class UserRepository : IUserRepository
             new 
             { 
                 user.UserId,
+                user.GoogleId,
+                user.SubjectId,
                 user.Name, 
                 user.PictureUrl, 
                 user.Role, 
