@@ -26,8 +26,20 @@ try
         }
     }
 
-    // Application Insights
-    builder.Services.AddApplicationInsightsTelemetry();
+    // Application Insights (Conditional to prevent crash if connection string is missing)
+    var aiConnString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+    if (!string.IsNullOrEmpty(aiConnString))
+    {
+        builder.Services.AddApplicationInsightsTelemetry(options =>
+        {
+            options.ConnectionString = aiConnString;
+        });
+        Console.WriteLine("[BOOTSTRAP] Application Insights telemetry enabled.");
+    }
+    else
+    {
+        Console.WriteLine("[BOOTSTRAP] WARNING: Application Insights connection string not found. Telemetry is disabled.");
+    }
 
     // Health Checks
     builder.Services.AddHealthChecks();
