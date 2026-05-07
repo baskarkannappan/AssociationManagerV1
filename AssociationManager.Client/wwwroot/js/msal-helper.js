@@ -49,16 +49,19 @@ window.msalHelper = {
     },
 
     // Called on page load to process the MSAL redirect response.
-    // Returns the access token string if a redirect just completed, or null otherwise.
+    // Returns the ID TOKEN string if a redirect just completed, or null otherwise.
+    // We use the ID token (not access token) because the ID token contains the
+    // user identity claims (sub, email, name) that the backend B2CLoginAsync needs.
+    // The access token only has API-scoped claims (aud, scp) and may lack email.
     handleRedirect: async function(clientId, authority, scope) {
         console.log("[MSAL] Checking for Redirect Callback...");
         const instance = await getMsalInstance(clientId, authority);
 
         try {
             const response = await instance.handleRedirectPromise();
-            if (response && response.accessToken) {
-                console.log("[MSAL] Redirect Success! Access token acquired for scopes:", response.scopes);
-                return response.accessToken;
+            if (response && response.idToken) {
+                console.log("[MSAL] Redirect Success! ID token acquired for account:", response.account?.username);
+                return response.idToken;
             }
 
             // If we have an account but no fresh redirect response, try silent token acquisition
@@ -70,9 +73,9 @@ window.msalHelper = {
                         scopes: [scope],
                         account: accounts[0]
                     });
-                    if (silentResult && silentResult.accessToken) {
+                    if (silentResult && silentResult.idToken) {
                         console.log("[MSAL] Silent token acquired successfully.");
-                        return silentResult.accessToken;
+                        return silentResult.idToken;
                     }
                 } catch (silentError) {
                     console.warn("[MSAL] Silent acquisition failed:", silentError.message);
