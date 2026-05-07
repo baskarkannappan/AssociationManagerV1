@@ -92,21 +92,10 @@
             var authority = Configuration["AzureAd:Authority"];
             var scope = "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user";
 
-            // Use the JS helper to perform login and get the access token
-            var token = await JS.InvokeAsync<string>("msalHelper.login", clientId, authority, scope);
-            
-            if (!string.IsNullOrEmpty(token))
-            {
-                var result = await _authService.LoginWithB2C(token);
-                if (result?.Success == true)
-                {
-                    await RedirectAfterLogin();
-                }
-                else
-                {
-                    _errorMessage = result?.Message ?? "Backend authentication failed.";
-                }
-            }
+            // loginRedirect navigates the browser to the IdP — the page will be discarded.
+            // Do NOT await a token here. Token pickup is handled in OnAfterRenderAsync
+            // via msalHelper.handleRedirect when the browser returns.
+            await JS.InvokeVoidAsync("msalHelper.login", clientId, authority, scope);
         }
         catch (Exception ex)
         {

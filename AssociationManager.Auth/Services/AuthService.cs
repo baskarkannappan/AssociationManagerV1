@@ -48,13 +48,22 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> B2CLoginAsync(ClaimsPrincipal principal)
     {
         var subjectId = principal.Claims.FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier)?.Value;
-        var email = principal.Claims.FirstOrDefault(c => c.Type == "emails" || c.Type == "email" || c.Type == ClaimTypes.Email)?.Value;
-        var name = principal.Claims.FirstOrDefault(c => c.Type == "name" || c.Type == ClaimTypes.Name)?.Value ?? "B2C User";
+        // CIAM tokens use 'preferred_username' as the primary email field.
+        // Fall back through multiple possible claim names for compatibility.
+        var email = principal.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value
+            ?? principal.Claims.FirstOrDefault(c => c.Type == "emails")?.Value
+            ?? principal.Claims.FirstOrDefault(c => c.Type == "email")?.Value
+            ?? principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
+            ?? principal.Claims.FirstOrDefault(c => c.Type == "signInNames.emailAddress")?.Value;
+        var name = principal.Claims.FirstOrDefault(c => c.Type == "name" || c.Type == ClaimTypes.Name)?.Value 
+            ?? email 
+            ?? "B2C User";
         var picture = principal.Claims.FirstOrDefault(c => c.Type == "picture")?.Value;
 
         if (string.IsNullOrEmpty(subjectId) || string.IsNullOrEmpty(email))
         {
-            _logger.LogWarning("[AUTH_B2C] Missing critical claims. Sub: {Sub}, Email: {Email}", subjectId, email);
+            var allClaims = string.Join(", ", principal.Claims.Select(c => $"{c.Type}={c.Value}"));
+            _logger.LogWarning("[AUTH_B2C] Missing critical claims. Sub: {Sub}, Email: {Email}. All claims: {Claims}", subjectId, email, allClaims);
             return new AuthResponse { Success = false, Message = "Invalid authentication token: Missing Subject or Email claims." };
         }
 
