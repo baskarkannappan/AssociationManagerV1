@@ -153,7 +153,10 @@ try
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddMemoryCache();
 
-    // Authentication
+    // Authentication - Microsoft Identity Web API handles CIAM token validation
+    // The b2c-login endpoint is [AllowAnonymous] but we still pass the raw CIAM token
+    // as a Bearer header. The JWT middleware must NOT reject the request with 401
+    // before the controller action runs. We suppress OnChallenge to achieve this.
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
@@ -165,8 +168,24 @@ try
         options.TokenValidationParameters.ValidIssuer = $"https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0";
         options.TokenValidationParameters.ValidAudiences = new[] 
         { 
-            builder.Configuration["AzureAd:ClientId"], 
-            "b6769384-144c-4c59-a9f5-02c201d4e769" 
+            builder.Configuration["AzureAd:ClientId"],  // af161f39 (API resource)
+            "b6769384-144c-4c59-a9f5-02c201d4e769"      // b6769384 (SPA client)
+        };
+        // CRITICAL: Do not automatically challenge/reject requests on [AllowAnonymous]
+        // endpoints. Without this, the middleware returns 401 before the controller
+        // action runs, even when no authorization is required.
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                var endpoint = context.HttpContext.GetEndpoint();
+                var allowAnon = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>();
+                if (allowAnon != null)
+                {
+                    context.HandleResponse(); // Suppress 401 challenge on anonymous endpoints
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
