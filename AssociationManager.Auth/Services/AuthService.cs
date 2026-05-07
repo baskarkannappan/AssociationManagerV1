@@ -47,6 +47,10 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> B2CLoginAsync(ClaimsPrincipal principal)
     {
+        // DEBUG: Log all claims to find the real email
+        var debugClaims = string.Join(" | ", principal.Claims.Select(c => $"{c.Type}: {c.Value}"));
+        _logger.LogInformation("[AUTH_DEBUG_CLAIMS] {Claims}", debugClaims);
+
         var subjectId = principal.Claims.FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier)?.Value;
         // CIAM tokens use 'preferred_username' as the primary email field.
         // Fall back through multiple possible claim names for compatibility.
