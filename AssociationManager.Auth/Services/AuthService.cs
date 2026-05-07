@@ -50,11 +50,17 @@ public class AuthService : IAuthService
         var subjectId = principal.Claims.FirstOrDefault(c => c.Type == "sub" || c.Type == ClaimTypes.NameIdentifier)?.Value;
         // CIAM tokens use 'preferred_username' as the primary email field.
         // Fall back through multiple possible claim names for compatibility.
-        var email = principal.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value
-            ?? principal.Claims.FirstOrDefault(c => c.Type == "emails")?.Value
-            ?? principal.Claims.FirstOrDefault(c => c.Type == "email")?.Value
+        var email = principal.Claims.FirstOrDefault(c => c.Type == "email")?.Value
             ?? principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
+            ?? principal.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value
+            ?? principal.Claims.FirstOrDefault(c => c.Type == "emails")?.Value
             ?? principal.Claims.FirstOrDefault(c => c.Type == "signInNames.emailAddress")?.Value;
+
+        if (email != null && email.Contains("@assocmgruat.onmicrosoft.com") && principal.Claims.Any(c => c.Type == "email"))
+        {
+            // If we got a placeholder but a real email exists, override it.
+            email = principal.Claims.First(c => c.Type == "email").Value;
+        }
         var name = principal.Claims.FirstOrDefault(c => c.Type == "name" || c.Type == ClaimTypes.Name)?.Value 
             ?? email 
             ?? "B2C User";
