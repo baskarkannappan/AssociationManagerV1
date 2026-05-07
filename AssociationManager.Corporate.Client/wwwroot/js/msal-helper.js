@@ -1,9 +1,11 @@
 let msalInstance = null;
 
-// The redirect URI must always be the root of the app so it is stable
-// and only one URI needs to be registered in Azure App Registration.
+// The redirect URI must point to the login page so that Azure returns the
+// #code= hash directly to the login page. If we use '/', Blazor's router
+// will intercept it and redirect to '/login?returnUrl=...%23code=...',
+// which URL-encodes the '#' making the code invisible to MSAL.
 function getRedirectUri() {
-    return window.location.origin + '/';
+    return window.location.origin + '/login';
 }
 
 async function getMsalInstance(clientId, authority) {
