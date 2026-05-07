@@ -13,6 +13,7 @@ namespace AssociationManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[AllowAnonymous]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -30,17 +31,20 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> B2CLogin()
     {
-        // Manually decode the CIAM token from the Authorization header.
-        // We cannot rely on the middleware-populated User because CIAM issuer
-        // validation may fail, leaving ClaimsPrincipal empty.
-        var authHeader = Request.Headers["Authorization"].ToString();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        // DEBUG: Log all headers to see what's reaching the API
+        foreach (var header in Request.Headers)
         {
-            _logger.LogWarning("[AUTH_B2C] No Bearer token found in Authorization header.");
+            _logger.LogInformation("[AUTH_DEBUG] Header: {Key} = {Value}", header.Key, header.Value);
+        }
+
+        // Read the raw CIAM token from the custom X-B2C-Token header.
+        var rawToken = Request.Headers["X-B2C-Token"].ToString();
+        if (string.IsNullOrEmpty(rawToken))
+        {
+            _logger.LogWarning("[AUTH_B2C] No X-B2C-Token header found in request.");
             return Unauthorized(new AuthResponse { Success = false, Message = "Missing authorization token." });
         }
 
-        var rawToken = authHeader.Substring("Bearer ".Length).Trim();
         ClaimsPrincipal principal;
         try
         {
