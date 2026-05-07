@@ -30,17 +30,17 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> B2CLogin()
     {
-        // Manually decode the CIAM token from the Authorization header.
-        // We cannot rely on the middleware-populated User because CIAM issuer
-        // validation may fail, leaving ClaimsPrincipal empty.
-        var authHeader = Request.Headers["Authorization"].ToString();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        // Read the raw CIAM token from the custom X-B2C-Token header.
+        // We intentionally do NOT use Authorization: Bearer here, because
+        // the JWT middleware would try to validate it against this API's
+        // audience and reject it before this action runs.
+        var rawToken = Request.Headers["X-B2C-Token"].ToString();
+        if (string.IsNullOrEmpty(rawToken))
         {
-            _logger.LogWarning("[AUTH_B2C] No Bearer token found in Authorization header.");
+            _logger.LogWarning("[AUTH_B2C] No X-B2C-Token header found in request.");
             return Unauthorized(new AuthResponse { Success = false, Message = "Missing authorization token." });
         }
 
-        var rawToken = authHeader.Substring("Bearer ".Length).Trim();
         ClaimsPrincipal principal;
         try
         {

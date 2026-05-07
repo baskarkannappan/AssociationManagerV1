@@ -21,8 +21,13 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginWithB2C(string b2cToken)
     {
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", b2cToken);
+        // Send the raw CIAM token as a custom header, NOT as Authorization: Bearer.
+        // Sending it as Bearer triggers the JWT middleware to validate it against
+        // the API's audience, which fails and returns 401 before the controller runs.
+        _httpClient.DefaultRequestHeaders.Remove("X-B2C-Token");
+        _httpClient.DefaultRequestHeaders.Add("X-B2C-Token", b2cToken);
         var result = await _httpClient.PostAsync("api/corporate/auth/b2c-login", null);
+        _httpClient.DefaultRequestHeaders.Remove("X-B2C-Token");
         if (result.IsSuccessStatusCode)
         {
             var response = await result.Content.ReadFromJsonAsync<AuthResponse>();
