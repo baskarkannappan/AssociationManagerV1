@@ -19,17 +19,22 @@ public class AuthService
         _authStateProvider = authStateProvider;
     }
 
-    public async Task<AuthResponse?> LoginWithB2C(string b2cToken)
+    public async Task<AuthResponse?> LoginWithB2C(string accessToken, string? idToken = null)
     {
-        // Use standard Authorization: Bearer header for CIAM token.
-        // We've updated the API to allow both its own ClientId and the SPA's ClientId
-        // as valid audiences, so standard JWT middleware can now validate this token.
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", b2cToken);
+        // Use standard Authorization: Bearer header for the Access Token (for middleware validation).
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         
-        var result = await _httpClient.PostAsync("api/corporate/auth/b2c-login", null);
-
-        // Clear it immediately after to avoid leaking to other requests if this client is reused
+        // Use custom X-ID-Token header for the ID Token (for identity claims mapping).
+        if (!string.IsNullOrEmpty(idToken))
+        {
+            _httpClient.DefaultRequestHeaders.Add("X-ID-Token", idToken);
+        }
+        
+        var result = await _httpClient.PostAsync("auth/b2c-login", null);
+        
+        // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;
+        _httpClient.DefaultRequestHeaders.Remove("X-ID-Token");
 
         if (result.IsSuccessStatusCode)
         {

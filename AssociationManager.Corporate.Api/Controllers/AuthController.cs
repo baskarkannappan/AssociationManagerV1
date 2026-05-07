@@ -31,14 +31,38 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> B2CLogin()
     {
-        // 1. Try to get the principal from the already authenticated user (if middleware succeeded)
-        ClaimsPrincipal? principal = User.Identity?.IsAuthenticated == true ? User : null;
+        ClaimsPrincipal? principal = null;
         string? rawToken = null;
 
-        // 2. If not authenticated by middleware, try manual extraction from headers
+        // 1. Check for the ID Token in the custom header (Preferred for identity claims in CIAM)
+        var idToken = Request.Headers["X-ID-Token"].ToString();
+        if (!string.IsNullOrEmpty(idToken))
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwt = handler.ReadJwtToken(idToken);
+                var identity = new ClaimsIdentity(jwt.Claims, "B2C");
+                principal = new ClaimsPrincipal(identity);
+                _logger.LogInformation("[AUTH_B2C] Using ID Token from X-ID-Token header for identity claims.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode X-ID-Token.");
+            }
+        }
+
+        // 2. If no ID token, try to get the principal from the already authenticated user (if middleware succeeded)
         if (principal == null)
         {
-            // Check standard Authorization header first
+            principal = User.Identity?.IsAuthenticated == true ? User : null;
+            if (principal != null) _logger.LogInformation("[AUTH_B2C] Using principal from middleware (Access Token).");
+        }
+
+        // 3. Fallback to manual extraction from Authorization or X-B2C-Token headers
+        if (principal == null)
+        {
+            // Check standard Authorization header
             var authHeader = Request.Headers["Authorization"].ToString();
             if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
@@ -59,10 +83,11 @@ public class AuthController : ControllerBase
                     var jwt = handler.ReadJwtToken(rawToken);
                     var identity = new ClaimsIdentity(jwt.Claims, "B2C");
                     principal = new ClaimsPrincipal(identity);
+                    _logger.LogInformation("[AUTH_B2C] Using manually extracted Bearer token for identity claims.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual token.");
+                    _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual Bearer token.");
                 }
             }
         }

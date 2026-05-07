@@ -171,19 +171,25 @@
                 var authority = Configuration["AzureAd:Authority"];
                 var scope = "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user";
 
-                var token = await JS.InvokeAsync<string>("msalHelper.handleRedirect", clientId, authority, scope);
+                var tokenResponse = await JS.InvokeAsync<JsonElement>("msalHelper.handleRedirect", clientId, authority, scope);
                 
-                if (!string.IsNullOrEmpty(token))
+                if (tokenResponse.ValueKind != JsonValueKind.Null && tokenResponse.TryGetProperty("accessToken", out var accessTokenProp))
                 {
-                    var result = await AuthService.LoginWithB2C(token);
-                    if (result?.Success == true)
+                    var accessToken = accessTokenProp.GetString();
+                    var idToken = tokenResponse.TryGetProperty("idToken", out var idTokenProp) ? idTokenProp.GetString() : null;
+
+                    if (!string.IsNullOrEmpty(accessToken))
                     {
-                        await RedirectAfterLogin();
-                    }
-                    else
-                    {
-                        _errorMessage = result?.Message ?? "Backend authentication failed.";
-                        StateHasChanged();
+                        var result = await AuthService.LoginWithB2C(accessToken, idToken);
+                        if (result?.Success == true)
+                        {
+                            await RedirectAfterLogin();
+                        }
+                        else
+                        {
+                            _errorMessage = result?.Message ?? "Backend authentication failed.";
+                            StateHasChanged();
+                        }
                     }
                 }
             }

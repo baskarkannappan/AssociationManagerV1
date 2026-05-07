@@ -60,8 +60,11 @@ window.msalHelper = {
         try {
             const response = await instance.handleRedirectPromise();
             if (response && response.accessToken) {
-                console.log("[MSAL] Redirect Success! Access token acquired for account:", response.account?.username);
-                return response.accessToken;
+                console.log("[MSAL] Redirect Success! Tokens acquired for account:", response.account?.username);
+                return {
+                    accessToken: response.accessToken,
+                    idToken: response.idToken
+                };
             }
 
             // If we have an account but no fresh redirect response, try silent token acquisition
@@ -74,8 +77,11 @@ window.msalHelper = {
                         account: accounts[0]
                     });
                     if (silentResult && silentResult.accessToken) {
-                        console.log("[MSAL] Silent token acquired successfully.");
-                        return silentResult.accessToken;
+                        console.log("[MSAL] Silent tokens acquired successfully.");
+                        return {
+                            accessToken: silentResult.accessToken,
+                            idToken: silentResult.idToken
+                        };
                     }
                 } catch (silentError) {
                     console.warn("[MSAL] Silent acquisition failed:", silentError.message);
