@@ -13,6 +13,7 @@ namespace AssociationManager.Corporate.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[AllowAnonymous]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -30,29 +31,46 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> B2CLogin()
     {
-        // Read the raw CIAM token from the custom X-B2C-Token header.
-        // We intentionally do NOT use Authorization: Bearer here, because
-        // the JWT middleware would try to validate it against this API's
-        // audience and reject it before this action runs.
-        var rawToken = Request.Headers["X-B2C-Token"].ToString();
-        if (string.IsNullOrEmpty(rawToken))
+        // 1. Try to get the principal from the already authenticated user (if middleware succeeded)
+        ClaimsPrincipal? principal = User.Identity?.IsAuthenticated == true ? User : null;
+        string? rawToken = null;
+
+        // 2. If not authenticated by middleware, try manual extraction from headers
+        if (principal == null)
         {
-            _logger.LogWarning("[AUTH_B2C] No X-B2C-Token header found in request.");
-            return Unauthorized(new AuthResponse { Success = false, Message = "Missing authorization token." });
+            // Check standard Authorization header first
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                rawToken = authHeader.Substring(7);
+            }
+            
+            // Fallback to custom header for backward compatibility
+            if (string.IsNullOrEmpty(rawToken))
+            {
+                rawToken = Request.Headers["X-B2C-Token"].ToString();
+            }
+
+            if (!string.IsNullOrEmpty(rawToken))
+            {
+                try
+                {
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwt = handler.ReadJwtToken(rawToken);
+                    var identity = new ClaimsIdentity(jwt.Claims, "B2C");
+                    principal = new ClaimsPrincipal(identity);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual token.");
+                }
+            }
         }
 
-        ClaimsPrincipal principal;
-        try
+        if (principal == null)
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(rawToken);
-            var identity = new ClaimsIdentity(jwt.Claims, "B2C");
-            principal = new ClaimsPrincipal(identity);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode bearer token.");
-            return Unauthorized(new AuthResponse { Success = false, Message = "Invalid token format." });
+            _logger.LogWarning("[AUTH_B2C] No valid authentication token found in headers.");
+            return Unauthorized(new AuthResponse { Success = false, Message = "Missing or invalid authorization token." });
         }
 
         var response = await _authService.B2CLoginAsync(principal);
