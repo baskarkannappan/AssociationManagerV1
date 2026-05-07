@@ -25,7 +25,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("b2c-login")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> B2CLogin()
     {
         var response = await _authService.B2CLoginAsync(User);
