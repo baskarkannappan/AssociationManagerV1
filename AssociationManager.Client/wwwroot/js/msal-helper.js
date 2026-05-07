@@ -41,7 +41,7 @@ window.msalHelper = {
         try { await instance.handleRedirectPromise(); } catch(_) {}
 
         const loginRequest = {
-            scopes: [scope],
+            scopes: [scope, "email", "openid", "profile"],
             prompt: "select_account"
         };
         // loginRedirect navigates the browser away - nothing runs after this line
@@ -70,7 +70,7 @@ window.msalHelper = {
                 console.log("[MSAL] Account found, attempting silent token acquisition...");
                 try {
                     const silentResult = await instance.acquireTokenSilent({
-                        scopes: [scope],
+                        scopes: [scope, "email", "openid", "profile"],
                         account: accounts[0]
                     });
                     if (silentResult && silentResult.accessToken) {
