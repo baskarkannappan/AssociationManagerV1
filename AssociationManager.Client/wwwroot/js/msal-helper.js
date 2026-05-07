@@ -1,25 +1,18 @@
 window.msalHelper = {
     login: async function (clientId, authority, scope) {
-        console.log("[MSAL] Initializing with Authority:", authority);
+        console.log("[MSAL] Initializing Login with Authority:", authority);
         const msalConfig = {
             auth: {
                 clientId: clientId,
                 authority: authority,
                 validateAuthority: true,
-                knownAuthorities: ["assocmgruat.ciamlogin.com"]
+                knownAuthorities: ["assocmgruat.ciamlogin.com", "0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com"]
             },
             cache: {
                 cacheLocation: "localStorage",
-                storeAuthStateInCookie: false
+                storeAuthStateInCookie: true
             }
         };
-
-        // Force a clear of any stuck states before starting
-        for (let key in localStorage) {
-            if (key.startsWith("msal.")) {
-                localStorage.removeItem(key);
-            }
-        }
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
@@ -31,36 +24,40 @@ window.msalHelper = {
                 redirectUri: window.location.origin + "/" 
             };
 
-            console.log("[MSAL] Starting login with Redirect URI:", loginRequest.redirectUri);
-            // Switch from popup to redirect to avoid COOP issues
+            console.log("[MSAL] Starting loginRedirect...");
             await msalInstance.loginRedirect(loginRequest);
-            return null; // Will reload the page
         } catch (error) {
             console.error("MSAL Login Error:", error);
             throw error;
         }
     },
     handleRedirect: async function(clientId, authority, scope) {
+        console.log("[MSAL] Checking for Redirect Callback...");
         const msalConfig = {
             auth: {
                 clientId: clientId,
                 authority: authority,
                 redirectUri: window.location.origin + "/",
-                knownAuthorities: ["assocmgruat.ciamlogin.com"]
+                knownAuthorities: ["assocmgruat.ciamlogin.com", "0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com"]
             },
             cache: {
-                cacheLocation: "sessionStorage",
-                storeAuthStateInCookie: false
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: true
             }
         };
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
 
-        const response = await msalInstance.handleRedirectPromise();
-        if (response) {
-            console.log("[MSAL] Redirect response found:", response);
-            return response.accessToken;
+        try {
+            const response = await msalInstance.handleRedirectPromise();
+            if (response) {
+                console.log("[MSAL] Redirect Success! Token acquired.");
+                return response.accessToken;
+            }
+            console.log("[MSAL] No redirect response found in cache.");
+        } catch (error) {
+            console.error("[MSAL] HandleRedirect Error:", error);
         }
         return null;
     }
