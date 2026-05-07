@@ -190,6 +190,7 @@ try
     builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
     builder.Services.AddAuthorization(options =>
     {
+        options.FallbackPolicy = null;
         options.AddPolicy("RequirePlatformAdmin", policy => 
             policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "RequirePlatformAdmin")));
         options.AddPolicy("RequireSystemAdmin", policy => 

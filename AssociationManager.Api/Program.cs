@@ -217,6 +217,7 @@ try
     builder.Services.AddScoped<IAuthorizationHandler, AssociationManager.Shared.Authorization.RoleLevelHandler>();
     builder.Services.AddAuthorization(options =>
     {
+        options.FallbackPolicy = null; // Ensure login remains accessible even if global policies are injected
         options.AddPolicy("RequireResident", policy => 
             policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelResident, "RequireResident")));
         options.AddPolicy("RequireUserManager", policy => 
@@ -287,6 +288,9 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    // Ensure auth/b2c-login is globally accessible even with a global fallback policy
+    app.MapControllers().WithMetadata(new AllowAnonymousAttribute()); 
     app.UseHangfireDashboard("/hangfire", new DashboardOptions
     {
         Authorization = new[] { new AssociationManager.Api.Authorization.HangfireAuthorizationFilter() }
@@ -294,7 +298,7 @@ try
 
     // Multi-tenancy
 
-    app.MapControllers();
+    app.MapControllers().WithMetadata(new AllowAnonymousAttribute());
     app.MapHealthChecks("/health");
     app.MapHub<AssociationManager.Realtime.Hubs.NotificationHub>("/hubs/notifications");
 
