@@ -27,14 +27,7 @@ builder.Services.AddOptions();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 
-// Configure MSAL for Entra External ID
-builder.Services.AddMsalAuthentication(options =>
-{
-    builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
-    options.ProviderOptions.DefaultAccessTokenScopes.Add("api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user");
-    options.ProviderOptions.Authentication.PostLogoutRedirectUri = "/";
-    options.ProviderOptions.Authentication.RedirectUri = builder.HostEnvironment.BaseAddress;
-});
+// MSAL is handled manually via msal-helper.js to avoid service conflicts and COOP issues
 
 // We register our custom provider AFTER MSAL to ensure it is the primary one used by the UI
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
