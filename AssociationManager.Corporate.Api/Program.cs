@@ -153,11 +153,14 @@ try
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddMemoryCache();
 
-    // Authentication - Manual JwtBearer configuration for CIAM compatibility
+    // Authentication - Manual JwtBearer configuration with diagnostic logging for CIAM
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
-            options.Authority = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0";
+            // CIAM Authority & Metadata (Manual config avoids metadata endpoint issues)
+            options.Authority = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
+            options.MetadataAddress = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
+            
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -172,11 +175,18 @@ try
                 ClockSkew = TimeSpan.Zero
             };
             
-            // CRITICAL: Do not automatically challenge/reject requests on [AllowAnonymous]
-            // endpoints. Without this, the middleware returns 401 before the controller
-            // action runs, even when no authorization is required.
             options.Events = new JwtBearerEvents
             {
+                OnAuthenticationFailed = context =>
+                {
+                    Console.WriteLine("[AUTH_FAILED] Exception: " + context.Exception.ToString());
+                    return Task.CompletedTask;
+                },
+                OnTokenValidated = context =>
+                {
+                    Console.WriteLine("[AUTH_SUCCESS] Token validated for: " + context.Principal?.Identity?.Name);
+                    return Task.CompletedTask;
+                },
                 OnChallenge = context =>
                 {
                     var endpoint = context.HttpContext.GetEndpoint();
@@ -184,6 +194,10 @@ try
                     if (allowAnon != null)
                     {
                         context.HandleResponse(); // Suppress 401 challenge on anonymous endpoints
+                    }
+                    else
+                    {
+                        Console.WriteLine("[AUTH_CHALLENGE] Error: " + context.Error + " | Desc: " + context.ErrorDescription);
                     }
                     return Task.CompletedTask;
                 }
