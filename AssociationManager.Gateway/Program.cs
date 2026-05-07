@@ -103,18 +103,9 @@ try
         app.UseHsts();
     }
 
+        
     app.Use(async (context, next) =>
     {
-        if (context.Request.Path.StartsWithSegments("/api/auth/b2c-login"))
-        {
-            Console.WriteLine($"[GATEWAY_DEBUG] Login request received. Headers count: {context.Request.Headers.Count}");
-            foreach (var header in context.Request.Headers)
-            {
-                // Log key and length of value for security
-                Console.WriteLine($"[GATEWAY_DEBUG] Header: {header.Key} (Length: {header.Value.ToString().Length})");
-            }
-        }
-        
         context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none';");
         context.Response.Headers.Append("X-Frame-Options", "DENY");
         context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
