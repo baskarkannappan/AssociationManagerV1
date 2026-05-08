@@ -38,7 +38,7 @@ public class AuthService
             IdToken = idToken
         };
         
-        var result = await _httpClient.PostAsJsonAsync("auth/b2c-login", request);
+        var result = await _httpClient.PostAsJsonAsync("api/auth/b2c-login", request);
         
         // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;
