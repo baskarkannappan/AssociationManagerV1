@@ -256,6 +256,10 @@ try
     builder.Services.AddAuthorization(options =>
     {
         options.FallbackPolicy = null;
+        options.AddPolicy("RequireCorporate", policy => 
+            policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelCorporateAuditor, "RequireCorporate")));
+        options.AddPolicy("RequirePlatform", policy => 
+            policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "RequirePlatform")));
         options.AddPolicy("RequirePlatformAdmin", policy => 
             policy.Requirements.Add(new AssociationManager.Shared.Authorization.RoleLevelRequirement(AppRole.LevelPlatformAdmin, "RequirePlatformAdmin")));
         options.AddPolicy("RequireSystemAdmin", policy => 
