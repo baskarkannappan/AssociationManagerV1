@@ -93,5 +93,19 @@ window.msalHelper = {
             console.error("[MSAL] HandleRedirect Error:", error.message || error);
         }
         return null;
+    },
+
+    // Completely clears the local MSAL session and signs out of the IdP.
+    // This prevents automatic re-login on the next page load.
+    logout: async function (clientId, authority) {
+        console.log("[MSAL] Starting Logout flow...");
+        const instance = await getMsalInstance(clientId, authority);
+        
+        // Clear local cache to prevent silent acquisition before redirect
+        // In MSAL Browser v3, we can use logoutRedirect
+        const logoutRequest = {
+            postLogoutRedirectUri: window.location.origin + '/login'
+        };
+        await instance.logoutRedirect(logoutRequest);
     }
 };
