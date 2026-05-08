@@ -27,43 +27,97 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
+    public class B2CLoginRequest
+    {
+        public string? AccessToken { get; set; }
+        public string? IdToken { get; set; }
+    }
+
     [HttpPost("b2c-login")]
     [AllowAnonymous]
     public async Task<IActionResult> B2CLogin()
     {
-        // 1. Try to get the principal from the already authenticated user (if middleware succeeded)
-        ClaimsPrincipal? principal = User.Identity?.IsAuthenticated == true ? User : null;
-        string? rawToken = null;
+        ClaimsPrincipal? principal = null;
+        string? idToken = null;
 
-        // 2. If not authenticated by middleware, try manual extraction from headers
+        // 1. Try Query String (Most resilient to gateway scrubbing)
+        idToken = Request.Query["t"].ToString();
+        if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Query String (Length: {Length}).", idToken.Length);
+
+        // 2. Try Custom Headers
+        if (string.IsNullOrEmpty(idToken))
+        {
+            idToken = Request.Headers["X-Identity-Token"].ToString();
+            if (string.IsNullOrEmpty(idToken)) idToken = Request.Headers["X-ID-Token"].ToString();
+            if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Header (Length: {Length}).", idToken.Length);
+        }
+
+        // 3. Try Form Data Fallback
+        if (string.IsNullOrEmpty(idToken))
+        {
+            try { idToken = Request.Form["IdToken"].ToString(); } catch { }
+            if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Form Data.");
+        }
+
+        if (!string.IsNullOrEmpty(idToken))
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwt = handler.ReadJwtToken(idToken);
+                var identity = new ClaimsIdentity(jwt.Claims, "B2C");
+                principal = new ClaimsPrincipal(identity);
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual ID Token."); }
+        }
+
+        // 2. Fallback to ID Token from custom header (Old method)
         if (principal == null)
         {
-            // Check standard Authorization header first
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                rawToken = authHeader.Substring(7);
-            }
-            
-            // Fallback to custom header for backward compatibility
-            if (string.IsNullOrEmpty(rawToken))
-            {
-                rawToken = Request.Headers["X-B2C-Token"].ToString();
-            }
-
-            if (!string.IsNullOrEmpty(rawToken))
+            var idTokenHeader = Request.Headers["X-ID-Token"].ToString();
+            if (!string.IsNullOrEmpty(idTokenHeader))
             {
                 try
                 {
                     var handler = new JwtSecurityTokenHandler();
-                    var jwt = handler.ReadJwtToken(rawToken);
+                    var jwt = handler.ReadJwtToken(idTokenHeader);
                     var identity = new ClaimsIdentity(jwt.Claims, "B2C");
                     principal = new ClaimsPrincipal(identity);
+                    _logger.LogInformation("[AUTH_B2C] Using ID Token from X-ID-Token header.");
                 }
-                catch (Exception ex)
+                catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode X-ID-Token header."); }
+            }
+        }
+
+        // 3. If still no identity, try to get the principal from the already authenticated user (if middleware succeeded)
+        if (principal == null)
+        {
+            principal = User.Identity?.IsAuthenticated == true ? User : null;
+            if (principal != null) _logger.LogInformation("[AUTH_B2C] Using principal from middleware (Access Token).");
+        }
+
+        // 4. Final Fallback: Manual extraction from Authorization header
+        if (principal == null)
+        {
+            var authHeader = Request.Headers["Authorization"].ToString();
+            string? fallbackToken = null;
+            
+            if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                fallbackToken = authHeader.Substring(7);
+            }
+            
+            if (!string.IsNullOrEmpty(fallbackToken))
+            {
+                try
                 {
-                    _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual token.");
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwt = handler.ReadJwtToken(fallbackToken);
+                    var identity = new ClaimsIdentity(jwt.Claims, "B2C");
+                    principal = new ClaimsPrincipal(identity);
+                    _logger.LogInformation("[AUTH_B2C] Using manually extracted Access Token for identity.");
                 }
+                catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual Access Token."); }
             }
         }
 
