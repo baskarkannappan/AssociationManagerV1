@@ -100,22 +100,19 @@ public class AuthController : ControllerBase
         if (principal == null)
         {
             var authHeader = Request.Headers["Authorization"].ToString();
+            string? fallbackToken = null;
+            
             if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
-                rawToken = authHeader.Substring(7);
+                fallbackToken = authHeader.Substring(7);
             }
             
-            if (string.IsNullOrEmpty(rawToken))
-            {
-                rawToken = request?.AccessToken;
-            }
-
-            if (!string.IsNullOrEmpty(rawToken))
+            if (!string.IsNullOrEmpty(fallbackToken))
             {
                 try
                 {
                     var handler = new JwtSecurityTokenHandler();
-                    var jwt = handler.ReadJwtToken(rawToken);
+                    var jwt = handler.ReadJwtToken(fallbackToken);
                     var identity = new ClaimsIdentity(jwt.Claims, "B2C");
                     principal = new ClaimsPrincipal(identity);
                     _logger.LogInformation("[AUTH_B2C] Using manually extracted Access Token for identity.");
