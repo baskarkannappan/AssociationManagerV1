@@ -41,8 +41,7 @@ window.msalHelper = {
         try { await instance.handleRedirectPromise(); } catch(_) {}
 
         const loginRequest = {
-            scopes: [scope, "email", "openid", "profile"],
-            prompt: "select_account"
+            scopes: [scope, "email", "openid", "profile"]
         };
         // loginRedirect navigates the browser away - nothing runs after this line
         await instance.loginRedirect(loginRequest);

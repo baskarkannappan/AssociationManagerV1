@@ -34,13 +34,25 @@
                 </div>
             }
 
-            <div class="d-flex flex-column gap-3 justify-content-center">
-                <button class="btn btn-primary rounded-pill py-2 px-4 shadow-sm animate-scale-in" @onclick="HandleMSALLogin">
-                    <i class="bi bi-microsoft me-2"></i> Continue with Microsoft
-                </button>
-                
-                <p class="mt-3 small text-muted">Supports Google, Microsoft & Social Logins via Entra</p>
-            </div>
+            @if (_isCheckingSession)
+            {
+                <div class="d-flex flex-column align-items-center gap-3 py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-secondary small animate-pulse">Verifying your session...</p>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3 justify-content-center">
+                    <button class="btn btn-primary rounded-pill py-2 px-4 shadow-sm animate-scale-in" @onclick="HandleMSALLogin">
+                        <i class="bi bi-microsoft me-2"></i> Continue with Microsoft
+                    </button>
+                    
+                    <p class="mt-3 small text-muted">Supports Google, Microsoft & Social Logins via Entra</p>
+                </div>
+            }
         </div>
 
         <div class="mt-5 border-top border-dark border-opacity-5 pt-4">
@@ -81,6 +93,7 @@
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
     private string? _errorMessage;
+    private bool _isCheckingSession = true;
 
     private async Task HandleMSALLogin()
     {
@@ -144,8 +157,11 @@
         else
         {
             // Not a corporate role - block access
-            await _authService.Logout();
+            // SECURITY: Clear local tokens but DO NOT force a full Microsoft Logout to avoid redirect loops
+            // The user can now simply switch to the Association client without being jarringly signed out.
+            await _authService.ClearLocalSession(); 
             _errorMessage = "Access Denied: This portal is reserved for Corporate Administration. Please use the Association Client for resident or management tasks.";
+            _isCheckingSession = false;
             StateHasChanged();
         }
     }
@@ -190,6 +206,10 @@
             catch (Exception ex)
             {
                 _errorMessage = $"Redirect handle failed: {ex.Message}";
+            }
+            finally
+            {
+                _isCheckingSession = false;
                 StateHasChanged();
             }
 

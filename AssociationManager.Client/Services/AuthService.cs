@@ -66,13 +66,18 @@ public class AuthService
 
     public async Task Logout()
     {
-        await _tokenService.RemoveTokens();
-        _authStateProvider.NotifyUserLogout();
+        await ClearLocalSession();
 
         // Trigger MSAL logout to clear the IDP session and prevent silent re-login
         var clientId = _configuration["AzureAd:ClientId"];
         var authority = _configuration["AzureAd:Authority"];
         await _js.InvokeVoidAsync("msalHelper.logout", clientId, authority);
+    }
+
+    public async Task ClearLocalSession()
+    {
+        await _tokenService.RemoveTokens();
+        _authStateProvider.NotifyUserLogout();
     }
 
     public async Task<AuthResponse?> SwitchTenant(int tenantId, int associationId)
