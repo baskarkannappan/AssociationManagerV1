@@ -195,7 +195,11 @@ try
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
+            ValidIssuers = new[] 
+            { 
+                "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
+                "REPLACE_IN_KEYVAULT"
+            },
             ValidateAudience = true,
             ValidAudiences = new[] 
             { 

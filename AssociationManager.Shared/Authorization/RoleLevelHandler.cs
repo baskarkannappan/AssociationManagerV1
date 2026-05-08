@@ -35,6 +35,13 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
             IsOwner = false 
         };
 
+        // 0. SUPER-USER BYPASS: PlatformAdmin always succeeds
+        if (securityContext.UserRole.Contains(AppRole.PlatformAdmin) || securityContext.UserLevel >= AppRole.LevelPlatformAdmin)
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
         // 2. Use Workflow Name from requirement, with a smarter fallback
         string workflowName = requirement.WorkflowName;
         if (string.IsNullOrEmpty(workflowName))
