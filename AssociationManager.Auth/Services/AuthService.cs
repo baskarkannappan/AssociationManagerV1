@@ -122,13 +122,10 @@ public class AuthService : IAuthService
             if (!string.IsNullOrEmpty(picture)) user.PictureUrl = picture;
             user.LastLoginDate = DateTime.UtcNow;
 
-            // Cleanup roles if needed
-            if (!string.IsNullOrEmpty(user.Role) && user.Role.Contains(","))
-            {
-                user.Role = AppRole.GetRoleHierarchy(user.Role).FirstOrDefault() ?? AppRole.Resident;
-            }
+            // Role resolution logic - Support multiple roles (Platform + Association)
+            var globalRoles = AppRole.GetRoleHierarchy(user.Role).ToList();
             
-            // Association resolution logic
+            // Association resolution logic - Fix context for new or platform users
             if (user.AssociationId == null || user.AssociationId <= 1)
             {
                 var associations = await _associationRepository.GetByUserIdAsync(user.UserId);
@@ -140,11 +137,18 @@ public class AuthService : IAuthService
                 }
             }
 
-            await _userRepository.UpdateAsync(user);
-
             var roleId = user.AssociationId > 0 ? user.AssociationId.Value : user.TenantId;
-            var role = await _userRepository.GetRoleInTenantAsync(user.UserId, roleId);
-            user.Role = role ?? user.Role ?? AppRole.Resident;
+            var tenantRole = await _userRepository.GetRoleInTenantAsync(user.UserId, roleId);
+            
+            if (!string.IsNullOrEmpty(tenantRole) && !globalRoles.Contains(tenantRole))
+            {
+                globalRoles.Add(tenantRole);
+            }
+
+            user.Role = string.Join(",", globalRoles.Distinct());
+            if (string.IsNullOrEmpty(user.Role)) user.Role = AppRole.Resident;
+
+            await _userRepository.UpdateAsync(user);
 
             var status = "Active";
             if (user.AssociationId > 0)
