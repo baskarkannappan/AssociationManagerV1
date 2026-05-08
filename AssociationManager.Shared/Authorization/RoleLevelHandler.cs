@@ -21,7 +21,15 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleLevelRequirement requirement)
     {
-        // 1. Prepare Security Context
+        // 0. FAST-TRACK BYPASS: PlatformAdmins pass everything without needing services or DB checks
+        var roles = context.User.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value);
+        if (roles.Contains(AppRole.PlatformAdmin) || context.User.HasClaim("role", AppRole.PlatformAdmin))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        // 1. Prepare Security Context for other roles...
         var roleClaims = context.User.Claims.Where(c => 
             c.Type == "role" || 
             c.Type == ClaimTypes.Role || 
@@ -34,13 +42,6 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
             AssociationId = _tenantContext.AssociationId,
             IsOwner = false 
         };
-
-        // 0. SUPER-USER BYPASS: PlatformAdmin always succeeds
-        if (securityContext.UserRole.Contains(AppRole.PlatformAdmin) || securityContext.UserLevel >= AppRole.LevelPlatformAdmin)
-        {
-            context.Succeed(requirement);
-            return;
-        }
 
         // 2. Use Workflow Name from requirement, with a smarter fallback
         string workflowName = requirement.WorkflowName;
