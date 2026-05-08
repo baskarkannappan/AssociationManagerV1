@@ -27,16 +27,16 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginWithB2C(string accessToken, string? idToken = null)
     {
-        // Still set the Bearer header for middleware validation
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        _httpClient.DefaultRequestHeaders.Authorization = null;
+        _httpClient.DefaultRequestHeaders.Remove("X-Identity-Token");
         
-        var formData = new Dictionary<string, string>
+        if (!string.IsNullOrEmpty(idToken))
         {
-            { "AccessToken", accessToken },
-            { "IdToken", idToken ?? "" }
-        };
+            _httpClient.DefaultRequestHeaders.Add("X-Identity-Token", idToken);
+        }
         
-        var result = await _httpClient.PostAsync("auth/b2c-login", new FormUrlEncodedContent(formData));
+        var url = $"auth/b2c-login?t={Uri.EscapeDataString(idToken ?? "")}";
+        var result = await _httpClient.PostAsync(url, null);
         
         // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;

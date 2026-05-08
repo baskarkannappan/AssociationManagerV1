@@ -35,35 +35,40 @@ public class AuthController : ControllerBase
 
     [HttpPost("b2c-login")]
     [AllowAnonymous]
-    public async Task<IActionResult> B2CLogin([FromForm] B2CLoginRequest? request)
+    public async Task<IActionResult> B2CLogin()
     {
-        // Fallback: Try JSON body if Form is empty (just in case)
-        if (request == null || (string.IsNullOrEmpty(request.AccessToken) && string.IsNullOrEmpty(request.IdToken)))
+        ClaimsPrincipal? principal = null;
+        string? idToken = null;
+
+        // 1. Try Query String (Most resilient to gateway scrubbing)
+        idToken = Request.Query["t"].ToString();
+        if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Query String (Length: {Length}).", idToken.Length);
+
+        // 2. Try Custom Headers
+        if (string.IsNullOrEmpty(idToken))
         {
-            try {
-                request = await Request.ReadFromJsonAsync<B2CLoginRequest>();
-                if (request != null) _logger.LogInformation("[AUTH_B2C] Received tokens via JSON body fallback.");
-            } catch { /* ignore */ }
+            idToken = Request.Headers["X-Identity-Token"].ToString();
+            if (string.IsNullOrEmpty(idToken)) idToken = Request.Headers["X-ID-Token"].ToString();
+            if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Header (Length: {Length}).", idToken.Length);
         }
 
-        ClaimsPrincipal? principal = null;
-        string? rawToken = null;
+        // 3. Try Form Data Fallback
+        if (string.IsNullOrEmpty(idToken))
+        {
+            try { idToken = Request.Form["IdToken"].ToString(); } catch { }
+            if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Form Data.");
+        }
 
-        // 1. Check for the ID Token (Most reliable for CIAM identity)
-        if (!string.IsNullOrEmpty(request?.IdToken))
+        if (!string.IsNullOrEmpty(idToken))
         {
             try
             {
                 var handler = new JwtSecurityTokenHandler();
-                var jwt = handler.ReadJwtToken(request.IdToken);
+                var jwt = handler.ReadJwtToken(idToken);
                 var identity = new ClaimsIdentity(jwt.Claims, "B2C");
                 principal = new ClaimsPrincipal(identity);
-                _logger.LogInformation("[AUTH_B2C] Using ID Token from Request Body (Length: {Length}).", request.IdToken.Length);
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode ID Token from body.");
-            }
+            catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual ID Token."); }
         }
 
         // 2. Fallback to ID Token from custom header (Old method)
