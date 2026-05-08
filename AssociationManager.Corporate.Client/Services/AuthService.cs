@@ -19,22 +19,27 @@ public class AuthService
         _authStateProvider = authStateProvider;
     }
 
+    public class B2CLoginRequest
+    {
+        public string? AccessToken { get; set; }
+        public string? IdToken { get; set; }
+    }
+
     public async Task<AuthResponse?> LoginWithB2C(string accessToken, string? idToken = null)
     {
-        // Use standard Authorization: Bearer header for the Access Token (for middleware validation).
+        // Still set the Bearer header for middleware validation
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         
-        // Use custom X-ID-Token header for the ID Token (for identity claims mapping).
-        if (!string.IsNullOrEmpty(idToken))
+        var request = new B2CLoginRequest
         {
-            _httpClient.DefaultRequestHeaders.Add("X-ID-Token", idToken);
-        }
+            AccessToken = accessToken,
+            IdToken = idToken
+        };
         
-        var result = await _httpClient.PostAsync("auth/b2c-login", null);
+        var result = await _httpClient.PostAsJsonAsync("auth/b2c-login", request);
         
         // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;
-        _httpClient.DefaultRequestHeaders.Remove("X-ID-Token");
 
         if (result.IsSuccessStatusCode)
         {
