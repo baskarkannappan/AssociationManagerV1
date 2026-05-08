@@ -40,31 +40,37 @@ public class AuthController : ControllerBase
         ClaimsPrincipal? principal = null;
         string? idToken = null;
 
-        _logger.LogInformation("[AUTH_B2C] Starting Hyper-Resilient Identity Scan. Path: {Path}, Query: {Query}", Request.Path, Request.QueryString);
+        _logger.LogInformation("[AUTH_B2C] Starting Identity Scan. Path: {Path}", Request.Path);
 
-        // 1. Scan ALL Query Parameters for a JWT
-        foreach (var query in Request.Query)
+        // SECURITY HARDENING: Limit scan count to prevent DoS via header/query bloat
+        int scanCount = 0;
+        const int SCAN_LIMIT = 50;
+
+        // 1. Scan ALL Headers for a JWT (Priority: Safer than URL)
+        foreach (var header in Request.Headers)
         {
-            var val = query.Value.ToString();
+            if (++scanCount > SCAN_LIMIT) break;
+            if (header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase)) continue;
+            var val = header.Value.ToString();
             if (val.StartsWith("eyJ", StringComparison.OrdinalIgnoreCase))
             {
                 idToken = val;
-                _logger.LogInformation("[AUTH_B2C] Found JWT in Query Param '{Key}' (Length: {Length}).", query.Key, idToken.Length);
+                _logger.LogInformation("[AUTH_B2C] Resolved JWT from secure Header '{Key}'.", header.Key);
                 break;
             }
         }
 
-        // 2. Scan ALL Headers for a JWT (excluding Authorization)
+        // 2. Scan Query Parameters (Fallback only - Warning logged for production review)
         if (string.IsNullOrEmpty(idToken))
         {
-            foreach (var header in Request.Headers)
+            foreach (var query in Request.Query)
             {
-                if (header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase)) continue;
-                var val = header.Value.ToString();
+                if (++scanCount > SCAN_LIMIT) break;
+                var val = query.Value.ToString();
                 if (val.StartsWith("eyJ", StringComparison.OrdinalIgnoreCase))
                 {
                     idToken = val;
-                    _logger.LogInformation("[AUTH_B2C] Found JWT in Header '{Key}' (Length: {Length}).", header.Key, idToken.Length);
+                    _logger.LogWarning("[AUTH_B2C] WARNING: JWT resolved from URL Query. This is deprecated for Production security.");
                     break;
                 }
             }

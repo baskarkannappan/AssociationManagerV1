@@ -45,9 +45,8 @@ public class AuthService
             _httpClient.DefaultRequestHeaders.Add("X-Identity-Token", idToken);
         }
         
-        // Pass the ID Token in the query string as a fail-safe (safe for 1368 chars)
-        var url = $"api/auth/b2c-login?t={Uri.EscapeDataString(idToken ?? "")}";
-        var result = await _httpClient.PostAsync(url, null);
+        // Use custom header for token transport to avoid infrastructure stripping standard Authorization headers
+        var result = await _httpClient.PostAsync("api/auth/b2c-login", null);
         
         // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;

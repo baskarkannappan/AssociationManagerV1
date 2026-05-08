@@ -41,8 +41,8 @@ public class AuthService
             _httpClient.DefaultRequestHeaders.Add("X-Identity-Token", idToken);
         }
         
-        var url = $"auth/b2c-login?t={Uri.EscapeDataString(idToken ?? "")}";
-        var result = await _httpClient.PostAsync(url, null);
+        // Use custom header for token transport to avoid infrastructure stripping standard Authorization headers
+        var result = await _httpClient.PostAsync("api/auth/b2c-login", null);
         
         // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;
