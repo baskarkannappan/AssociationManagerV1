@@ -32,6 +32,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Set Subscription
+        run: az account set --subscription 325ea257-cca8-4829-aca6-23416e28a2f1
+
       - name: Deploy SQL Schema
         uses: azure/sql-action@v2
         with:
@@ -60,6 +63,9 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Subscription
+        run: az account set --subscription 325ea257-cca8-4829-aca6-23416e28a2f1
 
       - name: Pull Base Images
         run: |
