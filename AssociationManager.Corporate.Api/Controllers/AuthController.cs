@@ -40,25 +40,37 @@ public class AuthController : ControllerBase
         ClaimsPrincipal? principal = null;
         string? idToken = null;
 
-        // 1. Try Query String (Most resilient to gateway scrubbing)
-        idToken = Request.Query["t"].ToString();
-        if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Query String (Length: {Length}).", idToken.Length);
+        _logger.LogInformation("[AUTH_B2C] Starting Hyper-Resilient Identity Scan. Path: {Path}, Query: {Query}", Request.Path, Request.QueryString);
 
-        // 2. Try Custom Headers
-        if (string.IsNullOrEmpty(idToken))
+        // 1. Scan ALL Query Parameters for a JWT
+        foreach (var query in Request.Query)
         {
-            idToken = Request.Headers["X-Identity-Token"].ToString();
-            if (string.IsNullOrEmpty(idToken)) idToken = Request.Headers["X-ID-Token"].ToString();
-            if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Header (Length: {Length}).", idToken.Length);
+            var val = query.Value.ToString();
+            if (val.StartsWith("eyJ", StringComparison.OrdinalIgnoreCase))
+            {
+                idToken = val;
+                _logger.LogInformation("[AUTH_B2C] Found JWT in Query Param '{Key}' (Length: {Length}).", query.Key, idToken.Length);
+                break;
+            }
         }
 
-        // 3. Try Form Data Fallback
+        // 2. Scan ALL Headers for a JWT (excluding Authorization)
         if (string.IsNullOrEmpty(idToken))
         {
-            try { idToken = Request.Form["IdToken"].ToString(); } catch { }
-            if (!string.IsNullOrEmpty(idToken)) _logger.LogInformation("[AUTH_B2C] Received ID Token via Form Data.");
+            foreach (var header in Request.Headers)
+            {
+                if (header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase)) continue;
+                var val = header.Value.ToString();
+                if (val.StartsWith("eyJ", StringComparison.OrdinalIgnoreCase))
+                {
+                    idToken = val;
+                    _logger.LogInformation("[AUTH_B2C] Found JWT in Header '{Key}' (Length: {Length}).", header.Key, idToken.Length);
+                    break;
+                }
+            }
         }
 
+        // 3. Decode the found token
         if (!string.IsNullOrEmpty(idToken))
         {
             try
@@ -68,63 +80,20 @@ public class AuthController : ControllerBase
                 var identity = new ClaimsIdentity(jwt.Claims, "B2C");
                 principal = new ClaimsPrincipal(identity);
             }
-            catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual ID Token."); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode found JWT."); }
         }
 
-        // 2. Fallback to ID Token from custom header (Old method)
-        if (principal == null)
-        {
-            var idTokenHeader = Request.Headers["X-ID-Token"].ToString();
-            if (!string.IsNullOrEmpty(idTokenHeader))
-            {
-                try
-                {
-                    var handler = new JwtSecurityTokenHandler();
-                    var jwt = handler.ReadJwtToken(idTokenHeader);
-                    var identity = new ClaimsIdentity(jwt.Claims, "B2C");
-                    principal = new ClaimsPrincipal(identity);
-                    _logger.LogInformation("[AUTH_B2C] Using ID Token from X-ID-Token header.");
-                }
-                catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode X-ID-Token header."); }
-            }
-        }
-
-        // 3. If still no identity, try to get the principal from the already authenticated user (if middleware succeeded)
+        // 4. Fallback to middleware principal (if JWT was valid but identity was handled by middleware)
         if (principal == null)
         {
             principal = User.Identity?.IsAuthenticated == true ? User : null;
-            if (principal != null) _logger.LogInformation("[AUTH_B2C] Using principal from middleware (Access Token).");
-        }
-
-        // 4. Final Fallback: Manual extraction from Authorization header
-        if (principal == null)
-        {
-            var authHeader = Request.Headers["Authorization"].ToString();
-            string? fallbackToken = null;
-            
-            if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                fallbackToken = authHeader.Substring(7);
-            }
-            
-            if (!string.IsNullOrEmpty(fallbackToken))
-            {
-                try
-                {
-                    var handler = new JwtSecurityTokenHandler();
-                    var jwt = handler.ReadJwtToken(fallbackToken);
-                    var identity = new ClaimsIdentity(jwt.Claims, "B2C");
-                    principal = new ClaimsPrincipal(identity);
-                    _logger.LogInformation("[AUTH_B2C] Using manually extracted Access Token for identity.");
-                }
-                catch (Exception ex) { _logger.LogWarning(ex, "[AUTH_B2C] Failed to decode manual Access Token."); }
-            }
+            if (principal != null) _logger.LogInformation("[AUTH_B2C] Using principal from middleware fallback.");
         }
 
         if (principal == null)
         {
-            _logger.LogWarning("[AUTH_B2C] No valid authentication token found in headers.");
-            return Unauthorized(new AuthResponse { Success = false, Message = "Missing or invalid authorization token." });
+            _logger.LogWarning("[AUTH_B2C] Hyper-Scan failed. No JWT found in Query or Headers. Headers Present: {Headers}", string.Join(", ", Request.Headers.Keys));
+            return Unauthorized(new AuthResponse { Success = false, Message = "Identity token not found. Please ensure you are sending the ID Token." });
         }
 
         var response = await _authService.B2CLoginAsync(principal);
