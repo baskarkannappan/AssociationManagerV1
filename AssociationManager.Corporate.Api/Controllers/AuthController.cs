@@ -35,12 +35,21 @@ public class AuthController : ControllerBase
 
     [HttpPost("b2c-login")]
     [AllowAnonymous]
-    public async Task<IActionResult> B2CLogin([FromBody] B2CLoginRequest? request)
+    public async Task<IActionResult> B2CLogin([FromForm] B2CLoginRequest? request)
     {
+        // Fallback: Try JSON body if Form is empty (just in case)
+        if (request == null || (string.IsNullOrEmpty(request.AccessToken) && string.IsNullOrEmpty(request.IdToken)))
+        {
+            try {
+                request = await Request.ReadFromJsonAsync<B2CLoginRequest>();
+                if (request != null) _logger.LogInformation("[AUTH_B2C] Received tokens via JSON body fallback.");
+            } catch { /* ignore */ }
+        }
+
         ClaimsPrincipal? principal = null;
         string? rawToken = null;
 
-        // 1. Check for the ID Token in the request body (Most reliable for CIAM identity)
+        // 1. Check for the ID Token (Most reliable for CIAM identity)
         if (!string.IsNullOrEmpty(request?.IdToken))
         {
             try
@@ -49,7 +58,7 @@ public class AuthController : ControllerBase
                 var jwt = handler.ReadJwtToken(request.IdToken);
                 var identity = new ClaimsIdentity(jwt.Claims, "B2C");
                 principal = new ClaimsPrincipal(identity);
-                _logger.LogInformation("[AUTH_B2C] Using ID Token from Request Body for identity claims.");
+                _logger.LogInformation("[AUTH_B2C] Using ID Token from Request Body (Length: {Length}).", request.IdToken.Length);
             }
             catch (Exception ex)
             {

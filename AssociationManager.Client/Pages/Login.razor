@@ -181,6 +181,8 @@
 
                     if (!string.IsNullOrEmpty(accessToken))
                     {
+                        Console.WriteLine($"[DEBUG] Access Token acquired: {accessToken.Length} chars");
+                        Console.WriteLine($"[DEBUG] ID Token acquired: {(idToken?.Length ?? 0)} chars");
                         var result = await AuthService.LoginWithB2C(accessToken, idToken);
                         if (result?.Success == true)
                         {

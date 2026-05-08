@@ -32,13 +32,13 @@ public class AuthService
         // Still set the Bearer header for middleware validation
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         
-        var request = new B2CLoginRequest
+        var formData = new Dictionary<string, string>
         {
-            AccessToken = accessToken,
-            IdToken = idToken
+            { "AccessToken", accessToken },
+            { "IdToken", idToken ?? "" }
         };
         
-        var result = await _httpClient.PostAsJsonAsync("api/auth/b2c-login", request);
+        var result = await _httpClient.PostAsync("api/auth/b2c-login", new FormUrlEncodedContent(formData));
         
         // Clear headers immediately after
         _httpClient.DefaultRequestHeaders.Authorization = null;
