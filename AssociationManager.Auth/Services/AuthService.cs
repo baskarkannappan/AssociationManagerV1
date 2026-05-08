@@ -298,6 +298,9 @@ public class AuthService : IAuthService
             }
         }
 
+        _logger.LogInformation("[AUTH_TOKEN] Generating token for {Email}. Roles: {Roles}. Assoc: {AssocId}", 
+            user.Email, string.Join(", ", claims.Where(c => c.Type == "role").Select(c => c.Value)), user.AssociationId);
+
         var token = new JwtSecurityToken(
             issuer: _jwtSettings.Issuer,
             audience: _jwtSettings.Audience,

@@ -153,27 +153,58 @@ try
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddMemoryCache();
 
-    // Authentication - Manual JwtBearer configuration with diagnostic logging for CIAM
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
+    // Authentication - Dual Scheme (CIAM + Local Session)
+    builder.Services.AddAuthentication(options => 
+    {
+        options.DefaultAuthenticateScheme = "LocalOrCIAM";
+        options.DefaultChallengeScheme = "LocalOrCIAM";
+    })
+    .AddPolicyScheme("LocalOrCIAM", "LocalOrCIAM", options =>
+    {
+        options.ForwardDefaultSelector = context =>
         {
-            // CIAM Authority & Metadata (Manual config avoids metadata endpoint issues)
-            options.Authority = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
-            options.MetadataAddress = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
+            string authorization = context.Request.Headers["Authorization"];
+            if (string.IsNullOrEmpty(authorization)) return JwtBearerDefaults.AuthenticationScheme;
             
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
-                ValidateAudience = true,
-                ValidAudiences = new[] 
-                { 
-                    builder.Configuration["AzureAd:ClientId"],  // af161f39 (API resource)
-                    "b6769384-144c-4c59-a9f5-02c201d4e769"      // b6769384 (SPA client)
-                },
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            };
+            // If the token is short or doesn't look like a CIAM token, try Local
+            if (authorization.Contains("Bearer eyJ") && authorization.Length < 1000) return "Local";
+            return JwtBearerDefaults.AuthenticationScheme;
+        };
+    })
+    .AddJwtBearer("Local", options =>
+    {
+        var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtSettings.Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
+            ClockSkew = TimeSpan.Zero
+        };
+    })
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        // CIAM Authority & Metadata (Manual config avoids metadata endpoint issues)
+        options.Authority = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
+        options.MetadataAddress = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
+        
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
+            ValidateAudience = true,
+            ValidAudiences = new[] 
+            { 
+                builder.Configuration["AzureAd:ClientId"],  // af161f39 (API resource)
+                "b6769384-144c-4c59-a9f5-02c201d4e769"      // b6769384 (SPA client)
+            },
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
             
             options.Events = new JwtBearerEvents
             {
