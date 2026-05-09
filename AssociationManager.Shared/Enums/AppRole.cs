@@ -52,16 +52,17 @@ public static class AppRole
 
     public static int GetMaxLevel(IEnumerable<Claim> claims)
     {
-        // Prioritize ContextRole if it exists, as it represents the role for the CURRENT association
-        var contextRole = claims.FirstOrDefault(c => c.Type == "ContextRole")?.Value;
-        if (!string.IsNullOrEmpty(contextRole))
-        {
-            return GetLevel(contextRole);
-        }
+        // Collect all potential roles from various claim types
+        var roles = claims.Where(c => 
+            c.Type == "role" || 
+            c.Type == ClaimTypes.Role || 
+            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" ||
+            c.Type == "ContextRole"
+        ).Select(c => c.Value).ToList();
 
-        var roles = claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                          .Select(c => c.Value);
         if (!roles.Any()) return LevelGuest;
+
+        // Return the highest level found across all roles
         return roles.Select(GetLevel).Max();
     }
 
