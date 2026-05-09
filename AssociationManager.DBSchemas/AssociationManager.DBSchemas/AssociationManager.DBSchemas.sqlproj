@@ -74,6 +74,7 @@
     <Folder Include="assoc\Types\" />
     <Folder Include="corp\Triggers\" />
     <Folder Include="Security\Policies\" />
+    <Folder Include="assoc\Indexes\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="archive\Tables\AuditLogs.sql" />
@@ -286,6 +287,8 @@
     <Build Include="assoc\Tables\Vehicles.sql" />
     <Build Include="assoc\Tables\Votes.sql" />
     <Build Include="assoc\Tables\WorkOrders.sql" />
+    <Build Include="assoc\Indexes\IX_Transactions_Asset_Association.sql" />
+    <Build Include="assoc\Indexes\IX_Invoices_Performance_Covering.sql" />
     <Build Include="assoc\User Defined Types\AssetTableType.sql" />
     <Build Include="assoc\User Defined Types\typ_AuditLogBatch.sql" />
     <Build Include="assoc\User Defined Types\typ_InvoiceBatch.sql" />

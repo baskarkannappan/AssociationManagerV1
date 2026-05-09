@@ -30,6 +30,15 @@ BEGIN
     -- 3. Bulk Insert Ledger Transactions (Debit)
     -- Unified Logic: We use the MAX of the recorded Amount or the sum of line items to prevent double-counting 
     -- while ensuring that line-item fines (which might be excluded from 'Amount' in some versions) are captured.
+    ;WITH BatchLineItemSums AS (
+        SELECT li.InvoiceId, SUM(li.Amount) as TotalAmount
+        FROM assoc.InvoiceLineItems li WITH (NOLOCK)
+        JOIN assoc.Invoices i WITH (NOLOCK) ON li.InvoiceId = i.InvoiceId
+        WHERE i.BillingBatchId = @BatchId 
+          AND i.TenantId = @TenantId 
+          AND i.AssociationId = @AssociationId
+        GROUP BY li.InvoiceId
+    )
     INSERT INTO assoc.Transactions (
         TenantId, AssociationId, AssetId, InvoiceId, Type, Amount, Category, Description, TransactionDate
     )
@@ -42,17 +51,15 @@ BEGIN
         'Billing', 
         'Batch Billing Committed: ' + i.Title, GETUTCDATE()
     FROM assoc.Invoices i WITH (NOLOCK)
-    OUTER APPLY (
-        SELECT SUM(Amount) as TotalAmount 
-        FROM assoc.InvoiceLineItems WITH (NOLOCK)
-        WHERE InvoiceId = i.InvoiceId
-    ) li
-    LEFT JOIN assoc.Transactions t WITH (NOLOCK) ON i.InvoiceId = t.InvoiceId AND t.Type = 'Debit'
+    LEFT JOIN BatchLineItemSums li ON i.InvoiceId = li.InvoiceId
     WHERE i.BillingBatchId = @BatchId 
       AND i.TenantId = @TenantId 
       AND i.AssociationId = @AssociationId
       AND i.Status = 'Unpaid'
-      AND t.TransactionId IS NULL;
+      AND NOT EXISTS (
+          SELECT 1 FROM assoc.Transactions t WITH (NOLOCK) 
+          WHERE t.InvoiceId = i.InvoiceId AND t.Type = 'Debit'
+      );
 
     COMMIT TRANSACTION;
 
