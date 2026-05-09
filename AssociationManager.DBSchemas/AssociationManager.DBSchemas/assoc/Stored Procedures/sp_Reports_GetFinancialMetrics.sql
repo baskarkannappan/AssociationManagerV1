@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE assoc.sp_Reports_GetFinancialMetrics
+CREATE PROCEDURE assoc.sp_Reports_GetFinancialMetrics
     @TenantId INT,
     @AssociationId INT
 AS

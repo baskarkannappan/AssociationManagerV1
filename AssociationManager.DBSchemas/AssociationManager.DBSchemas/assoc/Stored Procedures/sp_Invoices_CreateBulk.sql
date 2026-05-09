@@ -1,5 +1,5 @@
 -- sp_Invoices_CreateBulk
-CREATE OR ALTER PROCEDURE [assoc].[sp_Invoices_CreateBulk]
+CREATE   PROCEDURE [assoc].[sp_Invoices_CreateBulk]
     @TenantId INT, @AssociationId INT, @Invoices [assoc].[typ_InvoiceBatch] READONLY, @LineItems [assoc].[typ_InvoiceLineItemBatch] READONLY
 AS
 BEGIN
