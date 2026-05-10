@@ -1,14 +1,14 @@
 /**
  * Google Translate JS Helper for Blazor
- * Handles lazy-loading and programmatic translation triggering.
+ * Fixed scope issues and added robust initialization checks.
  */
 
 window.languageHelper = {
     initialize: function (defaultLang) {
-        // 1. Check localStorage for saved preference
+        console.log("[Language] Initializing...");
         const savedLang = localStorage.getItem('app_language') || defaultLang;
 
-        // 2. Add hidden Google Translate element if it doesn't exist
+        // 1. Ensure the hidden anchor element exists
         if (!document.getElementById('google_translate_element')) {
             const div = document.createElement('div');
             div.id = 'google_translate_element';
@@ -16,9 +16,10 @@ window.languageHelper = {
             document.body.appendChild(div);
         }
 
-        // 3. Lazy load the script
+        // 2. Define the global callback that Google's script will call
         if (!window.googleTranslateElementInit) {
             window.googleTranslateElementInit = () => {
+                console.log("[Language] Google Translate Widget Loaded");
                 new google.translate.TranslateElement({
                     pageLanguage: 'en',
                     includedLanguages: 'en,hi,ta,bn,ml,kn,te,mr,gu',
@@ -26,15 +27,18 @@ window.languageHelper = {
                     autoDisplay: false
                 }, 'google_translate_element');
 
-                // After initialization, if we have a saved lang, apply it
-                if (savedLang !== 'en') {
-                    this.setLanguage(savedLang);
+                // Apply saved language after a short delay to ensure DOM is ready
+                if (savedLang && savedLang !== 'en') {
+                    setTimeout(() => window.languageHelper.setLanguage(savedLang), 1000);
                 }
             };
 
+            // 3. Load the script
+            console.log("[Language] Loading Google script...");
             const script = document.createElement('script');
             script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
             script.async = true;
+            script.onerror = () => console.error("[Language] Failed to load Google Translate script. Check your internet or ad-blocker.");
             document.head.appendChild(script);
         }
 
@@ -42,32 +46,41 @@ window.languageHelper = {
     },
 
     setLanguage: function (langCode) {
+        console.log("[Language] Switching to:", langCode);
         localStorage.setItem('app_language', langCode);
 
+        // Standard Google Translate combo box class
         const select = document.querySelector('.goog-te-combo');
         if (select) {
             select.value = langCode;
             select.dispatchEvent(new Event('change'));
+            console.log("[Language] Change event dispatched");
+            
+            // If switching back to English, we sometimes need to clear the cookie
+            if (langCode === 'en') {
+                document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + document.domain;
+            }
             return true;
         } else {
-            // If the widget isn't ready yet, retry in 500ms
-            setTimeout(() => this.setLanguage(langCode), 500);
+            console.log("[Language] Select element not found yet, retrying in 500ms...");
+            setTimeout(() => window.languageHelper.setLanguage(langCode), 500);
             return false;
         }
-    },
-
-    getLanguage: function () {
-        return localStorage.getItem('app_language') || 'en';
     }
 };
 
-// Global CSS injection to hide the Google Translate toolbar
-const style = document.createElement('style');
-style.innerHTML = `
-    .goog-te-banner-frame.skiptranslate, .goog-te-gadget-icon { display: none !important; }
-    body { top: 0px !important; }
-    .goog-te-menu-value { display: none !important; }
-    #goog-gt-tt { display: none !important; }
-    .goog-text-highlight { background-color: transparent !important; box-shadow: none !important; }
-`;
-document.head.appendChild(style);
+// CSS to keep the UI clean
+if (!document.getElementById('lang-override-style')) {
+    const style = document.createElement('style');
+    style.id = 'lang-override-style';
+    style.innerHTML = `
+        .goog-te-banner-frame.skiptranslate, .goog-te-gadget-icon, .goog-te-menu-value span { display: none !important; }
+        body { top: 0px !important; }
+        #goog-gt-tt { display: none !important; visibility: hidden !important; }
+        .goog-text-highlight { background-color: transparent !important; box-shadow: none !important; }
+        .skiptranslate { display: none !important; }
+        iframe.goog-te-banner-frame { display: none !important; }
+    `;
+    document.head.appendChild(style);
+}

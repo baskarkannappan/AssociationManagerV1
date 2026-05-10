@@ -82,10 +82,17 @@
         _isOpen = false;
         StateHasChanged();
 
+        // Give the UI a moment to close the dropdown before the translation engine kicks in
+        await Task.Delay(100);
+
         try
         {
             await JS.InvokeVoidAsync("languageHelper.setLanguage", code);
             _currentLang = code;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Language] Error setting language: {ex.Message}");
         }
         finally
         {
