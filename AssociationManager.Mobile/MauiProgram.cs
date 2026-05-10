@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Client;
 using AssociationManager.Mobile.Services;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -29,6 +30,21 @@ public static class MauiProgram
 		builder.Services.AddScoped<MobileDashboardService>();
 		builder.Services.AddSingleton<IWebAuthenticator>(WebAuthenticator.Default);
 		
+		// Entra External ID (CIAM) Authentication
+		var tenantName = "assocmgruat";
+		var b2cAuthority = $"https://{tenantName}.ciamlogin.com";
+		var b2cClientId = "b6769384-144c-4c59-a9f5-02c201d4e769";
+		var redirectUri = $"msal{b2cClientId}://auth";
+
+		builder.Services.AddSingleton<IPublicClientApplication>(sp =>
+		{
+			return PublicClientApplicationBuilder.Create(b2cClientId)
+				.WithAuthority(b2cAuthority)
+				.WithRedirectUri(redirectUri)
+				.WithIosKeychainSecurityGroup("com.microsoft.adalcache")
+				.Build();
+		});
+
 		builder.Services.AddAuthorizationCore();
 		builder.Services.AddScoped<MobileAuthenticationStateProvider>();
 		builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<MobileAuthenticationStateProvider>());

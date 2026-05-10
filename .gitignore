@@ -16,3 +16,12 @@ force_fix_db.cs
 # SQL Project binaries
 *.dbmdl
 *.jfm
+
+# Deployment artifacts
+publish-func/
+func-deploy.zip
+
+# Local Settings
+localappsettings.json
+appsettings.Development.json
+local.settings.json

@@ -206,6 +206,16 @@ public class TariffRepository : ITariffRepository
         return tariffs.ToList();
     }
 
+    public async Task<IEnumerable<AssetTariff>> GetActiveTariffsByAssociationIdAsync(int associationId, int tenantId)
+    {
+        using var connection = _dbConnectionFactory.CreateConnection();
+        var tariffs = await connection.QueryAsync<AssetTariff>(
+            "assoc.sp_AssetTariffs_GetActiveByAssociationId", 
+            new { associationId, tenantId },
+            commandType: CommandType.StoredProcedure);
+        return tariffs.ToList();
+    }
+
     public async Task<IEnumerable<AssetTariff>> GetAssignmentsByLayerIdAsync(int layerId)
     {
         // TARGETED FETCH: Avoids pulling entire tenant data

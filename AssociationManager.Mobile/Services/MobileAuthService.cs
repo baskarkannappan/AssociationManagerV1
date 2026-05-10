@@ -15,11 +15,13 @@ public class MobileAuthService
         _tokenService = tokenService;
     }
 
-    public async Task<bool> LoginWithGoogleAsync(string idToken)
+    public async Task<bool> LoginWithB2CAsync(string b2cToken)
     {
         try
         {
-            var result = await _httpClient.PostAsJsonAsync("api/auth/google", new GoogleLoginRequest { IdToken = idToken });
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", b2cToken);
+            var result = await _httpClient.PostAsync("api/auth/b2c-login", null);
+            
             if (result.IsSuccessStatusCode)
             {
                 var response = await result.Content.ReadFromJsonAsync<AuthResponse>();
@@ -29,9 +31,15 @@ public class MobileAuthService
                     return true;
                 }
             }
+            else 
+            {
+                var error = await result.Content.ReadAsStringAsync();
+                Console.WriteLine($"[AUTH_DEBUG] B2C Exchange Failed: {result.StatusCode} - {error}");
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"[AUTH_DEBUG] B2C Exchange Exception: {ex.Message}");
             return false;
         }
         return false;

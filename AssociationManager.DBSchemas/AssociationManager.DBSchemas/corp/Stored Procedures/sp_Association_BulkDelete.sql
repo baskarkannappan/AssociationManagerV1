@@ -1,4 +1,4 @@
-﻿
+
 CREATE   PROCEDURE corp.sp_Association_BulkDelete
     @AssociationId INT
 AS
@@ -64,7 +64,7 @@ BEGIN
         -- Delete RefreshTokens for any system (corp or assoc schema) linked to users of this association
         DELETE FROM corp.RefreshTokens WHERE UserId IN (SELECT UserId FROM corp.Users WHERE AssociationId = @AssociationId);
         
-        IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[assoc].[RefreshTokens]') AND type in (N'U'))
+        IF OBJECT_ID(N'[assoc].[RefreshTokens]', N'U') IS NOT NULL
         BEGIN
             DELETE FROM assoc.RefreshTokens WHERE UserId IN (SELECT UserId FROM corp.Users WHERE AssociationId = @AssociationId);
         END
@@ -75,7 +75,7 @@ BEGIN
             DELETE FROM corp.UserAssociations WHERE TenantId = @TenantId;
         END
 
-        IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[assoc].[UserAssociations]') AND type in (N'U'))
+        IF OBJECT_ID(N'[assoc].[UserAssociations]', N'U') IS NOT NULL
         BEGIN
             DELETE FROM assoc.UserAssociations WHERE AssociationId = @AssociationId;
         END

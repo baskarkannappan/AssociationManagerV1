@@ -15,8 +15,66 @@ permissions:
   packages: write
 
 jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      db: ${{ steps.filter.outputs.db }}
+      services: ${{ steps.matrix.outputs.services }}
+      clients: ${{ steps.matrix.outputs.clients }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            db:
+              - 'AssociationManager.DBSchemas/**'
+            gateway:
+              - 'AssociationManager.Gateway/**'
+              - 'AssociationManager.Shared/**'
+            api:
+              - 'AssociationManager.Api/**'
+              - 'AssociationManager.Shared/**'
+            corp-api:
+              - 'AssociationManager.Corporate.Api/**'
+              - 'AssociationManager.Shared/**'
+            client:
+              - 'AssociationManager.Client/**'
+              - 'AssociationManager.Shared/**'
+            corp-client:
+              - 'AssociationManager.Corporate.Client/**'
+              - 'AssociationManager.Shared/**'
+
+      - name: Debug Path Detection
+        run: |
+          echo "DB: ${{ steps.filter.outputs.db }}"
+          echo "Gateway: ${{ steps.filter.outputs.gateway }}"
+          echo "API: ${{ steps.filter.outputs.api }}"
+          echo "Corp-API: ${{ steps.filter.outputs.corp-api }}"
+          echo "Client: ${{ steps.filter.outputs.client }}"
+          echo "Corp-Client: ${{ steps.filter.outputs.corp-client }}"
+
+      - name: Generate Dynamic Matrices
+        id: matrix
+        run: |
+          SERVICES=$(echo "[]" | jq -c '.')
+          if [ "${{ steps.filter.outputs.gateway }}" == "true" ]; then SERVICES=$(echo $SERVICES | jq -c '. += [{"service": "gateway", "folder": "Gateway"}]'); fi
+          if [ "${{ steps.filter.outputs.api }}" == "true" ]; then SERVICES=$(echo $SERVICES | jq -c '. += [{"service": "api", "folder": "Api"}]'); fi
+          if [ "${{ steps.filter.outputs.corp-api }}" == "true" ]; then SERVICES=$(echo $SERVICES | jq -c '. += [{"service": "corp-api", "folder": "Corporate.Api"}]'); fi
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+
+          CLIENTS=$(echo "[]" | jq -c '.')
+          if [ "${{ steps.filter.outputs.client }}" == "true" ]; then CLIENTS=$(echo $CLIENTS | jq -c '. += [{"id": "client", "name": "Client", "suffix": "CLIENT"}]'); fi
+          if [ "${{ steps.filter.outputs.corp-client }}" == "true" ]; then CLIENTS=$(echo $CLIENTS | jq -c '. += [{"id": "corp-client", "name": "Corporate.Client", "suffix": "CORPORATE_CLIENT"}]'); fi
+          echo "clients=$CLIENTS" >> $GITHUB_OUTPUT
+
   deploy-database:
-    runs-on: windows-latest # Windows needed for .sqlproj / MSBuild
+    needs: check-changes
+    if: needs.check-changes.outputs.db == 'true'
+    runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -32,6 +90,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Set Subscription
+        run: az account set --subscription 325ea257-cca8-4829-aca6-23416e28a2f1
+
       - name: Deploy SQL Schema
         uses: azure/sql-action@v2
         with:
@@ -40,17 +101,15 @@ jobs:
           action: 'Publish'
 
   build-and-deploy:
-    needs: deploy-database
+    needs: [check-changes, deploy-database]
+    if: |
+      always() && 
+      needs.check-changes.outputs.services != '[]' &&
+      (needs.deploy-database.result == 'success' || needs.deploy-database.result == 'skipped' || needs.deploy-database.result == '')
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - service: gateway
-            folder: Gateway
-          - service: api
-            folder: Api
-          - service: corp-api
-            folder: Corporate.Api
+        include: ${{ fromJson(needs.check-changes.outputs.services) }}
     
     steps:
       - name: Checkout Code
@@ -60,6 +119,14 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Subscription
+        run: az account set --subscription 325ea257-cca8-4829-aca6-23416e28a2f1
+
+      - name: Pull Base Images
+        run: |
+          docker pull mcr.microsoft.com/dotnet/sdk:9.0-noble
+          docker pull mcr.microsoft.com/dotnet/aspnet:9.0-bookworm-slim
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -79,14 +146,12 @@ jobs:
             --image "ghcr.io/${{ github.repository_owner }}/assoc-${{ matrix.service }}:${{ github.sha }}"
 
   deploy-clients:
+    needs: check-changes
+    if: needs.check-changes.outputs.clients != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - client: Client
-            secret_suffix: CLIENT
-          - client: Corporate.Client
-            secret_suffix: CORPORATE_CLIENT
+        include: ${{ fromJson(needs.check-changes.outputs.clients) }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -94,9 +159,8 @@ jobs:
       - name: Build and Deploy Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets[format('SWA_TOKEN_{0}', matrix.secret_suffix)] }}
+          azure_static_web_apps_api_token: ${{ secrets[format('SWA_TOKEN_{0}', matrix.suffix)] }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "/AssociationManager.${{ matrix.client }}"
+          app_location: "/AssociationManager.${{ matrix.name }}"
           output_location: "wwwroot"
-# Triggering build with GH_PACKAGE_TOKEN

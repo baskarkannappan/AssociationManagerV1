@@ -65,7 +65,14 @@ az containerapp logs show --name <app-name> --resource-group <rg> --tail 100
 Ensure these are in `kv-assocmgr-dev-unique`:
 - `ConnectionStrings--DefaultConnection`
 - `AllowedOrigins` (Comma-separated frontend URLs)
-- `JWT--Secret` (32+ chars)
-- `JWT--Issuer`: `AssocMgr`
-- `JWT--Audience`: `AssocMgr`
+- `JwtSettings--Key` (32+ chars)
+- `JwtSettings--Issuer`
+- `JwtSettings--Audience`
 - `GoogleSettings--ClientId`
+- `Smtp--Host`
+- `Smtp--Username`
+- `Smtp--Password`
+- `Smtp--FromEmail`
+- `EmailSettings--AzureStorageConnectionString`
+- `EmailSettings--QueueName`
+- `Redis--Configuration`

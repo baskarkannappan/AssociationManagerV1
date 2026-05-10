@@ -9,6 +9,7 @@ public interface IUserRepository
     string Schema { get; }
     Task<User?> GetByIdAsync(int id);
     Task<User?> GetByGoogleIdAsync(string googleId);
+    Task<User?> GetBySubjectIdAsync(string subjectId);
     Task<User?> GetByEmailAsync(string email);
     Task<User?> GetByEmailGlobalAsync(string email);
     Task<IEnumerable<User>> GetByTenantIdAsync(int tenantId);

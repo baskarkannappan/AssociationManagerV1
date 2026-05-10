@@ -30,13 +30,19 @@ The solution is organized into 9 projects:
    ```bash
    dotnet run --project AssociationManager.Database
    ```
-3. **Configuration**:
-   - Update `appsettings.json` in `AssociationManager.Api` and `AssociationManager.Worker` with your SQL connection string and Redis configuration.
-   - Update `GoogleSettings:ClientId` in `AssociationManager.Api`.
-   - Update the client-side Google Client ID in `AssociationManager.Client/Pages/Login.razor`.
+3. **Configuration (Local Development)**:
+   - To work locally without Azure Key Vault, edit the `localappsettings.json` file in the root directory with your local credentials.
+   - Run the setup script to distribute these settings to all projects:
+   ```powershell
+   ./apply-local-settings.ps1
+   ```
+   - This will create `appsettings.Development.json` files for all APIs and update `local.settings.json` for the Azure Functions.
 4. **Run the projects**:
-   - Using Visual Studio: Set Multiple Startup Projects (Api, Gateway, Worker, Client).
-   - Using CLI: Run `dotnet run` in each project folder.
+   - Run the startup script to launch all services:
+   ```powershell
+   ./run-all.ps1
+   ```
+   - Alternatively, using Visual Studio: Set Multiple Startup Projects (Api, Gateway, Worker, Client).
 
 ## 3. Coding Standards
 - **Asynchronous Everything**: Use `async`/`await` for all I/O bound operations.

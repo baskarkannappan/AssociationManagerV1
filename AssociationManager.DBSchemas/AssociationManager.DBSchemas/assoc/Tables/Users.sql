@@ -1,7 +1,8 @@
-﻿CREATE TABLE [assoc].[Users] (
+CREATE TABLE [assoc].[Users] (
     [UserId]        INT            IDENTITY (1, 1) NOT NULL,
     [TenantId]      INT            NULL,
     [GoogleId]      NVARCHAR (255) NULL,
+    [SubjectId]     NVARCHAR (255) NULL,
     [Email]         NVARCHAR (255) NOT NULL,
     [Name]          NVARCHAR (255) NOT NULL,
     [PictureUrl]    NVARCHAR (MAX) NULL,
@@ -16,6 +17,11 @@
 GO
 CREATE NONCLUSTERED INDEX [IX_AssocUsers_GoogleId]
     ON [assoc].[Users]([GoogleId] ASC);
+
+
+GO
+CREATE NONCLUSTERED INDEX [IX_AssocUsers_SubjectId]
+    ON [assoc].[Users]([SubjectId] ASC);
 
 
 GO

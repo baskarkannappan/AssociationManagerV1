@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using AssociationManager.Shared.Interfaces;
 using AssociationManager.Shared.Enums;
 using AssociationManager.Shared.Authorization;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -25,6 +26,10 @@ builder.Services.AddBlazorBootstrap();
 builder.Services.AddOptions();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<CustomAuthenticationStateProvider>();
+
+// MSAL is handled manually via msal-helper.js to avoid service conflicts and COOP issues
+
+// We register our custom provider AFTER MSAL to ensure it is the primary one used by the UI
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
 // Authorization Policies

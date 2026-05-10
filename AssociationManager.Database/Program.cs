@@ -16,7 +16,7 @@ class Program
             .Build();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection") 
-            ?? "Server=(localdb)\\mssqllocaldb;Initial Catalog=AssociationManageruat;User Id=appuser;Password=Sandhya@143;Integrated Security=False;TrustServerCertificate=True";
+            ?? "REPLACE_IN_KEYVAULT";
 
         // Ensure database exists
         EnsureDatabase.For.SqlDatabase(connectionString);
