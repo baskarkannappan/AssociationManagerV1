@@ -1,6 +1,6 @@
 /**
  * Google Translate JS Helper for Blazor
- * Optimized to prevent infinite loops and ensure Google Translate renders correctly.
+ * Optimized for aggressive widget detection and reliability.
  */
 
 console.log("!!! Language Helper Script Loaded !!!");
@@ -9,24 +9,28 @@ window.languageHelper = {
     timeoutId: null,
 
     initialize: function (defaultLang) {
-        console.log("[Language] Initializing...");
-        const savedLang = localStorage.getItem('app_language') || defaultLang;
+        console.log("[Language] Initializing with default:", defaultLang);
+        // We will default to 'en' unless something is already saved
+        const savedLang = localStorage.getItem('app_language') || defaultLang || 'en';
 
-        // Ensure the hidden anchor element exists but is not display:none (some browsers need it visible to render)
         if (!document.getElementById('google_translate_element')) {
             const div = document.createElement('div');
             div.id = 'google_translate_element';
-            div.style.position = 'absolute';
-            div.style.top = '-9999px';
-            div.style.left = '-9999px';
-            div.style.opacity = '0';
+            // Some versions of Google Translate need the container to have some size to render children
+            div.style.position = 'fixed';
+            div.style.bottom = '0';
+            div.style.right = '0';
+            div.style.width = '1px';
+            div.style.height = '1px';
+            div.style.opacity = '0.01';
             div.style.pointerEvents = 'none';
+            div.style.zIndex = '-1';
             document.body.appendChild(div);
         }
 
         if (!window.googleTranslateElementInit) {
             window.googleTranslateElementInit = () => {
-                console.log("[Language] Google Translate Widget Loaded");
+                console.log("[Language] Google Translate Widget Callback Triggered");
                 new google.translate.TranslateElement({
                     pageLanguage: 'en',
                     includedLanguages: 'en,hi,ta,bn,ml,kn,te,mr,gu',
@@ -34,15 +38,16 @@ window.languageHelper = {
                     autoDisplay: false
                 }, 'google_translate_element');
 
+                // Initial application of saved language
                 if (savedLang && savedLang !== 'en') {
-                    setTimeout(() => window.languageHelper.setLanguage(savedLang), 1500);
+                    console.log("[Language] Applying saved language on load:", savedLang);
+                    setTimeout(() => window.languageHelper.setLanguage(savedLang), 2000);
                 }
             };
 
             const script = document.createElement('script');
             script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
             script.async = true;
-            script.onerror = () => console.error("[Language] Failed to load Google script.");
             document.head.appendChild(script);
         }
 
@@ -50,28 +55,45 @@ window.languageHelper = {
     },
 
     setLanguage: function (langCode) {
-        // Clear any existing retry timer
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-            this.timeoutId = null;
-        }
+        if (this.timeoutId) clearTimeout(this.timeoutId);
 
-        console.log("[Language] Switching to:", langCode);
+        console.log("[Language] Attempting switch to:", langCode);
         localStorage.setItem('app_language', langCode);
 
-        const select = document.querySelector('.goog-te-combo');
+        // 1. Try standard selector
+        let select = document.querySelector('.goog-te-combo');
+        
+        // 2. Try searching inside our container if not found
+        if (!select) {
+            const container = document.getElementById('google_translate_element');
+            if (container) {
+                select = container.querySelector('select');
+            }
+        }
+
+        // 3. Try global search for any select with 'goog' in class
+        if (!select) {
+            const allSelects = document.querySelectorAll('select');
+            for (let s of allSelects) {
+                if (s.className && s.className.includes('goog')) {
+                    select = s;
+                    break;
+                }
+            }
+        }
+
         if (select) {
+            console.log("[Language] Widget found! Applying...");
             select.value = langCode;
             select.dispatchEvent(new Event('change'));
-            console.log("[Language] Success");
             
             if (langCode === 'en') {
                 document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             }
             return true;
         } else {
-            console.log("[Language] Widget not found, retrying in 1000ms...");
-            this.timeoutId = setTimeout(() => window.languageHelper.setLanguage(langCode), 1000);
+            console.warn("[Language] Widget still not found, retrying in 1.5s...");
+            this.timeoutId = setTimeout(() => window.languageHelper.setLanguage(langCode), 1500);
             return false;
         }
     }

@@ -34,21 +34,28 @@ public static class AppRole
     public const int LevelCorporateAuditor = 5;
     public const int LevelGuest = 0;
 
-    public static int GetLevel(string? role) => (role?.Trim().ToLowerInvariant().Replace(" ", "")) switch
+    public static int GetLevel(string? role)
     {
-        "platformadmin" => LevelPlatformAdmin,
-        "systemadmin" => LevelSystemAdmin,
-        "globalusermanager" => LevelGlobalUserManager,
-        "corporatemanager" => LevelCorporateManager,
-        "associationadmin" => LevelAssociationAdmin,
-        "subscriptionmanager" => LevelSubscriptionManager,
-        "assetmanager" => LevelAssetManager,
-        "usermanager" => LevelUserManager,
-        "financemanager" => LevelFinanceManager,
-        "resident" => LevelResident,
-        "corporateauditor" => LevelCorporateAuditor,
-        _ => LevelGuest
-    };
+        if (string.IsNullOrWhiteSpace(role)) return LevelGuest;
+        
+        string normalizedRole = role.Trim().ToLowerInvariant().Replace(" ", "");
+        
+        return normalizedRole switch
+        {
+            "platformadmin" => LevelPlatformAdmin,
+            "systemadmin" => LevelSystemAdmin,
+            "globalusermanager" => LevelGlobalUserManager,
+            "corporatemanager" => LevelCorporateManager,
+            "associationadmin" => LevelAssociationAdmin,
+            "subscriptionmanager" => LevelSubscriptionManager,
+            "assetmanager" => LevelAssetManager,
+            "usermanager" => LevelUserManager,
+            "financemanager" => LevelFinanceManager,
+            "resident" => LevelResident,
+            "corporateauditor" => LevelCorporateAuditor,
+            _ => LevelGuest
+        };
+    }
 
     public static int GetMaxLevel(IEnumerable<Claim> claims)
     {
