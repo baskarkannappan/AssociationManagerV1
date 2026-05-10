@@ -22,7 +22,11 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleLevelRequirement requirement)
     {
         // 0. FAST-TRACK BYPASS: PlatformAdmins pass everything without needing services or DB checks
-        var roles = context.User.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value);
+        var roles = context.User.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value).ToList();
+        
+        System.Console.WriteLine($"[AUTH-DEBUG] Checking Policy: {requirement.WorkflowName}, Level Req: {requirement.RequiredLevel}");
+        System.Console.WriteLine($"[AUTH-DEBUG] User Roles: {string.Join(", ", roles)}");
+
         if (roles.Contains(AppRole.PlatformAdmin) || context.User.HasClaim("role", AppRole.PlatformAdmin))
         {
             context.Succeed(requirement);
