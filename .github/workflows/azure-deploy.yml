@@ -162,5 +162,5 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets[format('SWA_TOKEN_{0}', matrix.suffix)] }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "/AssociationManager.${{ matrix.name }}"
+          app_location: "AssociationManager.${{ matrix.name }}"
           output_location: "wwwroot"
