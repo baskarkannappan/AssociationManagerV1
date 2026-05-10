@@ -212,23 +212,23 @@ try
     })
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
-        // CIAM Authority & Metadata (Manual config avoids metadata endpoint issues)
-        options.Authority = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
-        options.MetadataAddress = "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
+        // CIAM Authority & Metadata (Read from Key Vault/Config)
+        options.Authority = builder.Configuration["AzureAd:Authority"] ?? "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
+        options.MetadataAddress = builder.Configuration["AzureAd:MetadataAddress"] ?? $"{options.Authority}/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
         
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuers = new[] 
             { 
-                "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
-                "REPLACE_IN_KEYVAULT"
+                $"{options.Authority}/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
+                builder.Configuration["AzureAd:ValidIssuer"] ?? "REPLACE_IN_KEYVAULT"
             },
             ValidateAudience = true,
             ValidAudiences = new[] 
             { 
-                builder.Configuration["AzureAd:ClientId"],  // af161f39 (API resource)
-                "b6769384-144c-4c59-a9f5-02c201d4e769"      // b6769384 (SPA client)
+                builder.Configuration["AzureAd:ClientId"],
+                "b6769384-144c-4c59-a9f5-02c201d4e769" // SPA client ID (can also move to config)
             },
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
