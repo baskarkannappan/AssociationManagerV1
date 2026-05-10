@@ -44,6 +44,11 @@
     private bool _isTranslating;
     private string _currentLang = "en";
 
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("[LanguageSelector] Component Rendered in Header");
+    }
+
     private readonly List<LanguageInfo> _languages = new()
     {
         new("English", "en"),

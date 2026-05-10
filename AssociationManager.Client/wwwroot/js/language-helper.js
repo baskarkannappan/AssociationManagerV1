@@ -3,6 +3,8 @@
  * Fixed scope issues and added robust initialization checks.
  */
 
+console.log("!!! Language Helper Script Loaded !!!");
+
 window.languageHelper = {
     initialize: function (defaultLang) {
         console.log("[Language] Initializing...");
