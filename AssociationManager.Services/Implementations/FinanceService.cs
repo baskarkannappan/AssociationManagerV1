@@ -330,9 +330,31 @@ public class FinanceService : IFinanceService
             /* AUTO-SETTLE DISABLED: Requirement to allow manual settlement only
             await AutoSettleInvoicesAsync(invoice.AssetId.Value); 
             */
+            
+            // UPDATE SNAPSHOT: Ensure real-time dashboard accuracy
+            _ = Task.Run(() => SyncAssetBalanceSnapshotAsync(invoice.AssetId.Value, invoice.TenantId, invoice.AssociationId));
         }
 
         return id;
+    }
+
+    private async Task SyncAssetBalanceSnapshotAsync(int assetId, int tenantId, int associationId)
+    {
+        try
+        {
+            using var connection = _dbConnectionFactory.CreateConnection();
+            await connection.ExecuteAsync("assoc.sp_Finance_UpdateAssetBalanceSnapshot", 
+                new { assetId, tenantId, associationId }, 
+                commandType: CommandType.StoredProcedure);
+            
+            // Also trigger association-level sync for dashboard totals
+            await SyncAssociationBalancesAsync(associationId, tenantId);
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't break the main flow (Background task)
+            Console.WriteLine($"[Error] Failed to sync financial snapshot for Asset {assetId}: {ex.Message}");
+        }
     }
 
     public async Task<bool> UpdateInvoiceStatusAsync(int id, string status, int? associationId = null)
@@ -461,6 +483,12 @@ public class FinanceService : IFinanceService
             }
 
             await _invoiceRepository.UpdateStatusAsync(payment.InvoiceId.Value, "Paid", CurrentTenantId, CurrentAssociationId);
+        }
+
+        // UPDATE SNAPSHOT: Ensure real-time dashboard accuracy
+        if (payment.AssetId.HasValue)
+        {
+            _ = Task.Run(() => SyncAssetBalanceSnapshotAsync(payment.AssetId.Value, payment.TenantId, payment.AssociationId));
         }
 
         return id;
@@ -617,7 +645,7 @@ public class FinanceService : IFinanceService
                 await _invoiceRepository.UpdateStatusAsync(invoiceId, "Paid", CurrentTenantId, invoice.AssociationId, isAdvancePaid: true);
                 
                 // Trigger Real-time Dashboard Sync to update Net Outstanding metrics immediately
-                _ = Task.Run(() => SyncAssociationBalancesAsync(invoice.AssociationId, CurrentTenantId));
+                _ = Task.Run(() => SyncAssetBalanceSnapshotAsync(invoice.AssetId.Value, CurrentTenantId, invoice.AssociationId));
 
                 // 9. EMAIL NOTIFICATION TO ADMINS (Hangfire for reliability)
                 var notifyData = new PaymentOrder
@@ -1133,6 +1161,28 @@ public class FinanceService : IFinanceService
         {
             Console.WriteLine($"[EMAIL_NOTIF] CRITICAL ERROR sending payment notification email: {ex.Message}");
             throw; // Rethrow for Hangfire retry
+        }
+    }
+    public async Task<bool> ReconcileAllBalancesAsync(int tenantId, int associationId)
+    {
+        try
+        {
+            Console.WriteLine($"[INFO] Starting bulk reconciliation for Association {associationId} (Tenant: {tenantId})...");
+            using var connection = _dbConnectionFactory.CreateConnection();
+            await connection.ExecuteAsync("assoc.sp_Finance_ReconcileAllBalances", 
+                new { TenantId = tenantId, AssociationId = associationId }, 
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: 180); // 3 minute timeout
+            
+            Console.WriteLine($"[INFO] Bulk reconciliation SUCCESS for Association {associationId}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Error] Bulk reconciliation failed for Association {associationId}: {ex.Message}");
+            if (ex.InnerException != null)
+                Console.WriteLine($"[Inner Error] {ex.InnerException.Message}");
+            return false;
         }
     }
 }

@@ -72,7 +72,9 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             context.IsPlatformAdmin = roles.Contains("PlatformAdmin");
             context.IsSystemAdmin = roles.Contains("SystemAdmin");
 
-            Console.WriteLine($"[Auth] Session Restored - User: {context.Email}, AssociationId: {context.AssociationId}, TenantId: {context.TenantId}");
+            Console.WriteLine($"[Auth] Session Restored - User: {context.Email}");
+            Console.WriteLine($"[Auth] Context: AssociationId={context.AssociationId}, TenantId={context.TenantId}");
+            Console.WriteLine($"[Auth] Active Roles: {string.Join(", ", roles)}");
         }
     }
 

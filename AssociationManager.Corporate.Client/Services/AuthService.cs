@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.JSInterop;
 
 namespace AssociationManager.Corporate.Client.Services;
 
@@ -11,17 +13,40 @@ public class AuthService
     private readonly HttpClient _httpClient;
     private readonly TokenService _tokenService;
     private readonly CustomAuthenticationStateProvider _authStateProvider;
+    private readonly IConfiguration _configuration;
+    private readonly IJSRuntime _js;
 
-    public AuthService(IHttpClientFactory httpClientFactory, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider)
+    public AuthService(IHttpClientFactory httpClientFactory, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider, IConfiguration configuration, IJSRuntime js)
     {
         _httpClient = httpClientFactory.CreateClient("AuthClient");
         _tokenService = tokenService;
         _authStateProvider = authStateProvider;
+        _configuration = configuration;
+        _js = js;
     }
 
-    public async Task<AuthResponse?> LoginWithGoogle(string idToken)
+    public class B2CLoginRequest
     {
-        var result = await _httpClient.PostAsJsonAsync("api/corporate/auth/google", new GoogleLoginRequest { IdToken = idToken });
+        public string? AccessToken { get; set; }
+        public string? IdToken { get; set; }
+    }
+
+    public async Task<AuthResponse?> LoginWithB2C(string accessToken, string? idToken = null)
+    {
+        _httpClient.DefaultRequestHeaders.Authorization = null;
+        _httpClient.DefaultRequestHeaders.Remove("X-Identity-Token");
+        
+        if (!string.IsNullOrEmpty(idToken))
+        {
+            _httpClient.DefaultRequestHeaders.Add("X-Identity-Token", idToken);
+        }
+        
+        // Use custom header for token transport to avoid infrastructure stripping standard Authorization headers
+        var result = await _httpClient.PostAsync("api/auth/b2c-login", null);
+        
+        // Clear headers immediately after
+        _httpClient.DefaultRequestHeaders.Authorization = null;
+
         if (result.IsSuccessStatusCode)
         {
             var response = await result.Content.ReadFromJsonAsync<AuthResponse>();
@@ -36,6 +61,16 @@ public class AuthService
     }
 
     public async Task Logout()
+    {
+        await ClearLocalSession();
+
+        // Trigger MSAL logout to clear the IDP session and prevent silent re-login
+        var clientId = _configuration["AzureAd:ClientId"];
+        var authority = _configuration["AzureAd:Authority"];
+        await _js.InvokeVoidAsync("msalHelper.logout", clientId, authority);
+    }
+
+    public async Task ClearLocalSession()
     {
         await _tokenService.RemoveTokens();
         _authStateProvider.NotifyUserLogout();

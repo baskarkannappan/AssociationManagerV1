@@ -1,17 +1,16 @@
 @page "/"
 @using AssociationManager.Mobile.Services
+@using Microsoft.Identity.Client
 @inject MobileAuthService AuthService
 @inject NavigationManager Navigation
-@inject IHttpClientFactory HttpClientFactory
-@inject MobileTokenStorageService TokenService
 @inject MobileAuthenticationStateProvider AuthStateProvider
-@inject IWebAuthenticator WebAuthenticator
+@inject IPublicClientApplication PublicClientApp
 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6 text-center">
             <h3>AssociationManager Mobile</h3>
-            <p class="text-muted">High-Security Mobile Gateway</p>
+            <p class="text-muted">Multi-Provider brokered by Microsoft Entra</p>
             
             <div class="card mt-4 p-4 shadow-sm border-0 bg-light">
                 <div class="card-body">
@@ -21,28 +20,24 @@
                     @if (!string.IsNullOrEmpty(_errorMessage))
                     {
                         <div class="alert alert-danger">@_errorMessage</div>
-                        <p class="small text-danger">Check internet connection and backend services.</p>
                     }
 
                     @if (_isLoggingIn)
                     {
                         <div class="text-center">
                             <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2 text-muted">Authenticating...</p>
+                            <p class="mt-2 text-muted">Redirecting to Identity Broker...</p>
                         </div>
                     }
                     else 
                     {
                         <div class="d-grid gap-2">
-                            <Button Color="ButtonColor.Primary" Size="ButtonSize.Large" @onclick="HandleGoogleLoginAsync">
-                                <Icon Name="IconName.Google" class="me-2" /> Sign in with Google
+                            <Button Color="ButtonColor.Primary" Size="ButtonSize.Large" @onclick="HandleB2CLoginAsync">
+                                <Icon Name="IconName.ShieldLock" class="me-2" /> Sign In
                             </Button>
                         </div>
+                        <p class="mt-3 small text-muted">Supports Google, Microsoft, Facebook & more</p>
                     }
-                    
-                    <p class="mt-4 small text-muted">
-                        Targeting Android 9+ (API 21+)
-                    </p>
                 </div>
             </div>
         </div>
@@ -52,49 +47,47 @@
 @code {
     private string? _errorMessage;
     private bool _isLoggingIn;
+    private string[] _scopes = new[] { "openid", "offline_access", "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user" };
 
-    private async Task HandleGoogleLoginAsync()
+    private async Task HandleB2CLoginAsync()
     {
         _errorMessage = null;
         _isLoggingIn = true;
         
         try 
         {
-            // For Android Emulator, the IP to reach the host is 10.0.2.2
-            // The ExternalAuthController orchestrates the redirect to Google
-            var authUrl = "https://10.0.2.2:7000/api/externalauth/google-login";
-            var callbackUrl = "assocauth://callback";
+            // Trigger MSAL Interactive Login
+            var authResult = await PublicClientApp.AcquireTokenInteractive(_scopes)
+                .WithParentActivityOrWindow(null) // MAUI will handle this via Platform methods if needed
+                .ExecuteAsync();
 
-            var authResult = await WebAuthenticator.AuthenticateAsync(new Uri(authUrl), new Uri(callbackUrl));
-            
-            var idToken = authResult?.Properties["id_token"];
-            if (string.IsNullOrEmpty(idToken))
+            var b2cToken = authResult?.AccessToken;
+            if (string.IsNullOrEmpty(b2cToken))
             {
-                _errorMessage = "Authentication failed: No token received.";
+                _errorMessage = "Authentication failed: No access token received from B2C.";
                 return;
             }
 
-            // exchange the id_token for our JWT
-            var success = await AuthService.LoginWithGoogleAsync(idToken);
+            // Exchange the B2C Access Token for our internal JWT
+            var success = await AuthService.LoginWithB2CAsync(b2cToken);
             if (success)
             {
-                // Refresh authentication state
                 await AuthStateProvider.GetAuthenticationStateAsync();
                 Navigation.NavigateTo("/context-selection");
             }
             else 
             {
-                _errorMessage = "Identity verification failed. Please contact your administrator.";
+                _errorMessage = "Identity verification failed. Your account might not be authorized for this platform.";
             }
         }
-        catch (OperationCanceledException)
+        catch (MsalClientException ex) when (ex.ErrorCode == "authentication_canceled")
         {
-            // User cancelled the login
-            _isLoggingIn = false;
+            // User cancelled
         }
         catch (Exception ex)
         {
             _errorMessage = $"Login Error: {ex.Message}";
+            Console.WriteLine($"[AUTH_ERROR] {ex}");
         }
         finally
         {

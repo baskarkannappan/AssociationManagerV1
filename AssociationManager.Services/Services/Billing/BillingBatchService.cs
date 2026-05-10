@@ -127,8 +127,8 @@ public class BillingBatchService
         Console.WriteLine($"[Perf] Step 2a - Bulk Fetch Tariff Layers ({allLayers.Count} layers): {sw.ElapsedMilliseconds}ms");
         
         sw.Restart();
-        var assignments = (await _tariffRepository.GetActiveTariffsByTenantIdAsync(tenantId)).ToList();
-        Console.WriteLine($"[Perf] Step 2b - Fetch {assignments.Count} Assignments: {sw.ElapsedMilliseconds}ms");
+        var assignments = (await _tariffRepository.GetActiveTariffsByAssociationIdAsync(request.AssociationId, tenantId)).ToList();
+        Console.WriteLine($"[Perf] Step 2b - Fetch {assignments.Count} Assignments (Optimized): {sw.ElapsedMilliseconds}ms");
 
         // Build lookup dictionaries for O(1) access
         sw.Restart();
@@ -369,7 +369,6 @@ public class BillingBatchService
                 }
                 Console.WriteLine($"[Perf] Flushed final chunk. Total generated: {result.InvoicesGenerated}");
             }
-
             // Bulk Deactivate One-Time Charges at the end
             if (!request.DryRun && oneTimeChargesToDeactivate.Any())
             {
@@ -379,6 +378,12 @@ public class BillingBatchService
                     await _tariffRepository.DeactivateTariffsBulkAsync(layerKvp.Key, layerKvp.Value);
                 }
                 Console.WriteLine($"[Perf] Step 5 - Bulk Deactivated One-Time Charges ({oneTimeChargesToDeactivate.Values.Sum(v => v.Count)} total): {sw.ElapsedMilliseconds}ms");
+            }
+
+            // RECONCILE: Update all asset snapshots for the association to reflect new invoices
+            if (!request.DryRun)
+            {
+                _ = Task.Run(() => _financeService.ReconcileAllBalancesAsync(tenantId, request.AssociationId));
             }
         }
         catch (Exception ex)

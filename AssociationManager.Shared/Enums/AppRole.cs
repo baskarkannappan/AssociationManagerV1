@@ -34,34 +34,42 @@ public static class AppRole
     public const int LevelCorporateAuditor = 5;
     public const int LevelGuest = 0;
 
-    public static int GetLevel(string? role) => (role?.Trim().ToLowerInvariant().Replace(" ", "")) switch
+    public static int GetLevel(string? role)
     {
-        "platformadmin" => LevelPlatformAdmin,
-        "systemadmin" => LevelSystemAdmin,
-        "globalusermanager" => LevelGlobalUserManager,
-        "corporatemanager" => LevelCorporateManager,
-        "associationadmin" => LevelAssociationAdmin,
-        "subscriptionmanager" => LevelSubscriptionManager,
-        "assetmanager" => LevelAssetManager,
-        "usermanager" => LevelUserManager,
-        "financemanager" => LevelFinanceManager,
-        "resident" => LevelResident,
-        "corporateauditor" => LevelCorporateAuditor,
-        _ => LevelGuest
-    };
+        if (string.IsNullOrWhiteSpace(role)) return LevelGuest;
+        
+        string normalizedRole = role.Trim().ToLowerInvariant().Replace(" ", "");
+        
+        return normalizedRole switch
+        {
+            "platformadmin" => LevelPlatformAdmin,
+            "systemadmin" => LevelSystemAdmin,
+            "globalusermanager" => LevelGlobalUserManager,
+            "corporatemanager" => LevelCorporateManager,
+            "associationadmin" => LevelAssociationAdmin,
+            "subscriptionmanager" => LevelSubscriptionManager,
+            "assetmanager" => LevelAssetManager,
+            "usermanager" => LevelUserManager,
+            "financemanager" => LevelFinanceManager,
+            "resident" => LevelResident,
+            "corporateauditor" => LevelCorporateAuditor,
+            _ => LevelGuest
+        };
+    }
 
     public static int GetMaxLevel(IEnumerable<Claim> claims)
     {
-        // Prioritize ContextRole if it exists, as it represents the role for the CURRENT association
-        var contextRole = claims.FirstOrDefault(c => c.Type == "ContextRole")?.Value;
-        if (!string.IsNullOrEmpty(contextRole))
-        {
-            return GetLevel(contextRole);
-        }
+        // Collect all potential roles from various claim types
+        var roles = claims.Where(c => 
+            c.Type == "role" || 
+            c.Type == ClaimTypes.Role || 
+            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" ||
+            c.Type == "ContextRole"
+        ).Select(c => c.Value).ToList();
 
-        var roles = claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                          .Select(c => c.Value);
         if (!roles.Any()) return LevelGuest;
+
+        // Return the highest level found across all roles
         return roles.Select(GetLevel).Max();
     }
 

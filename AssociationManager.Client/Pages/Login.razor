@@ -1,10 +1,14 @@
 @page "/login"
 @layout EmptyLayout
 @attribute [AllowAnonymous]
+@using Microsoft.Extensions.Configuration
 @using AssociationManager.Client.Services
+@inject IConfiguration Configuration
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @inject IJSRuntime JS
+@using System.Text.Json
 @inject AuthenticationStateProvider AuthProvider
 @using AssociationManager.Shared.Enums
 
@@ -30,19 +34,33 @@
                 </div>
             }
 
-            @if (_showTroubleshooting)
-
+            @if (_isCheckingSession)
             {
-                <div class="alert alert-warning small border-opacity-10 py-2 animate-scale-in" style="background: rgba(245, 158, 11, 0.05); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Button not appearing? Ensure <strong>https://localhost:7001</strong> is added to "Authorized JavaScript origins" in Google Console.
+                <div class="d-flex flex-column align-items-center gap-3 py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-secondary small animate-pulse">Verifying your session...</p>
                 </div>
             }
-
-            <div id="google-btn-parent" class="d-flex justify-content-center">
-                <!-- Skeleton Loader (Fallback while JS initializes) -->
-                <div class="btn-skeleton shimmer-effect"></div>
-            </div>
+            else
+            {
+                <div class="d-flex flex-column gap-3 justify-content-center">
+                    <button class="btn btn-primary rounded-pill py-3 px-4 shadow-sm animate-scale-in fw-bold" @onclick="HandleMSALLogin">
+                        <i class="bi bi-person-badge-fill me-2"></i> Sign In to Continue
+                    </button>
+                    
+                    <div class="mt-4">
+                        <p class="text-muted small mb-3">Secure identity powered by Microsoft Entra</p>
+                        <div class="d-flex justify-content-center gap-4 opacity-75">
+                            <i class="bi bi-microsoft fs-5" title="Microsoft Account"></i>
+                            <i class="bi bi-google fs-5" title="Google"></i>
+                            <i class="bi bi-facebook fs-5 text-primary" title="Facebook"></i>
+                            <i class="bi bi-envelope-fill fs-5" title="Email/Yahoo"></i>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
 
         <div class="mt-5 border-top border-dark border-opacity-5 pt-4">
@@ -79,20 +97,28 @@
 </style>
 
 @code {
-    private bool _showTroubleshooting = false;
     private string? _errorMessage;
+    private bool _isCheckingSession = true;
 
-    [JSInvokable]
-    public async Task HandleGoogleLogin(string idToken)
+    private async Task HandleMSALLogin()
     {
-        var result = await AuthService.LoginWithGoogle(idToken);
-        if (result?.Success == true)
+        _errorMessage = null;
+        StateHasChanged();
+
+        try 
         {
-            await RedirectAfterLogin();
+            var clientId = Configuration["AzureAd:ClientId"];
+            var authority = Configuration["AzureAd:Authority"];
+            var scope = "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user";
+
+            // loginRedirect navigates the browser to the IdP — the page will be discarded.
+            // Do NOT await a token here. Token pickup is handled in OnAfterRenderAsync
+            // via msalHelper.handleRedirect when the browser returns.
+            await JS.InvokeVoidAsync("msalHelper.login", clientId, authority, scope);
         }
-        else
+        catch (Exception ex)
         {
-            _errorMessage = result?.Message ?? "Authentication failed.";
+            _errorMessage = $"Login failed: {ex.Message}";
             StateHasChanged();
         }
     }
@@ -105,9 +131,6 @@
             await RedirectAfterLogin();
             return;
         }
-
-        // Show troubleshooting message if the Google button hasn't replaced the skeleton after 4 seconds
-        _ = ShowTroubleshootingAfterDelay();
     }
 
     private async Task RedirectAfterLogin()
@@ -157,19 +180,59 @@
         }
     }
 
-    private async Task ShowTroubleshootingAfterDelay()
-    {
-        await Task.Delay(4000);
-        _showTroubleshooting = true;
-        await InvokeAsync(StateHasChanged);
-    }
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JS.InvokeVoidAsync("setupGoogleCallback", DotNetObjectReference.Create(this));
-            await JS.InvokeVoidAsync("renderGoogleButton", "780387897793-0hvmtcnngq1eja17916219jtmk2rb7s4.apps.googleusercontent.com");
+            // Check if we just returned from an MSAL Redirect login
+            try 
+            {
+                var clientId = Configuration["AzureAd:ClientId"];
+                var authority = Configuration["AzureAd:Authority"];
+                var scope = "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user";
+
+                var tokenResponse = await JS.InvokeAsync<JsonElement>("msalHelper.handleRedirect", clientId, authority, scope);
+                
+                if (tokenResponse.ValueKind != JsonValueKind.Null && tokenResponse.TryGetProperty("accessToken", out var accessTokenProp))
+                {
+                    var accessToken = accessTokenProp.GetString();
+                    var idToken = tokenResponse.TryGetProperty("idToken", out var idTokenProp) ? idTokenProp.GetString() : null;
+
+                    if (!string.IsNullOrEmpty(accessToken))
+                    {
+                        Console.WriteLine($"[DEBUG] Access Token acquired: {accessToken.Length} chars");
+                        Console.WriteLine($"[DEBUG] ID Token acquired: {(idToken?.Length ?? 0)} chars");
+                        var result = await AuthService.LoginWithB2C(accessToken, idToken);
+                        if (result?.Success == true)
+                        {
+                            await RedirectAfterLogin();
+                        }
+                        else
+                        {
+                            _errorMessage = result?.Message ?? "Backend authentication failed.";
+                            StateHasChanged();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Redirect handle failed: {ex.Message}";
+            }
+            finally
+            {
+                _isCheckingSession = false;
+                StateHasChanged();
+            }
+
+            // Normal auth check
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                await RedirectAfterLogin();
+            }
         }
     }
 }

@@ -51,34 +51,40 @@ BEGIN
     CalculatedFines AS (
         SELECT 
             d.*,
+            -- Pre-calculate commonly used values for efficiency
+            CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate,
             CASE 
-                WHEN d.[Status] = 'Paid' THEN 0 
-                WHEN d.DueDate >= GETUTCDATE() THEN 0
-                WHEN @StrategyType IS NULL OR @StrategyType = 'None' THEN 0
-                WHEN @ActivationDate IS NULL OR d.CreatedDate < @ActivationDate THEN 0
-                WHEN DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= @GracePeriodDays THEN 0
-                ELSE 
-                    -- Calculate Total Accumulated Fine and subtract Recorded Fines
-                    (SELECT 
-                        CASE 
-                            WHEN totalFine - d.RecordedFines > 0 THEN totalFine - d.RecordedFines
-                            ELSE 0
-                        END
-                     FROM (
-                        SELECT 
-                            CASE 
-                                WHEN @StrategyType = 'FlatAmount' THEN @FineValue * monthsLate
-                                WHEN @StrategyType = 'OneTimeFlat' THEN @FineValue
-                                WHEN @StrategyType = 'OneTimePercentage' THEN ROUND(d.Amount * (@FineValue / 100.0), 2)
-                                WHEN @StrategyType = 'Percentage' AND @IsCompounding = 0 THEN ROUND(d.Amount * (@FineValue / 100.0) * monthsLate, 2)
-                                WHEN @StrategyType = 'Percentage' AND @IsCompounding = 1 THEN ROUND(d.Amount * (POWER(CAST(1 + (@FineValue / 100.0) AS FLOAT), monthsLate)) - d.Amount, 2)
-                                ELSE 0
-                            END as totalFine
-                        FROM (SELECT CEILING(DATEDIFF(DAY, d.DueDate, GETUTCDATE()) / 30.44) as monthsLate) m
-                     ) f
-                    )
-            END as DynamicFine
+                WHEN d.[Status] = 'Paid' OR d.DueDate >= GETUTCDATE() OR @StrategyType IS NULL OR @StrategyType = 'None' OR @ActivationDate IS NULL OR d.CreatedDate < @ActivationDate OR DATEDIFF(DAY, d.DueDate, GETUTCDATE()) <= @GracePeriodDays 
+                THEN 0 ELSE 1 
+            END as AppliesFine
         FROM InvoiceData d
+    ),
+    DynamicFineCalc AS (
+        SELECT 
+            f.*,
+            CASE 
+                WHEN f.AppliesFine = 0 THEN 0
+                ELSE
+                    -- Inline fine calculation logic to avoid correlated subqueries
+                    CASE 
+                        WHEN @StrategyType = 'FlatAmount' THEN @FineValue * f.monthsLate
+                        WHEN @StrategyType = 'OneTimeFlat' THEN @FineValue
+                        WHEN @StrategyType = 'OneTimePercentage' THEN ROUND(f.Amount * (@FineValue / 100.0), 2)
+                        WHEN @StrategyType = 'Percentage' AND @IsCompounding = 0 THEN ROUND(f.Amount * (@FineValue / 100.0) * f.monthsLate, 2)
+                        WHEN @StrategyType = 'Percentage' AND @IsCompounding = 1 THEN ROUND(f.Amount * (POWER(CAST(1 + (@FineValue / 100.0) AS FLOAT), f.monthsLate)) - f.Amount, 2)
+                        ELSE 0
+                    END
+            END as RawDynamicFine
+        FROM CalculatedFines f
+    ),
+    FinalFines AS (
+        SELECT 
+            f.*,
+            CASE 
+                WHEN f.RawDynamicFine - f.RecordedFines > 0 THEN CAST(f.RawDynamicFine - f.RecordedFines AS DECIMAL(18,2))
+                ELSE 0
+            END as DynamicFine
+        FROM DynamicFineCalc f
     ),
     NetInvoiceStats AS (
         SELECT 
@@ -86,7 +92,7 @@ BEGIN
             -- Explicitly cast to DECIMAL to avoid float issues from POWER function
             CAST((Amount + RecordedFines + DynamicFine) - TotalPaid AS DECIMAL(18,2)) as NetDue,
             CAST(Amount + RecordedFines + DynamicFine AS DECIMAL(18,2)) as GrossBilled
-        FROM CalculatedFines
+        FROM FinalFines
     )
     SELECT * INTO #NetInvoiceStats FROM NetInvoiceStats;
 

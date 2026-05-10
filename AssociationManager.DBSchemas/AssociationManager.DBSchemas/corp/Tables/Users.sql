@@ -1,7 +1,8 @@
-﻿CREATE TABLE [corp].[Users] (
+CREATE TABLE [corp].[Users] (
     [UserId]        INT            IDENTITY (1, 1) NOT NULL,
     [TenantId]      INT            NOT NULL,
     [GoogleId]      NVARCHAR (200) NULL,
+    [SubjectId]     NVARCHAR (255) NULL,
     [Email]         NVARCHAR (200) NOT NULL,
     [Name]          NVARCHAR (200) NOT NULL,
     [PictureUrl]    NVARCHAR (500) NULL,

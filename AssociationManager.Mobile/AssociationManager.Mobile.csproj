@@ -22,6 +22,7 @@
 
         <!-- Support 5-year-old devices (Android 9+ is API 28, but 21.0 covers almost everything) -->
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+        <RuntimeIdentifiers Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">android-arm;android-arm64;android-x64;android-x86</RuntimeIdentifiers>
         
         <!-- Enable AOT for performance on older devices -->
         <RunAOTCompilation Condition="'$(Configuration)' == 'Release'">true</RunAOTCompilation>
@@ -47,6 +48,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
+        <PackageReference Include="Microsoft.Identity.Client" Version="4.84.0" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />

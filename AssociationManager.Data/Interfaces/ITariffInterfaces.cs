@@ -28,6 +28,7 @@ public interface ITariffRepository
     Task<bool> DeactivateTariffsBulkAsync(int layerId, IEnumerable<int> assetIds);
     Task<bool> RemoveAssetTariffAsync(int assetId, int layerId);
     Task<IEnumerable<AssetTariff>> GetActiveTariffsByTenantIdAsync(int tenantId);
+    Task<IEnumerable<AssetTariff>> GetActiveTariffsByAssociationIdAsync(int associationId, int tenantId);
     Task<IEnumerable<AssetTariff>> GetAssignmentsByLayerIdAsync(int layerId);
 }
 
