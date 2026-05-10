@@ -216,7 +216,7 @@ try
         var authority = builder.Configuration["AzureAd:Authority"];
         options.Authority = (!string.IsNullOrEmpty(authority) && authority != "REPLACE_IN_KEYVAULT") 
             ? authority 
-            : "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
+            : "https://assocmgruat.ciamlogin.com/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a";
 
         var metadata = builder.Configuration["AzureAd:MetadataAddress"];
         options.MetadataAddress = (!string.IsNullOrEmpty(metadata) && metadata != "REPLACE_IN_KEYVAULT") 

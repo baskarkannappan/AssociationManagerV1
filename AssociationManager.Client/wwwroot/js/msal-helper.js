@@ -79,7 +79,7 @@ window.msalHelper = {
                         console.log("[MSAL] Silent tokens acquired successfully.");
                         return {
                             accessToken: silentResult.accessToken,
-                            idToken: silentResult.idToken
+                            idToken: silentResult.idToken || accounts[0].idToken // Fallback to cached ID token
                         };
                     }
                 } catch (silentError) {
