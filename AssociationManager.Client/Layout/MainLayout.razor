@@ -27,6 +27,7 @@
             </div>
         </div>
         <div class="header-right">
+            <LanguageSelector />
             <AuthorizeView Context="authContext">
                 <Authorized>
                     @if (_userTenants != null && _userTenants.Any())

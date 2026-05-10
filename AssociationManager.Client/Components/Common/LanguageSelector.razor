@@ -1,0 +1,198 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<div class="lang-selector-container @(_isOpen ? "open" : "")" @onclick:stopPropagation>
+    <button class="lang-btn" @onclick="ToggleDropdown" title="Change Language">
+        @if (_isTranslating)
+        {
+            <div class="spinner-tiny"></div>
+        }
+        else
+        {
+            <i class="bi bi-globe2"></i>
+        }
+        <span class="lang-code">@_currentLang.ToUpper()</span>
+    </button>
+
+    @if (_isOpen)
+    {
+        <div class="lang-dropdown animate-fade-in">
+            <div class="lang-grid">
+                @foreach (var lang in _languages)
+                {
+                    <button class="lang-item @(_currentLang == lang.Code ? "active" : "")" 
+                            @onclick="() => SelectLanguage(lang.Code)">
+                        <span class="lang-name">@lang.Name</span>
+                        @if (_currentLang == lang.Code)
+                        {
+                            <i class="bi bi-check2 ms-auto"></i>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@if (_isOpen)
+{
+    <div class="lang-overlay" @onclick="CloseDropdown"></div>
+}
+
+@code {
+    private bool _isOpen;
+    private bool _isTranslating;
+    private string _currentLang = "en";
+
+    private readonly List<LanguageInfo> _languages = new()
+    {
+        new("English", "en"),
+        new("Hindi", "hi"),
+        new("Tamil", "ta"),
+        new("Bengali", "bn"),
+        new("Malayalam", "ml"),
+        new("Kannada", "kn"),
+        new("Telugu", "te"),
+        new("Marathi", "mr"),
+        new("Gujarati", "gu")
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize and get the saved language from localStorage
+            _currentLang = await JS.InvokeAsync<string>("languageHelper.initialize", "en");
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDropdown() => _isOpen = !_isOpen;
+    private void CloseDropdown() => _isOpen = false;
+
+    private async Task SelectLanguage(string code)
+    {
+        if (_currentLang == code)
+        {
+            CloseDropdown();
+            return;
+        }
+
+        _isTranslating = true;
+        _isOpen = false;
+        StateHasChanged();
+
+        try
+        {
+            await JS.InvokeVoidAsync("languageHelper.setLanguage", code);
+            _currentLang = code;
+        }
+        finally
+        {
+            _isTranslating = false;
+            StateHasChanged();
+        }
+    }
+
+    public record LanguageInfo(string Name, string Code);
+}
+
+<style>
+    .lang-selector-container {
+        position: relative;
+        display: inline-block;
+        z-index: 1001;
+    }
+
+    .lang-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+        color: inherit;
+        padding: 6px 12px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .lang-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .lang-code {
+        opacity: 0.8;
+    }
+
+    .lang-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: white;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        width: 180px;
+        overflow: hidden;
+        animation: slideIn 0.2s cubic-bezier(0, 0, 0.2, 1);
+        color: #1a1a1a;
+    }
+
+    .lang-grid {
+        display: flex;
+        flex-direction: column;
+        padding: 4px;
+    }
+
+    .lang-item {
+        background: transparent;
+        border: none;
+        width: 100%;
+        text-align: left;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        transition: background 0.15s ease;
+        cursor: pointer;
+        color: #4a5568;
+    }
+
+    .lang-item:hover {
+        background: #f7fafc;
+        color: #2d3748;
+    }
+
+    .lang-item.active {
+        background: #ebf8ff;
+        color: #3182ce;
+        font-weight: 600;
+    }
+
+    .lang-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+    }
+
+    .spinner-tiny {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0,0,0,0.1);
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    @@keyframes slideIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
