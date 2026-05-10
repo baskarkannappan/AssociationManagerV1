@@ -21,34 +21,35 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, RoleLevelRequirement requirement)
     {
-        // 0. FAST-TRACK BYPASS: PlatformAdmins pass everything without needing services or DB checks
-        var roles = context.User.Claims.Where(c => c.Type == "role" || c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value).ToList();
-        var userLevel = AppRole.GetMaxLevel(context.User.Claims);
-        
-        System.Console.WriteLine($"[AUTH-DEBUG] Checking Policy: {requirement.WorkflowName}, Level Req: {requirement.RequiredLevel}, User Level: {userLevel}");
-        System.Console.WriteLine($"[AUTH-DEBUG] User Roles: {string.Join(", ", roles)}");
+        // 1. FAST-TRACK BYPASS: PlatformAdmins pass everything
+        var roles = context.User.Claims.Where(c => 
+            c.Type == "role" || 
+            c.Type == ClaimTypes.Role || 
+            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role").Select(c => c.Value);
 
-        if (roles.Contains(AppRole.PlatformAdmin) || context.User.HasClaim("role", AppRole.PlatformAdmin))
+        if (roles.Contains(AppRole.PlatformAdmin))
         {
             context.Succeed(requirement);
             return;
         }
 
-        // 1. Prepare Security Context for other roles...
-        var roleClaims = context.User.Claims.Where(c => 
-            c.Type == "role" || 
-            c.Type == ClaimTypes.Role || 
-            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+        // 2. Hierarchy Level Check (Fast Path)
+        var userLevel = AppRole.GetMaxLevel(context.User.Claims);
+        if (userLevel >= requirement.RequiredLevel)
+        {
+            context.Succeed(requirement);
+            return;
+        }
 
+        // 3. Fallback to Rule Engine for complex overrides
         var securityContext = new SecurityContext
         {
-            UserRole = string.Join(",", roleClaims.Select(c => c.Value)),
-            UserLevel = AppRole.GetMaxLevel(context.User.Claims),
+            UserRole = string.Join(",", roles),
+            UserLevel = userLevel,
             AssociationId = _tenantContext.AssociationId,
             IsOwner = false 
         };
 
-        // 2. Use Workflow Name from requirement, with a smarter fallback
         string workflowName = requirement.WorkflowName;
         if (string.IsNullOrEmpty(workflowName))
         {
@@ -57,18 +58,7 @@ public class RoleLevelHandler : AuthorizationHandler<RoleLevelRequirement>
             else workflowName = "RequireResident";
         }
 
-        // 3. Evaluation Logic
-        // 3a. FAST PATH: If direct role level is already sufficient, succeed immediately.
-        // This removes dependency on database rules for basic hierarchy-based access.
-        if (securityContext.UserLevel >= requirement.RequiredLevel)
-        {
-            context.Succeed(requirement);
-            return;
-        }
-
-        // 3b. RULE ENGINE: Use for complex/overridden rules if level check didn't pass or for specific workflows
         var isAuthorized = await _ruleEngine.EvaluateRuleAsync(workflowName, securityContext);
-
         if (isAuthorized)
         {
             context.Succeed(requirement);
