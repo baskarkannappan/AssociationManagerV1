@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject LayoutStateService LayoutState
 @inject EventBusService EventBus
+@inject AnalyticsService Analytics
 
 <div class="vscode-shell">
     <!-- Top Header Bar -->
@@ -183,6 +184,10 @@
                 Navigation.NavigateTo("/deactivated");
             }
         }
+        
+        // Track page view in Google Analytics
+        await Analytics.TrackPageView("Main Client", Navigation.Uri);
+        
         await InvokeAsync(StateHasChanged);
     }
 

@@ -1,4 +1,5 @@
 @implements IDisposable
+@inject AnalyticsService Analytics
 @inherits LayoutComponentBase
 
 <div class="vscode-shell">
@@ -140,9 +141,13 @@
 
     private void ToggleMobileMenu() => _isMobileMenuOpen = !_isMobileMenuOpen;
 
-    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    private async void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         _isMobileMenuOpen = false;
+        
+        // Track page view in GA
+        await Analytics.TrackPageView("Corporate Client", Navigation.Uri);
+        
         StateHasChanged();
     }
 

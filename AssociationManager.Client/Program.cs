@@ -100,6 +100,7 @@ builder.Services.AddScoped<IAppAuthorizationService, AppAuthorizationService>();
 builder.Services.AddScoped<IRuleEngineService, ClientRuleEngineService>();
 builder.Services.AddScoped<ITenantContext, ClientTenantContext>();
 builder.Services.AddScoped<GovernanceService>();
+builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddTransient<AuthHeaderHandler>();
 
 // Base API URL (Gateway)

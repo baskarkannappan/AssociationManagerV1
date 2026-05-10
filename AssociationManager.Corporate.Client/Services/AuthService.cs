@@ -15,14 +15,16 @@ public class AuthService
     private readonly CustomAuthenticationStateProvider _authStateProvider;
     private readonly IConfiguration _configuration;
     private readonly IJSRuntime _js;
+    private readonly AnalyticsService _analytics;
 
-    public AuthService(IHttpClientFactory httpClientFactory, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider, IConfiguration configuration, IJSRuntime js)
+    public AuthService(IHttpClientFactory httpClientFactory, TokenService tokenService, CustomAuthenticationStateProvider authStateProvider, IConfiguration configuration, IJSRuntime js, AnalyticsService analytics)
     {
         _httpClient = httpClientFactory.CreateClient("AuthClient");
         _tokenService = tokenService;
         _authStateProvider = authStateProvider;
         _configuration = configuration;
         _js = js;
+        _analytics = analytics;
     }
 
     public class B2CLoginRequest
@@ -54,6 +56,14 @@ public class AuthService
             {
                 await _tokenService.SetTokens(response.Token!, response.RefreshToken!);
                 _authStateProvider.NotifyUserAuthentication(response.Token!);
+
+                // Track user identity in GA
+                var authState = await _authStateProvider.GetAuthenticationStateAsync();
+                var email = authState.User.FindFirst("email")?.Value ?? authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(email))
+                {
+                    await _analytics.SetUserId(email);
+                }
             }
             return response;
         }

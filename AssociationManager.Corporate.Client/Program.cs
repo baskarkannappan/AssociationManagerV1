@@ -89,6 +89,7 @@ builder.Services.AddAuthorizationCore(options =>
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiService>();
+builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<IAppAuthorizationService, AppAuthorizationService>();
 builder.Services.AddTransient<AuthHeaderHandler>();
 
