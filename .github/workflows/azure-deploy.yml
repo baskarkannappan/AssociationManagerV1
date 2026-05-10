@@ -23,6 +23,9 @@ jobs:
       clients: ${{ steps.matrix.outputs.clients }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -44,6 +47,15 @@ jobs:
             corp-client:
               - 'AssociationManager.Corporate.Client/**'
               - 'AssociationManager.Shared/**'
+
+      - name: Debug Path Detection
+        run: |
+          echo "DB: ${{ steps.filter.outputs.db }}"
+          echo "Gateway: ${{ steps.filter.outputs.gateway }}"
+          echo "API: ${{ steps.filter.outputs.api }}"
+          echo "Corp-API: ${{ steps.filter.outputs.corp-api }}"
+          echo "Client: ${{ steps.filter.outputs.client }}"
+          echo "Corp-Client: ${{ steps.filter.outputs.corp-client }}"
 
       - name: Generate Dynamic Matrices
         id: matrix
@@ -90,11 +102,10 @@ jobs:
 
   build-and-deploy:
     needs: [check-changes, deploy-database]
-    # Run only if services changed and DB deployment didn't fail (or was skipped)
     if: |
       always() && 
       needs.check-changes.outputs.services != '[]' &&
-      (needs.deploy-database.result == 'success' || needs.deploy-database.result == 'skipped')
+      (needs.deploy-database.result == 'success' || needs.deploy-database.result == 'skipped' || needs.deploy-database.result == '')
     runs-on: ubuntu-latest
     strategy:
       matrix:
