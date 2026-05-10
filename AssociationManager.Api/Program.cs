@@ -213,8 +213,15 @@ try
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         // CIAM Authority & Metadata (Read from Key Vault/Config)
-        options.Authority = builder.Configuration["AzureAd:Authority"] ?? "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
-        options.MetadataAddress = builder.Configuration["AzureAd:MetadataAddress"] ?? $"{options.Authority}/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
+        var authority = builder.Configuration["AzureAd:Authority"];
+        options.Authority = (!string.IsNullOrEmpty(authority) && authority != "REPLACE_IN_KEYVAULT") 
+            ? authority 
+            : "https://0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a.ciamlogin.com";
+
+        var metadata = builder.Configuration["AzureAd:MetadataAddress"];
+        options.MetadataAddress = (!string.IsNullOrEmpty(metadata) && metadata != "REPLACE_IN_KEYVAULT") 
+            ? metadata 
+            : $"{options.Authority}/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0/.well-known/openid-configuration";
         
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -222,8 +229,8 @@ try
             ValidIssuers = new[] 
             { 
                 $"{options.Authority}/0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a/v2.0",
-                builder.Configuration["AzureAd:ValidIssuer"] ?? "REPLACE_IN_KEYVAULT"
-            },
+                builder.Configuration["AzureAd:ValidIssuer"]
+            }.Where(x => !string.IsNullOrEmpty(x) && x != "REPLACE_IN_KEYVAULT").ToArray(),
             ValidateAudience = true,
             ValidAudiences = new[] 
             { 
