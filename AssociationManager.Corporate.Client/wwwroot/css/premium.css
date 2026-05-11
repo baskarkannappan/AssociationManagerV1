@@ -24,8 +24,19 @@
     
     /* Effects */
     --glow-primary: none;
-    --glass-blur: none;
+    --glass-blur: blur(12px);
     --transition-smooth: all 0.1s ease;
+
+    /* Override VS Code Theme Variables for Transparency */
+    --vscode-bg: transparent !important;
+    --vscode-explorer-bg: rgba(248, 250, 252, 0.5) !important;
+    --vscode-editor-bg: transparent !important;
+    --vscode-top-header-bg: rgba(255, 255, 255, 0.6) !important;
+}
+
+html {
+    background-color: #ffffff;
+    min-height: 100vh;
 }
 
 body {
@@ -42,30 +53,34 @@ body {
 
 /* 
    Premium Mesh Gradient Background 
-   Inspired by Zoho & modern SaaS aesthetics
+   Applied to the main shell for maximum visibility
 */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: -1;
+.vscode-shell {
+    position: relative;
     background: 
-        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 90% 10%, rgba(236, 72, 153, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 50% 90%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
-    filter: blur(60px);
+        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 10%, rgba(236, 72, 153, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 40%) !important;
+    background-color: #ffffff !important;
+    background-attachment: fixed;
+}
+
+/* Subtle Floating Animation */
+.vscode-shell::before {
+    content: "";
+    position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    z-index: -1;
+    background: inherit;
+    filter: blur(80px);
+    animation: mesh-float 30s infinite alternate ease-in-out;
     pointer-events: none;
-    animation: mesh-float 20s infinite alternate ease-in-out;
 }
 
 @keyframes mesh-float {
-    0% { transform: scale(1) translate(0, 0); }
-    50% { transform: scale(1.1) translate(2%, 1%); }
-    100% { transform: scale(1) translate(-1%, -2%); }
+    0% { transform: rotate(0deg) scale(1); }
+    100% { transform: rotate(5deg) scale(1.1); }
 }
 
 
@@ -74,39 +89,38 @@ body::before {
     background: transparent !important;
 }
 
-.sidebar, .sidebar-wrapper, .vscode-explorer {
-    background: rgba(248, 250, 252, 0.6) !important;
-    backdrop-filter: blur(12px) saturate(180%);
+.sidebar-wrapper, .vscode-explorer {
+    background: var(--vscode-explorer-bg) !important;
+    backdrop-filter: var(--glass-blur) saturate(180%);
     border-right: 1px solid var(--border-subtle) !important;
-    width: 250px !important;
 }
 
-.top-row, .vscode-top-header {
-    background: rgba(255, 255, 255, 0.7) !important;
-    backdrop-filter: blur(12px) saturate(180%);
+.vscode-top-header {
+    background: var(--vscode-top-header-bg) !important;
+    backdrop-filter: var(--glass-blur) saturate(180%);
     border-bottom: 1px solid var(--border-subtle) !important;
-    height: 64px !important;
 }
 
 .vscode-content, .vscode-page-header, .premium-detail-header, .premium-tab-container {
-    background: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.3) !important;
     backdrop-filter: blur(8px);
 }
 
 .vscode-tabs, .vscode-tab {
-    background: rgba(243, 243, 243, 0.5) !important;
+    background: rgba(243, 243, 243, 0.3) !important;
     backdrop-filter: blur(4px);
 }
 
 .vscode-tab.active {
-    background: rgba(255, 255, 255, 0.8) !important;
+    background: rgba(255, 255, 255, 0.6) !important;
 }
 
 /* Card System transparency */
 .card, .compact-card, .premium-property-card {
-    background: rgba(255, 255, 255, 0.7) !important;
+    background: rgba(255, 255, 255, 0.6) !important;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    border: 1px solid rgba(226, 232, 240, 0.5) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Typography - Allowing overrides for light themes */

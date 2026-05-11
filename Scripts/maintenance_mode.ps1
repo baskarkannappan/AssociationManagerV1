@@ -20,8 +20,8 @@ if ($Mode -eq "Sleep") {
         az containerapp update --name $app --resource-group $ResourceGroup --min-replicas 0 --max-replicas 0
     }
     
-    Write-Host "Scaling SQL Database to Basic (Optional - Savings: ~$10/mo)..." -ForegroundColor Yellow
-    # az sql db edit --name sqldb-assocmgr-dev-unique --resource-group $ResourceGroup --server sqlsrv-assocmgr-dev-unique --edition Basic --capacity 5
+    Write-Host "Scaling SQL Database to Basic (Savings: ~$10/mo)..." -ForegroundColor Yellow
+    az sql db update --name assocmgr-dev-db --resource-group $ResourceGroup --server assocmgr-dev-sql-srv-enhlyslcz7cne --edition Basic --capacity 5
     
     Write-Host "Environment is now in Sleep Mode." -ForegroundColor Green
 }
@@ -33,7 +33,7 @@ else {
     }
     
     Write-Host "Scaling SQL Database back to Standard S0..." -ForegroundColor Yellow
-    # az sql db edit --name sqldb-assocmgr-dev-unique --resource-group $ResourceGroup --server sqlsrv-assocmgr-dev-unique --edition Standard --service-objective S0
+    az sql db update --name assocmgr-dev-db --resource-group $ResourceGroup --server assocmgr-dev-sql-srv-enhlyslcz7cne --edition Standard --service-objective S0
     
     Write-Host "Environment is Waking Up. First requests might take a few seconds (Cold Start)." -ForegroundColor Green
 }
