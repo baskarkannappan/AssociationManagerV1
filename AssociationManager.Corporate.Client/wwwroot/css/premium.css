@@ -36,22 +36,54 @@ body {
     overflow-x: hidden;
     margin: 0;
     padding: 0;
+    position: relative;
+    min-height: 100vh;
+}
+
+/* 
+   Premium Mesh Gradient Background 
+   Inspired by Zoho & modern SaaS aesthetics
+*/
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 10%, rgba(236, 72, 153, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
+    filter: blur(60px);
+    pointer-events: none;
+    animation: mesh-float 20s infinite alternate ease-in-out;
+}
+
+@keyframes mesh-float {
+    0% { transform: scale(1) translate(0, 0); }
+    50% { transform: scale(1.1) translate(2%, 1%); }
+    100% { transform: scale(1) translate(-1%, -2%); }
 }
 
 
-/* Base Layout Overrides */
+/* Base Layout Overrides - Making them semi-transparent to show background */
 .page {
-    background: #ffffff;
+    background: transparent !important;
 }
 
 .sidebar {
-    background: var(--surface-low) !important;
+    background: rgba(248, 250, 252, 0.8) !important;
+    backdrop-filter: blur(10px);
     border-right: 1px solid var(--border-subtle) !important;
     width: 250px !important;
 }
 
 .top-row {
-    background: #ffffff !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border-subtle) !important;
     height: 64px !important;
 }
