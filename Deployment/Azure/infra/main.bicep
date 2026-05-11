@@ -78,9 +78,9 @@ resource sqlDB 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   name: '${envBaseName}-db'
   location: location
   sku: {
-    name: 'Standard'
-    tier: 'Standard'
-    capacity: 10
+    name: 'Basic'
+    tier: 'Basic'
+    capacity: 5
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
