@@ -35,12 +35,18 @@
 }
 
 html {
-    background-color: #ffffff;
+    background: 
+        radial-gradient(circle at 15% 15%, rgba(79, 70, 229, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 85% 15%, rgba(236, 72, 153, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 50% 85%, rgba(14, 165, 233, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.15) 0%, transparent 45%) !important;
+    background-color: #ffffff !important;
+    background-attachment: fixed;
     min-height: 100vh;
 }
 
 body {
-    background: var(--base-midnight);
+    background: transparent !important;
     color: var(--text-primary);
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     -webkit-font-smoothing: antialiased;
@@ -55,26 +61,20 @@ body {
    Premium Mesh Gradient Background 
    Applied to the main shell for maximum visibility
 */
-.vscode-shell {
+.vscode-shell, .vscode-main, .vscode-editor-pane, .page {
+    background: transparent !important;
     position: relative;
-    background: 
-        radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 10%, rgba(236, 72, 153, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 50% 90%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 40%) !important;
-    background-color: #ffffff !important;
-    background-attachment: fixed;
 }
 
 /* Subtle Floating Animation */
-.vscode-shell::before {
+html::before {
     content: "";
-    position: absolute;
+    position: fixed;
     top: -50%; left: -50%; width: 200%; height: 200%;
     z-index: -1;
     background: inherit;
     filter: blur(80px);
-    animation: mesh-float 30s infinite alternate ease-in-out;
+    animation: mesh-float 40s infinite alternate ease-in-out;
     pointer-events: none;
 }
 

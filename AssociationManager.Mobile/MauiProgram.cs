@@ -50,8 +50,8 @@ public static class MauiProgram
 		builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<MobileAuthenticationStateProvider>());
 
 		// Networking
-		// NOTE: For Android Emulator, use 10.0.2.2 instead of localhost
-		var gatewayUrl = "https://10.0.2.2:7000/"; 
+		// Pointing to the live Azure Gateway
+		var gatewayUrl = "https://assocmgr-dev-gateway.yellowmoss-1aeb0444.centralindia.azurecontainerapps.io/"; 
 		
 		builder.Services.AddHttpClient("AuthClient", client => 
 		{

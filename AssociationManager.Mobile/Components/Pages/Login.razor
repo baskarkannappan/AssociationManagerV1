@@ -58,7 +58,11 @@
         {
             // Trigger MSAL Interactive Login
             var authResult = await PublicClientApp.AcquireTokenInteractive(_scopes)
-                .WithParentActivityOrWindow(null) // MAUI will handle this via Platform methods if needed
+#if ANDROID
+                .WithParentActivityOrWindow(Microsoft.Maui.ApplicationModel.Platform.CurrentActivity)
+#else
+                .WithParentActivityOrWindow(null)
+#endif
                 .ExecuteAsync();
 
             var b2cToken = authResult?.AccessToken;
