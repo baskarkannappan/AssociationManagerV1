@@ -15,11 +15,17 @@ public class MobileAuthService
         _tokenService = tokenService;
     }
 
+    public async Task<string?> GetTokenFromStorageAsync()
+    {
+        return await _tokenService.GetTokenAsync();
+    }
+
     public async Task<bool> LoginWithB2CAsync(string b2cToken)
     {
         try
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", b2cToken);
+            _httpClient.DefaultRequestHeaders.Remove("X-Identity-Token");
+            _httpClient.DefaultRequestHeaders.Add("X-Identity-Token", b2cToken);
             var result = await _httpClient.PostAsync("api/auth/b2c-login", null);
             
             if (result.IsSuccessStatusCode)
@@ -60,7 +66,13 @@ public class MobileAuthService
             if (response?.Success == true)
             {
                 await _tokenService.SaveTokenAsync(response.Token!);
-                await _tokenService.SaveTenantContextAsync(tenantId, associationId, false);
+                
+                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(response.Token);
+                var isAdmin = jwtToken.Claims.Any(c => c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role) && 
+                              jwtToken.Claims.Any(c => c.Value.Contains("Admin"));
+                              
+                await _tokenService.SaveTenantContextAsync(tenantId, associationId, isAdmin);
             }
             return response;
         }

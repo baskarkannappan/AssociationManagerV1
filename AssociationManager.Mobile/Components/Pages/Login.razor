@@ -1,6 +1,8 @@
 @page "/"
+@attribute [AllowAnonymous]
 @using AssociationManager.Mobile.Services
 @using Microsoft.Identity.Client
+@using Microsoft.Identity.Client.Extensibility
 @inject MobileAuthService AuthService
 @inject NavigationManager Navigation
 @inject MobileAuthenticationStateProvider AuthStateProvider
@@ -49,6 +51,23 @@
     private bool _isLoggingIn;
     private string[] _scopes = new[] { "openid", "offline_access", "api://af161f39-c71a-42ae-873f-9367d85144f8/access_as_user" };
 
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var token = await AuthService.GetTokenFromStorageAsync();
+            if (!string.IsNullOrEmpty(token))
+            {
+                // Verify if token is still valid (simplified check)
+                Navigation.NavigateTo("/context-selection");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LOGIN_INIT_ERROR] {ex.Message}");
+        }
+    }
+
     private async Task HandleB2CLoginAsync()
     {
         _errorMessage = null;
@@ -56,42 +75,61 @@
         
         try 
         {
+            Console.WriteLine("[AUTH_FLOW] Starting AcquireTokenInteractive...");
+            
             // Trigger MSAL Interactive Login
-            var authResult = await PublicClientApp.AcquireTokenInteractive(_scopes)
+            AuthenticationResult authResult = null;
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                authResult = await PublicClientApp.AcquireTokenInteractive(_scopes)
 #if ANDROID
-                .WithParentActivityOrWindow(Microsoft.Maui.ApplicationModel.Platform.CurrentActivity)
+                    .WithParentActivityOrWindow(Microsoft.Maui.ApplicationModel.Platform.CurrentActivity)
 #else
-                .WithParentActivityOrWindow(null)
+                    .WithParentActivityOrWindow(null)
 #endif
-                .ExecuteAsync();
+                    .ExecuteAsync();
+            });
 
-            var b2cToken = authResult?.AccessToken;
+            Console.WriteLine("[AUTH_FLOW] AcquireTokenInteractive completed successfully.");
+
+            var b2cToken = authResult?.IdToken;
             if (string.IsNullOrEmpty(b2cToken))
             {
+                Console.WriteLine("[AUTH_FLOW] Failed: No IdToken received.");
                 _errorMessage = "Authentication failed: No access token received from B2C.";
                 return;
             }
+
+            Console.WriteLine("[AUTH_FLOW] Exchanging CIAM token with Backend...");
 
             // Exchange the B2C Access Token for our internal JWT
             var success = await AuthService.LoginWithB2CAsync(b2cToken);
             if (success)
             {
-                await AuthStateProvider.GetAuthenticationStateAsync();
+                Console.WriteLine("[AUTH_FLOW] Exchange successful! Notifying AuthStateProvider...");
+                
+                // Get the newly saved token and notify the provider
+                var internalToken = await AuthService.GetTokenFromStorageAsync();
+                AuthStateProvider.NotifyUserAuthentication(internalToken!);
+                
+                Console.WriteLine("[AUTH_FLOW] Navigating to /context-selection...");
                 Navigation.NavigateTo("/context-selection");
             }
             else 
             {
+                Console.WriteLine("[AUTH_FLOW] Exchange failed. Invalid user.");
                 _errorMessage = "Identity verification failed. Your account might not be authorized for this platform.";
             }
         }
         catch (MsalClientException ex) when (ex.ErrorCode == "authentication_canceled")
         {
+            Console.WriteLine("[AUTH_FLOW] User cancelled the authentication.");
             // User cancelled
         }
         catch (Exception ex)
         {
             _errorMessage = $"Login Error: {ex.Message}";
-            Console.WriteLine($"[AUTH_ERROR] {ex}");
+            Console.WriteLine($"[AUTH_ERROR] Exception in Auth Flow: {ex}");
         }
         finally
         {

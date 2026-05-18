@@ -3,15 +3,42 @@
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
                 <NotAuthorized>
-                    <p>You are not authorized to view this page.</p>
+                    <div class="p-4 text-center">
+                        <h4 class="text-danger">Access Denied</h4>
+                        <p class="text-muted">You are not authorized to view this content. Please sign in.</p>
+                    </div>
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />
         </Found>
         <NotFound>
             <LayoutView Layout="@typeof(Layout.MainLayout)">
-                <p role="alert">Sorry, there's nothing at this address.</p>
+                <div class="p-4 text-center">
+                    <h4 class="text-warning">404 - Not Found</h4>
+                    <p class="text-muted">The requested page could not be located.</p>
+                </div>
             </LayoutView>
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Small delay to ensure UI is stable
+            await Task.Delay(500);
+            try 
+            {
+                await JSRuntime.InvokeVoidAsync("hideAppLoader");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ROUTES] Loader hide error: {ex.Message}");
+            }
+        }
+    }
+}

@@ -16,7 +16,25 @@ public class MobileTokenStorageService
 
     public async Task<string?> GetTokenAsync()
     {
-        return await SecureStorage.Default.GetAsync(TokenKey);
+        try 
+        {
+            // Set a 2-second timeout for SecureStorage to prevent white-screen hangs
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var task = SecureStorage.Default.GetAsync(TokenKey);
+            
+            if (await Task.WhenAny(task, Task.Delay(2000, cts.Token)) == task)
+            {
+                return await task;
+            }
+            
+            Console.WriteLine("[SECURE_STORAGE] Timeout occurred reading token.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SECURE_STORAGE] Exception: {ex.Message}");
+            return null;
+        }
     }
 
     public async Task SaveTenantContextAsync(int tenantId, int associationId, bool isAdmin)
@@ -28,15 +46,29 @@ public class MobileTokenStorageService
 
     public async Task<(int TenantId, int AssociationId, bool IsAdmin)> GetTenantContextAsync()
     {
-        var tenantStr = await SecureStorage.Default.GetAsync(TenantKey);
-        var assocStr = await SecureStorage.Default.GetAsync(AssociationKey);
-        var adminStr = await SecureStorage.Default.GetAsync(IsAdminKey);
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 
-        return (
-            int.TryParse(tenantStr, out var t) ? t : 0,
-            int.TryParse(assocStr, out var a) ? a : 0,
-            bool.TryParse(adminStr, out var adm) ? adm : false
-        );
+            var tenantTask = SecureStorage.Default.GetAsync(TenantKey);
+            var assocTask = SecureStorage.Default.GetAsync(AssociationKey);
+            var adminTask = SecureStorage.Default.GetAsync(IsAdminKey);
+
+            var tenantStr = await Task.WhenAny(tenantTask, Task.Delay(2000, cts.Token)) == tenantTask ? await tenantTask : null;
+            var assocStr = await Task.WhenAny(assocTask, Task.Delay(2000, cts.Token)) == assocTask ? await assocTask : null;
+            var adminStr = await Task.WhenAny(adminTask, Task.Delay(2000, cts.Token)) == adminTask ? await adminTask : null;
+
+            return (
+                int.TryParse(tenantStr, out var t) ? t : 0,
+                int.TryParse(assocStr, out var a) ? a : 0,
+                bool.TryParse(adminStr, out var adm) ? adm : false
+            );
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SECURE_STORAGE] Context Exception: {ex.Message}");
+            return (0, 0, false);
+        }
     }
 
     public void ClearAll()

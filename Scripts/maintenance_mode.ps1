@@ -14,10 +14,9 @@ if ($Mode -eq "Sleep") {
     Write-Host "Putting environment to sleep..." -ForegroundColor Cyan
     foreach ($app in $Apps) {
         Write-Host "Scaling $app to 0 replicas..."
-        az containerapp revision label add --name $app --resource-group $ResourceGroup --label "sleeping" --no-wait
         # Note: Actual scaling to 0 is handled by the 'min-replicas' setting in Bicep, 
         # but manually stopping or scaling via CLI ensures no cold starts trigger.
-        az containerapp update --name $app --resource-group $ResourceGroup --min-replicas 0 --max-replicas 0
+        az containerapp update --name $app --resource-group $ResourceGroup --min-replicas 0 --max-replicas 1
     }
     
     Write-Host "Scaling SQL Database to Basic (Savings: ~$10/mo)..." -ForegroundColor Yellow

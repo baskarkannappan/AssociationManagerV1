@@ -32,7 +32,8 @@ public static class MauiProgram
 		
 		// Entra External ID (CIAM) Authentication
 		var tenantName = "assocmgruat";
-		var b2cAuthority = $"https://{tenantName}.ciamlogin.com";
+		var tenantId = "0c8b323e-7dcf-4bf6-8eeb-3656cf1b673a";
+		var b2cAuthority = $"https://{tenantName}.ciamlogin.com/{tenantId}";
 		var b2cClientId = "b6769384-144c-4c59-a9f5-02c201d4e769";
 		var redirectUri = $"msal{b2cClientId}://auth";
 
@@ -42,6 +43,10 @@ public static class MauiProgram
 				.WithAuthority(b2cAuthority)
 				.WithRedirectUri(redirectUri)
 				.WithIosKeychainSecurityGroup("com.microsoft.adalcache")
+				.WithLogging((level, message, containsPii) =>
+				{
+					System.Diagnostics.Debug.WriteLine($"[MSAL_LOG] [{level}] {message}");
+				}, Microsoft.Identity.Client.LogLevel.Verbose, enablePiiLogging: true, enableDefaultPlatformLogging: true)
 				.Build();
 		});
 
@@ -66,6 +71,7 @@ public static class MauiProgram
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
 		builder.Logging.AddDebug();
+		builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
 #endif
 
 		return builder.Build();

@@ -109,12 +109,14 @@
                         </NavLink>
                     </AuthorizeView>
     
+                    @* Settings menu disabled for everyone as requested
                     <AuthorizeView Policy="ShowMenu_Settings" Context="settingsMenuContext">
                         <NavLink href="/settings" class="vscode-tree-item text-decoration-none">
                             <i class="bi bi-gear text-secondary"></i>
                             <span>Settings</span>
                         </NavLink>
                     </AuthorizeView>
+                    *@
     
                     <AuthorizeView Policy="ShowMenu_Governance" Context="govMenuContext">
                         <div class="vscode-tree-item py-1 text-muted mt-3" style="font-family: var(--font-heading); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary) !important;">
