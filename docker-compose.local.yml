@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # 1. API Container (Pulls from your GitHub Container Registry)
+  api:
+    image: ghcr.io/baskarkannappan/assoc-api:local
+    ports:
+      - "5001:5001"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal;Database=AssociationManageruatv1;User Id=appuser;Password=Sandhya@143;TrustServerCertificate=True
+      - ASPNETCORE_ENVIRONMENT=Development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # 2. Corporate API Container
+  corp-api:
+    image: ghcr.io/baskarkannappan/assoc-corp-api:local
+    ports:
+      - "7010:7010"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal;Database=AssociationManageruatv1;User Id=appuser;Password=Sandhya@143;TrustServerCertificate=True
+      - ASPNETCORE_ENVIRONMENT=Development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # 3. API Gateway Container
+  gateway:
+    image: ghcr.io/baskarkannappan/assoc-gateway:local
+    ports:
+      - "7000:7000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
