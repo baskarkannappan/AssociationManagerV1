@@ -19,22 +19,22 @@ GO
 
 -- 3. TENANTS
 SET IDENTITY_INSERT [corp].[Tenants] ON;
-INSERT INTO [corp].[Tenants] (TenantId, Name, Domain, IsActive, CreatedDate) VALUES
-(1, 'Default Platform Tenant', 'platform.com', 1, GETUTCDATE());
+INSERT INTO [corp].[Tenants] (TenantId, Name, IsActive, CreatedDate) VALUES
+(1, 'Default Platform Tenant', 1, GETUTCDATE());
 SET IDENTITY_INSERT [corp].[Tenants] OFF;
 GO
 
 -- 4. ASSOCIATIONS
 SET IDENTITY_INSERT [corp].[Associations] ON;
-INSERT INTO [corp].[Associations] (AssociationId, TenantId, Name, IsActive, CreatedDate) VALUES
-(1, 1, 'Springfield Gardens HOA', 1, GETUTCDATE());
+INSERT INTO [corp].[Associations] (AssociationId, TenantId, Name, CreatedDate) VALUES
+(1, 1, 'Springfield Gardens HOA', GETUTCDATE());
 SET IDENTITY_INSERT [corp].[Associations] OFF;
 GO
 
 -- 5. CORPORATE PLATFORM ACCOUNTS
 SET IDENTITY_INSERT [corp].[PlatformAccounts] ON;
-INSERT INTO [corp].[PlatformAccounts] (Id, TenantId, AccountName, Provider, IsActive) VALUES
-(1, 1, 'Main Corporate Account', 'Razorpay', 1);
+INSERT INTO [corp].[PlatformAccounts] (Id, AccountName, IsActive) VALUES
+(1, 'Main Corporate Account', 1);
 SET IDENTITY_INSERT [corp].[PlatformAccounts] OFF;
 GO
 

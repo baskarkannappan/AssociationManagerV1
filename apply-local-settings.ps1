@@ -22,7 +22,11 @@ Write-Host "Applying to AssociationManager.Gateway..."
 $gatewayPath = "AssociationManager.Gateway/appsettings.json"
 if (Test-Path $gatewayPath) {
     $gatewayBase = Get-Content $gatewayPath | ConvertFrom-Json
-    $settings.ReverseProxy = $gatewayBase.ReverseProxy # Preserve the routes
+    if (-not (Get-Member -InputObject $settings -Name "ReverseProxy")) {
+        $settings | Add-Member -NotePropertyName "ReverseProxy" -NotePropertyValue $gatewayBase.ReverseProxy -Force
+    } else {
+        $settings.ReverseProxy = $gatewayBase.ReverseProxy
+    }
     $settings | ConvertTo-Json -Depth 10 | Out-File "AssociationManager.Gateway/appsettings.Development.json" -Encoding utf8
 }
 
@@ -42,5 +46,14 @@ $funcSettings = @{
     }
 }
 $funcSettings | ConvertTo-Json -Depth 10 | Out-File "AssociationManager.Functions.Email/local.settings.json" -Encoding utf8
+
+# 5. Apply to Database Migration Project
+Write-Host "Applying to AssociationManager.Database..."
+$dbSettings = @{
+    ConnectionStrings = @{
+        DefaultConnection = $settings.ConnectionStrings.DefaultConnection
+    }
+}
+$dbSettings | ConvertTo-Json -Depth 10 | Out-File "AssociationManager.Database/appsettings.json" -Encoding utf8
 
 Write-Host "Done! All projects are now configured for local development." -ForegroundColor Green

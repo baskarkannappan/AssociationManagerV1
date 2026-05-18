@@ -19,6 +19,8 @@ using System.IdentityModel.Tokens.Jwt;
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Microsoft.Identity.Web;
+using Hangfire;
+using Hangfire.SqlServer;
 
 Console.WriteLine("[BOOTSTRAP] Corporate API starting...");
 
@@ -148,6 +150,22 @@ try
     // Billing Strategies
     builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.FixedBillingStrategy>();
     builder.Services.AddScoped<AssociationManager.Services.Billing.IBillingStrategy, AssociationManager.Services.Billing.AreaBasedBillingStrategy>();
+
+    // Hangfire Configuration
+    builder.Services.AddHangfire(configuration => configuration
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"), new SqlServerStorageOptions
+        {
+            CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+            SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+            QueuePollInterval = TimeSpan.FromMinutes(5),
+            UseRecommendedIsolationLevel = true,
+            DisableGlobalLocks = true
+        }));
+
+    builder.Services.AddHangfireServer();
 
     // Caching
     builder.Services.AddDistributedMemoryCache();
@@ -290,6 +308,7 @@ try
     app.UseCors("AllowClient");
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseHangfireDashboard("/hangfire");
 
     app.MapControllers();
     app.MapHealthChecks("/health");

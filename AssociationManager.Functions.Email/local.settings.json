@@ -1,14 +1,13 @@
-{
-    "IsEncrypted": false,
-    "Values": {
-        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "KeyVaultName": "kv-assocmgr-dev-unique",
-        "Smtp:Host": "REPLACE_IN_KEYVAULT",
-        "Smtp:Port": "587",
-        "Smtp:Username": "REPLACE_IN_KEYVAULT",
-        "Smtp:Password": "REPLACE_IN_KEYVAULT",
-        "Smtp:FromEmail": "REPLACE_IN_KEYVAULT",
-        "Smtp:FromName": "Association Manager"
-    }
+﻿{
+    "IsEncrypted":  false,
+    "Values":  {
+                   "Smtp:Password":  "YOUR_GMAIL_APP_PASSWORD",
+                   "Smtp:Host":  "smtp.gmail.com",
+                   "AzureWebJobsStorage":  "UseDevelopmentStorage=true",
+                   "Smtp:FromEmail":  "MyAssociationManager005@gmail.com",
+                   "Smtp:FromName":  "Association Manager (Local)",
+                   "FUNCTIONS_WORKER_RUNTIME":  "dotnet-isolated",
+                   "Smtp:Port":  587,
+                   "Smtp:Username":  "MyAssociationManager005@gmail.com"
+               }
 }
